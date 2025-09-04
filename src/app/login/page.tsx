@@ -86,7 +86,7 @@ export default function LoginPage() {
           <h1 className="text-5xl font-bold bg-gradient-to-r from-slate-900 via-indigo-800 to-slate-900 bg-clip-text text-transparent mb-4 tracking-tight">
             Connexion
           </h1>
-          <p className="text-slate-600 text-xl font-medium">
+          <p className="text-primary-600 text-xl font-medium">
             Accédez à votre espace personnel
           </p>
         </div>
@@ -129,7 +129,7 @@ export default function LoginPage() {
                   onChange={handleChange}
                   required
                   disabled={isSubmitting || loading}
-                  className="w-full px-5 py-5 pl-14 border-2 border-slate-200 rounded-2xl focus:ring-4 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all duration-300 bg-white/80 backdrop-blur-sm hover:bg-white hover:border-slate-300 text-slate-900 placeholder-slate-500 font-medium shadow-sm hover:shadow-md disabled:opacity-50 disabled:cursor-not-allowed"
+                  className="w-full px-5 py-5 pl-14 border-2 border-slate-200 rounded-2xl focus:ring-4 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all duration-300 bg-white/80 backdrop-blur-sm hover:bg-white hover:border-primary-300 text-primary-900 placeholder-slate-500 font-medium shadow-sm hover:shadow-md disabled:opacity-50 disabled:cursor-not-allowed"
                   placeholder="Entrez votre matricule"
                 />
                 <User className="absolute left-5 top-1/2 transform -translate-y-1/2 w-5 h-5 text-slate-400 group-hover:text-indigo-500 transition-colors duration-300" />
@@ -153,7 +153,7 @@ export default function LoginPage() {
                   onChange={handleChange}
                   required
                   disabled={isSubmitting || loading}
-                  className="w-full px-5 py-5 pl-14 pr-14 border-2 border-slate-200 rounded-2xl focus:ring-4 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all duration-300 bg-white/80 backdrop-blur-sm hover:bg-white hover:border-slate-300 text-slate-900 placeholder-slate-500 font-medium shadow-sm hover:shadow-md disabled:opacity-50 disabled:cursor-not-allowed"
+                  className="w-full px-5 py-5 pl-14 pr-14 border-2 border-slate-200 rounded-2xl focus:ring-4 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all duration-300 bg-white/80 backdrop-blur-sm hover:bg-white hover:border-primary-300 text-primary-900 placeholder-slate-500 font-medium shadow-sm hover:shadow-md disabled:opacity-50 disabled:cursor-not-allowed"
                   placeholder="Entrez votre mot de passe"
                 />
                 <Lock className="absolute left-5 top-1/2 transform -translate-y-1/2 w-5 h-5 text-slate-400 group-hover:text-indigo-500 transition-colors duration-300" />
@@ -196,7 +196,7 @@ export default function LoginPage() {
           </form>
 
           <div className="mt-10 text-center relative z-10">
-            <p className="text-sm text-slate-600 font-medium">
+            <p className="text-sm text-primary-600 font-medium">
               Pas encore de compte ?{" "}
               <Link
                 href="/register"

@@ -5,6 +5,7 @@ export interface Agent {
   matricule: string;
   nom: string;
   prenom: string;
+  email: string;
   fonction: string;
   dateNaissance: string;
   lieuNaissance: string;
@@ -89,6 +90,7 @@ export interface AgentFormData {
   matricule: string;
   nom: string;
   prenom: string;
+  email: string;
   fonction: string;
   dateNaissance: string;
   lieuNaissance: string;

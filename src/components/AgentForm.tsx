@@ -23,6 +23,7 @@ export default function AgentForm({
     matricule: "",
     nom: "",
     prenom: "",
+    email: "",
     fonction: "",
     dateNaissance: "",
     lieuNaissance: "",
@@ -40,6 +41,7 @@ export default function AgentForm({
         matricule: agent.matricule,
         nom: agent.nom,
         prenom: agent.prenom,
+        email: agent.email,
         fonction: agent.fonction,
         dateNaissance: agent.dateNaissance,
         lieuNaissance: agent.lieuNaissance,
@@ -53,6 +55,7 @@ export default function AgentForm({
         matricule: "",
         nom: "",
         prenom: "",
+        email: "",
         fonction: "",
         dateNaissance: "",
         lieuNaissance: "",
@@ -72,6 +75,7 @@ export default function AgentForm({
       newErrors.matricule = "Le matricule est requis";
     if (!formData.nom.trim()) newErrors.nom = "Le nom est requis";
     if (!formData.prenom.trim()) newErrors.prenom = "Le prénom est requis";
+    if (!formData.email.trim()) newErrors.email = "L'email est requis";
     if (!formData.fonction.trim())
       newErrors.fonction = "La fonction est requise";
     if (!formData.dateNaissance)
@@ -103,14 +107,14 @@ export default function AgentForm({
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
       <div className="bg-white rounded-xl shadow-xl max-w-2xl w-full mx-4 max-h-[90vh] overflow-y-auto">
         <div className="p-6">
           {/* Header */}
           <div className="flex items-center justify-between mb-6">
             <div className="flex items-center space-x-3">
               <div className="w-10 h-10 bg-slate-100 rounded-xl flex items-center justify-center shadow-sm">
-                <User className="w-5 h-5 text-slate-700" />
+                <User className="w-5 h-5 text-gray-700" />
               </div>
               <h3 className="text-xl font-bold text-slate-900">
                 {mode === "create" ? "Nouvel Agent" : "Modifier l'Agent"}
@@ -128,21 +132,21 @@ export default function AgentForm({
           <form onSubmit={handleSubmit} className="space-y-6">
             {/* Informations personnelles */}
             <div className="space-y-4">
-              <h4 className="text-lg font-semibold text-slate-900 border-b border-slate-200 pb-2">
+              <h4 className="text-lg font-semibold text-slate-900 border-b border-gray-200 pb-2">
                 Informations personnelles
               </h4>
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-sm font-semibold text-slate-700 mb-2">
+                  <label className="block text-sm font-semibold text-gray-700 mb-2">
                     Matricule *
                   </label>
                   <input
                     type="text"
                     value={formData.matricule}
                     onChange={(e) => handleChange("matricule", e.target.value)}
-                    className={`w-full px-3 py-2.5 border rounded-lg focus:ring-2 focus:ring-slate-500 focus:border-slate-500 ${
-                      errors.matricule ? "border-red-300" : "border-slate-300"
+                    className={`w-full text-black px-3 py-2.5 border rounded-lg focus:ring-2 focus:ring-slate-500 focus:border-slate-500 ${
+                      errors.matricule ? "border-red-300" : "border-gray-300"
                     }`}
                     placeholder="Ex: AG001"
                   />
@@ -154,14 +158,14 @@ export default function AgentForm({
                 </div>
 
                 <div>
-                  <label className="block text-sm font-semibold text-slate-700 mb-2">
+                  <label className="block text-sm font-semibold text-gray-700 mb-2">
                     Fonction *
                   </label>
                   <select
                     value={formData.fonction}
                     onChange={(e) => handleChange("fonction", e.target.value)}
-                    className={`w-full px-3 py-2.5 border rounded-lg focus:ring-2 focus:ring-slate-500 focus:border-slate-500 ${
-                      errors.fonction ? "border-red-300" : "border-slate-300"
+                    className={`w-full text-black px-3 py-2.5 border rounded-lg focus:ring-2 focus:ring-slate-500 focus:border-slate-500 ${
+                      errors.fonction ? "border-red-300" : "border-gray-300"
                     }`}
                   >
                     <option value="">Sélectionner une fonction</option>
@@ -180,15 +184,15 @@ export default function AgentForm({
                 </div>
 
                 <div>
-                  <label className="block text-sm font-semibold text-slate-700 mb-2">
+                  <label className="block text-sm font-semibold text-gray-700 mb-2">
                     Prénom *
                   </label>
                   <input
                     type="text"
                     value={formData.prenom}
                     onChange={(e) => handleChange("prenom", e.target.value)}
-                    className={`w-full px-3 py-2.5 border rounded-lg focus:ring-2 focus:ring-slate-500 focus:border-slate-500 ${
-                      errors.prenom ? "border-red-300" : "border-slate-300"
+                    className={`w-full text-black px-3 py-2.5 border rounded-lg focus:ring-2 focus:ring-slate-500 focus:border-slate-500 ${
+                      errors.prenom ? "border-red-300" : "border-gray-300"
                     }`}
                     placeholder="Prénom"
                   />
@@ -198,15 +202,15 @@ export default function AgentForm({
                 </div>
 
                 <div>
-                  <label className="block text-sm font-semibold text-slate-700 mb-2">
+                  <label className="block text-sm font-semibold text-gray-700 mb-2">
                     Nom *
                   </label>
                   <input
                     type="text"
                     value={formData.nom}
                     onChange={(e) => handleChange("nom", e.target.value)}
-                    className={`w-full px-3 py-2.5 border rounded-lg focus:ring-2 focus:ring-slate-500 focus:border-slate-500 ${
-                      errors.nom ? "border-red-300" : "border-slate-300"
+                    className={`w-full text-black px-3 py-2.5 border rounded-lg focus:ring-2 focus:ring-slate-500 focus:border-slate-500 ${
+                      errors.nom ? "border-red-300" : "border-gray-300"
                     }`}
                     placeholder="Nom"
                   />
@@ -216,7 +220,25 @@ export default function AgentForm({
                 </div>
 
                 <div>
-                  <label className="block text-sm font-semibold text-slate-700 mb-2">
+                  <label className="block text-sm font-semibold text-gray-700 mb-2">
+                    Email *
+                  </label>
+                  <input
+                    type="email"
+                    value={formData.email}
+                    onChange={(e) => handleChange("email", e.target.value)}
+                    className={`w-full text-black px-3 py-2.5 border rounded-lg focus:ring-2 focus:ring-slate-500 focus:border-slate-500 ${
+                      errors.email ? "border-red-300" : "border-gray-300"
+                    }`}
+                    placeholder="Ex: jean.dupont@entreprise.com"
+                  />
+                  {errors.email && (
+                    <p className="text-red-600 text-sm mt-1">{errors.email}</p>
+                  )}
+                </div>
+
+                <div>
+                  <label className="block text-sm font-semibold text-gray-700 mb-2">
                     Date de naissance *
                   </label>
                   <input
@@ -225,10 +247,10 @@ export default function AgentForm({
                     onChange={(e) =>
                       handleChange("dateNaissance", e.target.value)
                     }
-                    className={`w-full px-3 py-2.5 border rounded-lg focus:ring-2 focus:ring-slate-500 focus:border-slate-500 ${
+                    className={`w-full text-white bg-gray-700 px-3 py-2.5 border rounded-lg focus:ring-2 focus:ring-slate-500 focus:border-slate-500 ${
                       errors.dateNaissance
-                        ? "border-red-300"
-                        : "border-slate-300"
+                        ? "border-red-500"
+                        : "border-gray-300"
                     }`}
                   />
                   {errors.dateNaissance && (
@@ -239,7 +261,7 @@ export default function AgentForm({
                 </div>
 
                 <div>
-                  <label className="block text-sm font-semibold text-slate-700 mb-2">
+                  <label className="block text-sm font-semibold text-gray-700 mb-2">
                     Lieu de naissance *
                   </label>
                   <input
@@ -248,10 +270,10 @@ export default function AgentForm({
                     onChange={(e) =>
                       handleChange("lieuNaissance", e.target.value)
                     }
-                    className={`w-full px-3 py-2.5 border rounded-lg focus:ring-2 focus:ring-slate-500 focus:border-slate-500 ${
+                    className={`w-full text-black px-3 py-2.5 border rounded-lg focus:ring-2 focus:ring-slate-500 focus:border-slate-500 ${
                       errors.lieuNaissance
                         ? "border-red-300"
-                        : "border-slate-300"
+                        : "border-gray-300"
                     }`}
                     placeholder="Ville de naissance"
                   />
@@ -263,7 +285,7 @@ export default function AgentForm({
                 </div>
 
                 <div>
-                  <label className="block text-sm font-semibold text-slate-700 mb-2">
+                  <label className="block text-sm font-semibold text-gray-700 mb-2">
                     Sexe *
                   </label>
                   <select
@@ -271,7 +293,7 @@ export default function AgentForm({
                     onChange={(e) =>
                       handleChange("sexe", e.target.value as "M" | "F")
                     }
-                    className="w-full px-3 py-2.5 border border-slate-300 rounded-lg focus:ring-2 focus:ring-slate-500 focus:border-slate-500"
+                    className="w-full text-black px-3 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-slate-500 focus:border-slate-500"
                   >
                     <option value="M">Masculin</option>
                     <option value="F">Féminin</option>
@@ -279,7 +301,7 @@ export default function AgentForm({
                 </div>
 
                 <div>
-                  <label className="block text-sm font-semibold text-slate-700 mb-2">
+                  <label className="block text-sm font-semibold text-gray-700 mb-2">
                     Situation matrimoniale
                   </label>
                   <select
@@ -287,7 +309,7 @@ export default function AgentForm({
                     onChange={(e) =>
                       handleChange("situationMatrimoniale", e.target.value)
                     }
-                    className="w-full px-3 py-2.5 border border-slate-300 rounded-lg focus:ring-2 focus:ring-slate-500 focus:border-slate-500"
+                    className="w-full text-black px-3 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-slate-500 focus:border-slate-500"
                   >
                     <option value="Célibataire">Célibataire</option>
                     <option value="Marié(e)">Marié(e)</option>
@@ -300,21 +322,21 @@ export default function AgentForm({
 
             {/* Informations de contact */}
             <div className="space-y-4">
-              <h4 className="text-lg font-semibold text-slate-900 border-b border-slate-200 pb-2">
+              <h4 className="text-lg font-semibold text-slate-900 border-b border-gray-200 pb-2">
                 Informations de contact
               </h4>
 
               <div className="grid grid-cols-1 gap-4">
                 <div>
-                  <label className="block text-sm font-semibold text-slate-700 mb-2">
+                  <label className="block text-sm font-semibold text-gray-700 mb-2">
                     Téléphone *
                   </label>
                   <input
                     type="tel"
                     value={formData.telephone}
                     onChange={(e) => handleChange("telephone", e.target.value)}
-                    className={`w-full px-3 py-2.5 border rounded-lg focus:ring-2 focus:ring-slate-500 focus:border-slate-500 ${
-                      errors.telephone ? "border-red-300" : "border-slate-300"
+                    className={`w-full text-black px-3 py-2.5 border rounded-lg focus:ring-2 focus:ring-slate-500 focus:border-slate-500 ${
+                      errors.telephone ? "border-red-300" : "border-gray-300"
                     }`}
                     placeholder="Ex: 01 23 45 67 89"
                   />
@@ -326,15 +348,15 @@ export default function AgentForm({
                 </div>
 
                 <div>
-                  <label className="block text-sm font-semibold text-slate-700 mb-2">
+                  <label className="block text-sm font-semibold text-gray-700 mb-2">
                     Adresse *
                   </label>
                   <textarea
                     value={formData.adresse}
                     onChange={(e) => handleChange("adresse", e.target.value)}
                     rows={3}
-                    className={`w-full px-3 py-2.5 border rounded-lg focus:ring-2 focus:ring-slate-500 focus:border-slate-500 ${
-                      errors.adresse ? "border-red-300" : "border-slate-300"
+                    className={`w-full text-black px-3 py-2.5 border rounded-lg focus:ring-2 focus:ring-slate-500 focus:border-slate-500 ${
+                      errors.adresse ? "border-red-300" : "border-gray-300"
                     }`}
                     placeholder="Adresse complète"
                   />
@@ -348,17 +370,17 @@ export default function AgentForm({
             </div>
 
             {/* Actions */}
-            <div className="flex justify-end space-x-3 pt-6 border-t border-slate-200">
+            <div className="flex justify-end space-x-3 pt-6 border-t border-gray-200">
               <button
                 type="button"
                 onClick={onClose}
-                className="px-4 py-2 border border-slate-300 rounded-lg text-slate-700 hover:bg-slate-50 transition-colors"
+                className="px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 transition-colors"
               >
                 Annuler
               </button>
               <button
                 type="submit"
-                className="px-4 py-2 bg-slate-700 text-white rounded-lg hover:bg-slate-800 transition-colors flex items-center space-x-2"
+                className="px-4 py-2 bg-primary-700 text-white rounded-lg hover:bg-primary-800 transition-colors flex items-center space-x-2"
               >
                 <Save className="w-4 h-4" />
                 <span>{mode === "create" ? "Créer" : "Modifier"}</span>

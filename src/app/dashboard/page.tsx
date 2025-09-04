@@ -83,23 +83,23 @@ export default function DashboardPage() {
       <DashboardLayout>
         {/* Carte de bienvenue */}
         <div className="mb-8">
-          <div className="bg-gradient-to-r from-slate-600 to-slate-700 rounded-2xl p-8 text-white shadow-xl">
+          <div className="bg-gradient-primary rounded-2xl p-8 text-white shadow-md-xl">
             <div className="flex items-center justify-between">
               <div className="flex-1">
                 <h1 className="text-3xl font-bold mb-2">
                   Bienvenue, {appUser?.prenom} ! 👋
                 </h1>
-                <p className="text-slate-200 text-lg mb-4">
+                <p className="text-primary-200 text-lg mb-4">
                   Voici un aperçu de votre tableau de bord personnel
                 </p>
                 <div className="flex items-center space-x-4 text-sm">
                   <div className="flex items-center space-x-2">
                     <div className="w-2 h-2 bg-green-400 rounded-full"></div>
-                    <span className="text-slate-200">Connecté</span>
+                    <span className="text-primary-200">Connecté</span>
                   </div>
                   <div className="flex items-center space-x-2">
-                    <div className="w-2 h-2 bg-blue-400 rounded-full"></div>
-                    <span className="text-slate-200">
+                    <div className="w-2 h-2 bg-primary-400 rounded-full"></div>
+                    <span className="text-primary-200">
                       Dernière connexion: Aujourd&apos;hui
                     </span>
                   </div>
@@ -126,19 +126,19 @@ export default function DashboardPage() {
             return (
               <div
                 key={stat.name}
-                className="bg-white rounded-xl p-6 border border-slate-300 shadow-md hover:shadow-lg transition-shadow"
+                className="bg-white rounded-xl p-6 border border-gray-300 shadow-md hover:shadow-md-lg transition-shadow"
               >
                 <div className="flex items-center justify-between">
                   <div>
-                    <p className="text-sm font-medium text-slate-600 mb-1">
+                    <p className="text-sm font-medium text-gray-600 mb-1">
                       {stat.name}
                     </p>
-                    <p className="text-2xl font-bold text-slate-900">
+                    <p className="text-2xl font-bold text-gray-900">
                       {stat.value}
                     </p>
                   </div>
-                  <div className="w-12 h-12 bg-slate-100 rounded-lg flex items-center justify-center shadow-sm">
-                    <Icon className="w-6 h-6 text-slate-700" />
+                  <div className="w-12 h-12 bg-primary-100 rounded-lg flex items-center justify-center shadow-md">
+                    <Icon className="w-6 h-6 text-primary-700" />
                   </div>
                 </div>
                 <div className="mt-4 flex items-center">
@@ -151,7 +151,7 @@ export default function DashboardPage() {
                   >
                     {stat.change}
                   </span>
-                  <span className="text-sm text-slate-500 ml-2">
+                  <span className="text-sm text-primary-500 ml-2">
                     vs mois dernier
                   </span>
                 </div>
@@ -163,42 +163,42 @@ export default function DashboardPage() {
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
           {/* Informations personnelles */}
           <div className="lg:col-span-2">
-            <div className="bg-white rounded-xl p-6 border border-slate-300 shadow-md">
-              <h2 className="text-xl font-bold text-slate-900 mb-6">
+            <div className="bg-white rounded-xl p-6 border border-gray-300 shadow-md">
+              <h2 className="text-xl font-bold text-gray-900 mb-6">
                 Mes informations personnelles
               </h2>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 {/* Informations personnelles */}
                 <div className="space-y-4">
                   <div className="flex items-center space-x-3 mb-4">
-                    <div className="w-10 h-10 bg-slate-100 rounded-xl flex items-center justify-center shadow-sm">
-                      <User className="w-5 h-5 text-slate-700" />
+                    <div className="w-10 h-10 bg-primary-100 rounded-xl flex items-center justify-center shadow-md">
+                      <User className="w-5 h-5 text-primary-700" />
                     </div>
-                    <h3 className="text-lg font-bold text-slate-900">
+                    <h3 className="text-lg font-bold text-gray-900">
                       Informations personnelles
                     </h3>
                   </div>
                   <div className="space-y-3">
                     <div>
-                      <p className="text-sm text-slate-600">Nom complet</p>
-                      <p className="font-medium text-slate-900">
+                      <p className="text-sm text-gray-600">Nom complet</p>
+                      <p className="font-medium text-gray-900">
                         {appUser?.prenom} {appUser?.nom}
                       </p>
                     </div>
                     {appUser?.date_naissance && (
                       <div>
-                        <p className="text-sm text-slate-600">
+                        <p className="text-sm text-gray-600">
                           Date de naissance
                         </p>
-                        <p className="font-medium text-slate-900">
+                        <p className="font-medium text-gray-900">
                           {appUser.date_naissance}
                         </p>
                       </div>
                     )}
                     {appUser?.sexe && (
                       <div>
-                        <p className="text-sm text-slate-600">Sexe</p>
-                        <p className="font-medium text-slate-900">
+                        <p className="text-sm text-gray-600">Sexe</p>
+                        <p className="font-medium text-gray-900">
                           {appUser.sexe}
                         </p>
                       </div>
@@ -209,24 +209,24 @@ export default function DashboardPage() {
                 {/* Informations professionnelles */}
                 <div className="space-y-4">
                   <div className="flex items-center space-x-3 mb-4">
-                    <div className="w-10 h-10 bg-slate-100 rounded-xl flex items-center justify-center shadow-sm">
-                      <Building2 className="w-5 h-5 text-slate-700" />
+                    <div className="w-10 h-10 bg-primary-100 rounded-xl flex items-center justify-center shadow-md">
+                      <Building2 className="w-5 h-5 text-primary-700" />
                     </div>
-                    <h3 className="text-lg font-bold text-slate-900">
+                    <h3 className="text-lg font-bold text-gray-900">
                       Informations professionnelles
                     </h3>
                   </div>
                   <div className="space-y-3">
                     <div>
-                      <p className="text-sm text-slate-600">Matricule</p>
-                      <p className="font-medium text-slate-900">
+                      <p className="text-sm text-gray-600">Matricule</p>
+                      <p className="font-medium text-gray-900">
                         {appUser?.matricule}
                       </p>
                     </div>
                     {appUser?.fonction && (
                       <div>
-                        <p className="text-sm text-slate-600">Fonction</p>
-                        <p className="font-medium text-slate-900">
+                        <p className="text-sm text-gray-600">Fonction</p>
+                        <p className="font-medium text-gray-900">
                           {appUser.fonction}
                         </p>
                       </div>
@@ -237,24 +237,22 @@ export default function DashboardPage() {
                 {/* Contact */}
                 <div className="space-y-4">
                   <div className="flex items-center space-x-3 mb-4">
-                    <div className="w-10 h-10 bg-slate-100 rounded-xl flex items-center justify-center shadow-sm">
-                      <Mail className="w-5 h-5 text-slate-700" />
+                    <div className="w-10 h-10 bg-primary-100 rounded-xl flex items-center justify-center shadow-md">
+                      <Mail className="w-5 h-5 text-primary-700" />
                     </div>
-                    <h3 className="text-lg font-bold text-slate-900">
-                      Contact
-                    </h3>
+                    <h3 className="text-lg font-bold text-gray-900">Contact</h3>
                   </div>
                   <div className="space-y-3">
                     <div>
-                      <p className="text-sm text-slate-600">Email</p>
-                      <p className="font-medium text-slate-900">
+                      <p className="text-sm text-gray-600">Email</p>
+                      <p className="font-medium text-gray-900">
                         {appUser?.email}
                       </p>
                     </div>
                     {appUser?.telephone && (
                       <div>
-                        <p className="text-sm text-slate-600">Téléphone</p>
-                        <p className="font-medium text-slate-900">
+                        <p className="text-sm text-gray-600">Téléphone</p>
+                        <p className="font-medium text-gray-900">
                           {appUser.telephone}
                         </p>
                       </div>
@@ -266,26 +264,26 @@ export default function DashboardPage() {
                 {appUser?.lieu_naissance && (
                   <div className="space-y-4">
                     <div className="flex items-center space-x-3 mb-4">
-                      <div className="w-10 h-10 bg-slate-100 rounded-xl flex items-center justify-center shadow-sm">
-                        <MapPin className="w-5 h-5 text-slate-700" />
+                      <div className="w-10 h-10 bg-primary-100 rounded-xl flex items-center justify-center shadow-md">
+                        <MapPin className="w-5 h-5 text-primary-700" />
                       </div>
-                      <h3 className="text-lg font-bold text-slate-900">
+                      <h3 className="text-lg font-bold text-gray-900">
                         Localisation
                       </h3>
                     </div>
                     <div className="space-y-3">
                       <div>
-                        <p className="text-sm text-slate-600">
+                        <p className="text-sm text-gray-600">
                           Lieu de naissance
                         </p>
-                        <p className="font-medium text-slate-900">
+                        <p className="font-medium text-gray-900">
                           {appUser.lieu_naissance}
                         </p>
                       </div>
                       {appUser?.adresse && (
                         <div>
-                          <p className="text-sm text-slate-600">Adresse</p>
-                          <p className="font-medium text-slate-900">
+                          <p className="text-sm text-gray-600">Adresse</p>
+                          <p className="font-medium text-gray-900">
                             {appUser.adresse}
                           </p>
                         </div>
@@ -299,8 +297,8 @@ export default function DashboardPage() {
 
           {/* Activités récentes */}
           <div className="lg:col-span-1">
-            <div className="bg-white rounded-xl p-6 border border-slate-300 shadow-md">
-              <h2 className="text-xl font-bold text-slate-900 mb-6">
+            <div className="bg-white rounded-xl p-6 border border-gray-300 shadow-md">
+              <h2 className="text-xl font-bold text-gray-900 mb-6">
                 Activités récentes
               </h2>
               <div className="space-y-4">
@@ -315,10 +313,10 @@ export default function DashboardPage() {
                         <Icon className="w-4 h-4 text-slate-700" />
                       </div>
                       <div className="flex-1 min-w-0">
-                        <p className="text-sm font-medium text-slate-900">
+                        <p className="text-sm font-medium text-gray-900">
                           {activity.title}
                         </p>
-                        <p className="text-sm text-slate-600 mt-1">
+                        <p className="text-sm text-gray-600 mt-1">
                           {activity.description}
                         </p>
                         <p className="text-xs text-slate-400 mt-1 flex items-center">

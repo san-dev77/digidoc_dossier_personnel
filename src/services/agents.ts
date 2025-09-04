@@ -18,6 +18,7 @@ export const agentsService = {
         matricule: agent.matricule,
         nom: agent.nom,
         prenom: agent.prenom,
+        email: agent.email || "",
         fonction: agent.fonction || "",
         dateNaissance: agent.date_naissance || "",
         lieuNaissance: agent.lieu_naissance || "",
@@ -87,6 +88,7 @@ export const agentsService = {
             matricule: agentData.matricule,
             nom: agentData.nom,
             prenom: agentData.prenom,
+            email: agentData.email,
             fonction: agentData.fonction,
             date_naissance: agentData.dateNaissance,
             lieu_naissance: agentData.lieuNaissance,
@@ -137,6 +139,7 @@ export const agentsService = {
       if (agentData.matricule) updateData.matricule = agentData.matricule;
       if (agentData.nom) updateData.nom = agentData.nom;
       if (agentData.prenom) updateData.prenom = agentData.prenom;
+      if (agentData.email) updateData.email = agentData.email;
       if (agentData.fonction) updateData.fonction = agentData.fonction;
       if (agentData.dateNaissance)
         updateData.date_naissance = agentData.dateNaissance;
@@ -212,6 +215,7 @@ export const agentsService = {
         matricule: agent.matricule,
         nom: agent.nom,
         prenom: agent.prenom,
+        email: agent.email || "",
         fonction: agent.fonction || "",
         dateNaissance: agent.date_naissance || "",
         lieuNaissance: agent.lieu_naissance || "",

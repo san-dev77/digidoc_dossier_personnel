@@ -11,6 +11,7 @@ import {
   Building2,
   ChevronLeft,
   ChevronRight,
+  Layers3,
 } from "lucide-react";
 import { useState } from "react";
 
@@ -39,10 +40,16 @@ export default function Sidebar({
       current: pathname === "/dashboard",
     },
     {
-      name: "Agents",
+      name: "Personnels",
       href: "/agents",
       icon: Users,
       current: pathname.startsWith("/agents"),
+    },
+    {
+      name: "Rubriques",
+      href: "/rubriques",
+      icon: Layers3,
+      current: pathname.startsWith("/rubriques"),
     },
     {
       name: "Dossiers",
@@ -66,28 +73,28 @@ export default function Sidebar({
 
   return (
     <div
-      className={`bg-slate-50 border-r border-slate-300 transition-all duration-300 ${
+      className={`bg-primary-50 border-r border-primary-300 transition-all duration-300 ${
         collapsed ? "w-16" : "w-64"
-      } flex flex-col h-full shadow-lg`}
+      } flex flex-col h-full shadow-primary-lg`}
     >
       {/* Logo et bouton de collapse */}
-      <div className="flex items-center justify-between p-4 border-b border-slate-300 bg-white">
+      <div className="flex items-center justify-between p-4 border-b border-primary-300 bg-white">
         {!collapsed && (
           <div className="flex items-center space-x-3">
-            <div className="w-8 h-8 bg-gradient-to-br from-slate-600 to-slate-700 rounded-lg flex items-center justify-center shadow-md">
+            <div className="w-8 h-8 bg-gradient-primary rounded-lg flex items-center justify-center shadow-primary">
               <Building2 className="w-5 h-5 text-white" />
             </div>
-            <span className="text-lg font-bold text-slate-900">DigiDoc</span>
+            <span className="text-lg font-bold text-gray-900">DigiDoc</span>
           </div>
         )}
         <button
           onClick={toggleCollapsed}
-          className="p-1.5 rounded-lg hover:bg-slate-200 transition-colors"
+          className="p-1.5 rounded-lg hover:bg-primary-200 transition-colors"
         >
           {collapsed ? (
-            <ChevronRight className="w-4 h-4 text-slate-700" />
+            <ChevronRight className="w-4 h-4 text-gray-600" />
           ) : (
-            <ChevronLeft className="w-4 h-4 text-slate-700" />
+            <ChevronLeft className="w-4 h-4 text-gray-600" />
           )}
         </button>
       </div>
@@ -102,14 +109,14 @@ export default function Sidebar({
               href={item.href}
               className={`flex items-center space-x-3 px-3 py-2.5 rounded-lg transition-all duration-200 group ${
                 item.current
-                  ? "bg-blue-50 text-slate-700 border-r-3 border-slate-600 shadow-sm"
-                  : "text-slate-700 hover:bg-white hover:text-slate-900 hover:shadow-sm"
+                  ? "bg-primary-100 text-primary-700 border-r-3 border-primary-600 shadow-primary"
+                  : "text-gray-700 hover:bg-white hover:text-gray-900 hover:shadow-sm"
               }`}
             >
               <Icon className={`w-5 h-5 ${collapsed ? "mx-auto" : ""}`} />
               {!collapsed && <span className="font-semibold">{item.name}</span>}
               {collapsed && (
-                <div className="absolute left-16 ml-2 px-3 py-2 bg-slate-800 text-white text-sm rounded-lg opacity-0 group-hover:opacity-100 transition-opacity duration-200 pointer-events-none whitespace-nowrap z-50 shadow-lg">
+                <div className="absolute left-16 ml-2 px-3 py-2 bg-primary-800 text-white text-sm rounded-lg opacity-0 group-hover:opacity-100 transition-opacity duration-200 pointer-events-none whitespace-nowrap z-50 shadow-primary-lg">
                   {item.name}
                 </div>
               )}
@@ -120,8 +127,8 @@ export default function Sidebar({
 
       {/* Footer avec version */}
       {!collapsed && (
-        <div className="p-4 border-t border-slate-300 bg-white">
-          <div className="text-xs text-slate-600 text-center font-medium">
+        <div className="p-4 border-t border-primary-300 bg-white">
+          <div className="text-xs text-gray-600 text-center font-medium">
             DigiDoc Personnel v1.0
           </div>
         </div>
