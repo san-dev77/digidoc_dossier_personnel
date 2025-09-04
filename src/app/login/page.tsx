@@ -4,15 +4,12 @@ import { useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import {
-  Building2,
   Eye,
   EyeOff,
   ArrowLeft,
   User,
   Lock,
   Shield,
-  CheckCircle,
-  Sparkles,
   AlertCircle,
   Loader2,
 } from "lucide-react";
@@ -118,7 +115,7 @@ export default function LoginPage() {
             <div className="group">
               <label
                 htmlFor="matricule"
-                className="block text-sm font-bold text-slate-800 mb-3 flex items-center group-hover:text-indigo-600 transition-colors duration-300"
+                className="flex text-sm font-bold text-slate-800 mb-3 items-center group-hover:text-indigo-600 transition-colors duration-300"
               >
                 <User className="w-4 h-4 mr-3 text-indigo-600 group-hover:scale-110 transition-transform duration-300" />
                 Matricule
@@ -142,7 +139,7 @@ export default function LoginPage() {
             <div className="group">
               <label
                 htmlFor="password"
-                className="block text-sm font-bold text-slate-800 mb-3 flex items-center group-hover:text-indigo-600 transition-colors duration-300"
+                className="flex text-sm font-bold text-slate-800 mb-3 items-center group-hover:text-indigo-600 transition-colors duration-300"
               >
                 <Lock className="w-4 h-4 mr-3 text-indigo-600 group-hover:scale-110 transition-transform duration-300" />
                 Mot de passe
@@ -181,12 +178,17 @@ export default function LoginPage() {
               className="w-full bg-slate-800 cursor-pointer text-white py-5 px-8 rounded-2xl hover:from-indigo-700 hover:via-purple-700 hover:to-indigo-800 transition-all duration-500 font-bold text-lg shadow-[0_20px_40px_-10px_rgba(99,102,241,0.4)] hover:shadow-[0_25px_50px_-15px_rgba(99,102,241,0.5)] transform hover:-translate-y-2 border border-indigo-500/20 relative overflow-hidden group disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none"
             >
               <span className="relative z-10 flex items-center justify-center">
-                {isSubmitting ? (
-                  <Loader2 className="w-6 h-6 mr-3 animate-spin" />
-                ) : (
-                  <Shield className="w-6 h-6 mr-3 group-hover:scale-110 group-hover:rotate-12 transition-all duration-300" />
-                )}
-                {isSubmitting ? "Connexion..." : "Se connecter"}
+                <div className="w-6 h-6 mr-3 flex items-center justify-center">
+                  {isSubmitting ? (
+                    <Loader2 key="loading" className="w-6 h-6 animate-spin" />
+                  ) : (
+                    <Shield
+                      key="shield"
+                      className="w-6 h-6 group-hover:scale-110 group-hover:rotate-12 transition-all duration-300"
+                    />
+                  )}
+                </div>
+                <span>{isSubmitting ? "Connexion..." : "Se connecter"}</span>
               </span>
               <div className="absolute inset-0 bg-gradient-to-r from-white/20 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500"></div>
               <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/10 to-transparent -skew-x-12 -translate-x-full group-hover:translate-x-full transition-transform duration-1000"></div>
