@@ -2,17 +2,17 @@
 /* Pour changer le thème de l'application, modifiez simplement ces variables CSS */
 
 :root {
-  /* Couleurs principales du thème (actuellement slate) */
-  --color-primary-50: #f8fafc;
-  --color-primary-100: #f1f5f9;
-  --color-primary-200: #e2e8f0;
-  --color-primary-300: #cbd5e1;
-  --color-primary-400: #94a3b8;
-  --color-primary-500: #64748b;
-  --color-primary-600: #475569;
-  --color-primary-700: #334155;
-  --color-primary-800: #1e293b;
-  --color-primary-900: #0f172a;
+  /* Couleurs principales du thème (slate plus expressif) */
+  --color-primary-50: #f1f5f9;
+  --color-primary-100: #e2e8f0;
+  --color-primary-200: #cbd5e1;
+  --color-primary-300: #94a3b8;
+  --color-primary-400: #64748b;
+  --color-primary-500: #475569;
+  --color-primary-600: #334155;
+  --color-primary-700: #1e293b;
+  --color-primary-800: #0f172a;
+  --color-primary-900: #020617;
 
   /* Couleurs secondaires (même que primary pour l'instant) */
   --color-secondary-50: #f8fafc;
@@ -71,6 +71,18 @@
   --color-neutral-700: #404040;
   --color-neutral-800: #262626;
   --color-neutral-900: #171717;
+
+  /* Couleurs d'accent expressives */
+  --color-accent-blue: #3b82f6;
+  --color-accent-blue-light: #dbeafe;
+  --color-accent-green: #10b981;
+  --color-accent-green-light: #d1fae5;
+  --color-accent-purple: #8b5cf6;
+  --color-accent-purple-light: #ede9fe;
+  --color-accent-orange: #f59e0b;
+  --color-accent-orange-light: #fef3c7;
+  --color-accent-red: #ef4444;
+  --color-accent-red-light: #fee2e2;
 
   /* Spacing */
   --spacing-xs: 0.25rem; /* 4px */
@@ -287,4 +299,140 @@
 
 .shadow-primary-xl {
   box-shadow: var(--shadow-xl);
+}
+
+/* Classes pour les couleurs d'accent */
+.bg-accent-blue {
+  background-color: var(--color-accent-blue);
+}
+.bg-accent-blue-light {
+  background-color: var(--color-accent-blue-light);
+}
+.bg-accent-green {
+  background-color: var(--color-accent-green);
+}
+.bg-accent-green-light {
+  background-color: var(--color-accent-green-light);
+}
+.bg-accent-purple {
+  background-color: var(--color-accent-purple);
+}
+.bg-accent-purple-light {
+  background-color: var(--color-accent-purple-light);
+}
+.bg-accent-orange {
+  background-color: var(--color-accent-orange);
+}
+.bg-accent-orange-light {
+  background-color: var(--color-accent-orange-light);
+}
+.bg-accent-red {
+  background-color: var(--color-accent-red);
+}
+.bg-accent-red-light {
+  background-color: var(--color-accent-red-light);
+}
+
+.text-accent-blue {
+  color: var(--color-accent-blue);
+}
+.text-accent-green {
+  color: var(--color-accent-green);
+}
+.text-accent-purple {
+  color: var(--color-accent-purple);
+}
+.text-accent-orange {
+  color: var(--color-accent-orange);
+}
+.text-accent-red {
+  color: var(--color-accent-red);
+}
+
+/* Classes pour les effets visuels expressifs */
+.card-elevated {
+  background: white;
+  border-radius: 1rem;
+  box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1);
+  border: 1px solid var(--color-primary-200);
+  transition: all 0.3s ease;
+}
+
+.card-elevated:hover {
+  box-shadow: 0 20px 25px -5px rgb(0 0 0 / 0.1),
+    0 8px 10px -6px rgb(0 0 0 / 0.1);
+  transform: translateY(-2px);
+}
+
+.card-accent {
+  background: linear-gradient(
+    135deg,
+    var(--color-primary-50) 0%,
+    var(--color-primary-100) 100%
+  );
+  border: 2px solid var(--color-primary-200);
+  border-radius: 1rem;
+  box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1);
+}
+
+.button-primary {
+  background: linear-gradient(
+    135deg,
+    var(--color-primary-600) 0%,
+    var(--color-primary-700) 100%
+  );
+  color: white;
+  border: none;
+  border-radius: 0.75rem;
+  padding: 0.75rem 1.5rem;
+  font-weight: 600;
+  box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1);
+  transition: all 0.3s ease;
+}
+
+.button-primary:hover {
+  background: linear-gradient(
+    135deg,
+    var(--color-primary-700) 0%,
+    var(--color-primary-800) 100%
+  );
+  box-shadow: 0 10px 15px -3px rgb(0 0 0 / 0.1);
+  transform: translateY(-1px);
+}
+
+.tab-active {
+  background: white;
+  color: var(--color-primary-600);
+  box-shadow: 0 2px 4px -1px rgb(0 0 0 / 0.1);
+  border: 1px solid var(--color-primary-200);
+}
+
+.stat-card {
+  background: white;
+  border-radius: 1rem;
+  padding: 1.5rem;
+  border: 1px solid var(--color-primary-200);
+  box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1);
+  transition: all 0.3s ease;
+  position: relative;
+  overflow: hidden;
+}
+
+.stat-card::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 4px;
+  background: linear-gradient(
+    90deg,
+    var(--color-primary-500),
+    var(--color-primary-600)
+  );
+}
+
+.stat-card:hover {
+  box-shadow: 0 20px 25px -5px rgb(0 0 0 / 0.1);
+  transform: translateY(-2px);
 }

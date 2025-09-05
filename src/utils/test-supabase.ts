@@ -108,3 +108,60 @@ export const createAgentsTable = async () => {
     return null;
   }
 };
+
+export async function createRubriquesTable(): Promise<boolean> {
+  try {
+    console.log("🔧 Création de la table rubriques...");
+
+    // Note: Cette requête SQL doit être exécutée dans l'éditeur SQL de Supabase
+    const createTableSQL = `
+      CREATE TABLE IF NOT EXISTS rubriques (
+        id SERIAL PRIMARY KEY,
+        nom VARCHAR(100) NOT NULL,
+        description TEXT,
+        created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+        updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+      );
+    `;
+
+    console.log("📝 SQL à exécuter dans Supabase pour les rubriques:");
+    console.log(createTableSQL);
+
+    return true;
+  } catch (error) {
+    console.error(
+      "An unexpected error occurred during rubriques table creation:",
+      error
+    );
+    return false;
+  }
+}
+
+export async function createSousDossiersTable(): Promise<boolean> {
+  try {
+    console.log("🔧 Création de la table sous_dossiers...");
+
+    // Note: Cette requête SQL doit être exécutée dans l'éditeur SQL de Supabase
+    const createTableSQL = `
+      CREATE TABLE IF NOT EXISTS sous_dossiers (
+        id SERIAL PRIMARY KEY,
+        titre VARCHAR(200) NOT NULL,
+        description TEXT,
+        rubrique_id INTEGER NOT NULL REFERENCES rubriques(id) ON DELETE CASCADE,
+        created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+        updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+      );
+    `;
+
+    console.log("📝 SQL à exécuter dans Supabase pour les sous-dossiers:");
+    console.log(createTableSQL);
+
+    return true;
+  } catch (error) {
+    console.error(
+      "An unexpected error occurred during sous_dossiers table creation:",
+      error
+    );
+    return false;
+  }
+}

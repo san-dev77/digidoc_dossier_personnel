@@ -11,6 +11,7 @@ import {
 } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 import ThemeSwitcher from "./ThemeSwitcher";
+import ConnectionStatus from "./ConnectionStatus";
 
 interface TopBarProps {}
 
@@ -72,6 +73,9 @@ export default function TopBar({}: TopBarProps) {
 
         {/* Actions utilisateur */}
         <div className="flex items-center space-x-4">
+          {/* Connection Status */}
+          <ConnectionStatus />
+
           {/* Theme Switcher */}
           <ThemeSwitcher />
 

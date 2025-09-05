@@ -25,7 +25,6 @@ export interface Rubrique {
   id: string;
   nom: string;
   description: string;
-  couleur: string;
   createdAt: string;
   updatedAt: string;
 }
@@ -48,6 +47,7 @@ export interface SousDossier {
   description: string;
   dateCreation: string;
   statut: "ouvert" | "fermé" | "archivé";
+  documentsCount?: number;
   createdAt: string;
   updatedAt: string;
 }
@@ -107,7 +107,6 @@ export interface AgentFormData {
 export interface RubriqueFormData {
   nom: string;
   description: string;
-  couleur: string;
 }
 
 export interface SousDossierFormData {

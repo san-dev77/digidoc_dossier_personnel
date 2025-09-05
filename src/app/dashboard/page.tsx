@@ -3,6 +3,7 @@
 import { useAuth } from "@/hooks/useAuth";
 import AuthGuard from "@/components/AuthGuard";
 import DashboardLayout from "@/components/DashboardLayout";
+import ConnectionTest from "@/components/ConnectionTest";
 import {
   User,
   Building2,
@@ -337,6 +338,9 @@ export default function DashboardPage() {
           </div>
         </div>
       </DashboardLayout>
+
+      {/* Composant de test pour les erreurs de connexion */}
+      <ConnectionTest />
     </AuthGuard>
   );
 }
