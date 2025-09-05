@@ -1,23 +1,10 @@
 import { supabase } from "@/lib/supabase";
-
-export interface Piece {
-  id: string;
-  sousDossierId: string;
-  nom: string;
-  lienFichier: string;
-  typeFichier: string;
-  tailleFichier: number;
-  dateAjout: string;
-  statut: "valide" | "en_attente" | "rejeté";
-  createdAt: string;
-  updatedAt: string;
-}
-
-export interface PieceFormData {
-  nom: string;
-  fichier: File;
-  description?: string;
-}
+import type {
+  Piece,
+  PieceFormData,
+  PieceWithMetadata,
+  MetadataModel,
+} from "@/types";
 
 export const piecesService = {
   async getAllPiecesBySousDossier(sousDossierId: string): Promise<Piece[]> {
@@ -34,11 +21,9 @@ export const piecesService = {
         id: piece.id,
         sousDossierId: piece.sous_dossier_id,
         nom: piece.nom,
-        lienFichier: piece.lien_fichier,
-        typeFichier: piece.type_fichier,
-        tailleFichier: piece.taille_fichier,
-        dateAjout: piece.date_ajout,
+        description: piece.description,
         statut: piece.statut,
+        aMetadonnees: piece.has_meta || false,
         createdAt: piece.created_at,
         updatedAt: piece.updated_at,
       }));
@@ -67,11 +52,9 @@ export const piecesService = {
         id: piece.id,
         sousDossierId: piece.sous_dossier_id,
         nom: piece.nom,
-        lienFichier: piece.lien_fichier,
-        typeFichier: piece.type_fichier,
-        tailleFichier: piece.taille_fichier,
-        dateAjout: piece.date_ajout,
+        description: piece.description,
         statut: piece.statut,
+        aMetadonnees: piece.has_meta || false,
         createdAt: piece.created_at,
         updatedAt: piece.updated_at,
       }));
@@ -86,45 +69,54 @@ export const piecesService = {
     formData: PieceFormData
   ): Promise<Piece> {
     try {
-      // Upload du fichier
-      const fileExt = formData.fichier.name.split(".").pop();
-      const fileName = `${Date.now()}.${fileExt}`;
-      const filePath = `pieces/${sousDossierId}/${fileName}`;
-
-      const { error: uploadError } = await supabase.storage
-        .from("documents")
-        .upload(filePath, formData.fichier);
-
-      if (uploadError) throw uploadError;
-
       // Création de l'enregistrement en base
       const { data, error } = await supabase
         .from("pieces")
         .insert({
           sous_dossier_id: sousDossierId,
           nom: formData.nom,
-          lien_fichier: filePath,
-          type_fichier: formData.fichier.type,
-          taille_fichier: formData.fichier.size,
-          date_ajout: new Date().toISOString(),
-          statut: "en_attente",
+          description: formData.description,
+          has_meta: formData.has_meta,
         })
         .select()
         .single();
 
       if (error) throw error;
 
+      // Créer les métadonnées si elles existent
+      if (
+        formData.has_meta &&
+        formData.metadonnees &&
+        formData.metadonnees.length > 0
+      ) {
+        const metadataToInsert = formData.metadonnees.map((meta) => ({
+          piece_id: data.id,
+          libelle: meta.nom,
+          type: meta.type,
+          obligatoire: meta.obligatoire,
+          description: meta.description,
+        }));
+
+        const { error: metadataError } = await supabase
+          .from("metadata_model")
+          .insert(metadataToInsert);
+
+        if (metadataError) {
+          console.error(
+            "Erreur lors de la création des métadonnées:",
+            metadataError
+          );
+          // On continue même si les métadonnées échouent
+        }
+      }
+
       return {
         id: data.id,
         sousDossierId: data.sous_dossier_id,
         nom: data.nom,
-        lienFichier: data.lien_fichier,
-        typeFichier: data.type_fichier,
-        tailleFichier: data.taille_fichier,
-        dateAjout: data.date_ajout,
-        statut: data.statut,
+        description: data.description,
+        aMetadonnees: data.has_meta || false,
         createdAt: data.created_at,
-        updatedAt: data.updated_at,
       };
     } catch (error) {
       console.error("Erreur lors de la création de la pièce:", error);
@@ -138,7 +130,6 @@ export const piecesService = {
         .from("pieces")
         .update({
           nom: updates.nom,
-          statut: updates.statut,
           updated_at: new Date().toISOString(),
         })
         .eq("id", id)
@@ -151,13 +142,9 @@ export const piecesService = {
         id: data.id,
         sousDossierId: data.sous_dossier_id,
         nom: data.nom,
-        lienFichier: data.lien_fichier,
-        typeFichier: data.type_fichier,
-        tailleFichier: data.taille_fichier,
-        dateAjout: data.date_ajout,
-        statut: data.statut,
+        description: data.description,
+        aMetadonnees: data.has_meta || false,
         createdAt: data.created_at,
-        updatedAt: data.updated_at,
       };
     } catch (error) {
       console.error("Erreur lors de la mise à jour de la pièce:", error);
@@ -165,60 +152,84 @@ export const piecesService = {
     }
   },
 
-  async deletePiece(id: string): Promise<void> {
+  async getPiecesWithMetadata(
+    sousDossierId: string
+  ): Promise<PieceWithMetadata[]> {
     try {
-      // Récupérer les informations de la pièce pour supprimer le fichier
-      const { data: piece, error: fetchError } = await supabase
+      // Récupérer les pièces
+      const { data: pieces, error: piecesError } = await supabase
         .from("pieces")
-        .select("lien_fichier")
-        .eq("id", id)
-        .single();
+        .select("*")
+        .eq("sous_dossier_id", sousDossierId)
+        .order("created_at", { ascending: false });
 
-      if (fetchError) throw fetchError;
+      if (piecesError) throw piecesError;
 
-      // Supprimer le fichier du storage
-      if (piece.lien_fichier) {
-        const { error: deleteError } = await supabase.storage
-          .from("documents")
-          .remove([piece.lien_fichier]);
+      // Pour chaque pièce, récupérer ses métadonnées si elle en a
+      const piecesWithMetadata = await Promise.all(
+        pieces.map(async (piece) => {
+          let metadonnees: MetadataModel[] = [];
 
-        if (deleteError) {
-          console.warn(
-            "Erreur lors de la suppression du fichier:",
-            deleteError
-          );
-        }
-      }
+          if (piece.has_meta) {
+            const { data: metadata, error: metadataError } = await supabase
+              .from("metadata_model")
+              .select("*")
+              .eq("piece_id", piece.id);
 
-      // Supprimer l'enregistrement en base
-      const { error } = await supabase.from("pieces").delete().eq("id", id);
+            if (!metadataError && metadata) {
+              metadonnees = metadata.map((meta) => ({
+                id: meta.id,
+                nom: meta.libelle,
+                type: meta.type,
+                obligatoire: meta.obligatoire,
+                description: meta.description,
+                createdAt: meta.created_at,
+                updatedAt: meta.updated_at,
+              }));
+            }
+          }
 
-      if (error) throw error;
+          return {
+            id: piece.id,
+            sousDossierId: piece.sous_dossier_id,
+            nom: piece.nom,
+            description: piece.description,
+            aMetadonnees: piece.has_meta || false,
+            createdAt: piece.created_at,
+            metadonnees,
+          };
+        })
+      );
+
+      return piecesWithMetadata;
     } catch (error) {
-      console.error("Erreur lors de la suppression de la pièce:", error);
+      console.error(
+        "Erreur lors du chargement des pièces avec métadonnées:",
+        error
+      );
       throw error;
     }
   },
 
-  async downloadPiece(piece: Piece): Promise<void> {
-    try {
-      const { data, error } = await supabase.storage
-        .from("documents")
-        .download(piece.lienFichier);
+  // async downloadPiece(piece: Piece): Promise<void> {
+  //   try {
+  //     const { data, error } = await supabase.storage
+  //       .from("documents")
+  //       .download(piece.lienFichier);
 
-      if (error) throw error;
+  //     if (error) throw error;
 
-      const url = URL.createObjectURL(data);
-      const a = document.createElement("a");
-      a.href = url;
-      a.download = piece.nom;
-      document.body.appendChild(a);
-      a.click();
-      document.body.removeChild(a);
-      URL.revokeObjectURL(url);
-    } catch (error) {
-      console.error("Erreur lors du téléchargement:", error);
-      throw error;
-    }
-  },
+  //     const url = URL.createObjectURL(data);
+  //     const a = document.createElement("a");
+  //     a.href = url;
+  //     a.download = piece.nom;
+  //     document.body.appendChild(a);
+  //     a.click();
+  //     document.body.removeChild(a);
+  //     URL.revokeObjectURL(url);
+  //   } catch (error) {
+  //     console.error("Erreur lors du téléchargement:", error);
+  //     throw error;
+  //   }
+  // },
 };

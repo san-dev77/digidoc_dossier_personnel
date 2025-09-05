@@ -11,10 +11,14 @@ import {
   Users,
   Calendar,
   FolderOpen,
-  File,
   UserCheck,
-  Download,
-  Trash2,
+  CheckCircle,
+  ChevronDown,
+  ChevronRight,
+  File,
+  Folder,
+  Sparkles,
+  Zap,
 } from "lucide-react";
 import AuthGuard from "@/components/AuthGuard";
 import DashboardLayout from "@/components/DashboardLayout";
@@ -27,8 +31,10 @@ import {
   SousDossier,
   SousDossierFormData,
 } from "@/services/sous-dossiers";
-import { piecesService, Piece, PieceFormData } from "@/services/pieces";
+import { piecesService } from "@/services/pieces";
+import type { Piece, PieceFormData, PieceWithMetadata } from "@/types";
 import { Rubrique } from "@/types";
+import { formatDate } from "@/utils/date";
 
 export default function RubriqueParametresPage() {
   const router = useRouter();
@@ -45,9 +51,16 @@ export default function RubriqueParametresPage() {
   const [selectedSousDossier, setSelectedSousDossier] = useState<string | null>(
     null
   );
-  const [activeTab, setActiveTab] = useState<
-    "sous-dossiers" | "pieces" | "personnel"
-  >("sous-dossiers");
+  const [activeTab, setActiveTab] = useState<"sous-dossiers" | "personnel">(
+    "sous-dossiers"
+  );
+  const [showSuccessAnimation, setShowSuccessAnimation] = useState(false);
+  const [expandedSousDossier, setExpandedSousDossier] = useState<string | null>(
+    null
+  );
+  const [sousDossierPieces, setSousDossierPieces] = useState<
+    Record<string, PieceWithMetadata[]>
+  >({});
   const { toasts, removeToast, success, error: showError } = useToast();
 
   useEffect(() => {
@@ -126,6 +139,29 @@ export default function RubriqueParametresPage() {
     setShowPieceForm(true);
   };
 
+  const loadSousDossierPieces = async (sousDossierId: string) => {
+    try {
+      const pieces = await piecesService.getPiecesWithMetadata(sousDossierId);
+      setSousDossierPieces((prev) => ({
+        ...prev,
+        [sousDossierId]: pieces,
+      }));
+    } catch (err) {
+      console.error("Erreur lors du chargement des pièces:", err);
+    }
+  };
+
+  const toggleSousDossierExpansion = async (sousDossierId: string) => {
+    if (expandedSousDossier === sousDossierId) {
+      setExpandedSousDossier(null);
+    } else {
+      setExpandedSousDossier(sousDossierId);
+      if (!sousDossierPieces[sousDossierId]) {
+        await loadSousDossierPieces(sousDossierId);
+      }
+    }
+  };
+
   const handleSubmitPiece = async (formData: PieceFormData) => {
     if (!selectedSousDossier) return;
 
@@ -134,50 +170,30 @@ export default function RubriqueParametresPage() {
         selectedSousDossier,
         formData
       );
+
       setPieces([newPiece, ...pieces]);
+
+      // Rafraîchir les pièces du sous-dossier si il est ouvert
+      if (expandedSousDossier === selectedSousDossier) {
+        await loadSousDossierPieces(selectedSousDossier);
+      }
+
       setShowPieceForm(false);
       setSelectedSousDossier(null);
+
+      // Animation de succès
+      setShowSuccessAnimation(true);
+      setTimeout(() => setShowSuccessAnimation(false), 3000);
+
       success(
-        "Pièce ajoutée",
-        `La pièce "${newPiece.nom}" a été ajoutée avec succès.`
+        "Pièce créée",
+        `La pièce "${newPiece.nom}" a été créée avec succès.`
       );
     } catch (err) {
       console.error("Erreur lors de l'ajout de la pièce:", err);
       showError(
-        "Erreur d'ajout",
-        "Impossible d'ajouter la pièce. Veuillez réessayer."
-      );
-    }
-  };
-
-  const handleDeletePiece = async (id: string) => {
-    const pieceToDelete = pieces.find((p) => p.id === id);
-    if (confirm("Êtes-vous sûr de vouloir supprimer cette pièce ?")) {
-      try {
-        await piecesService.deletePiece(id);
-        setPieces(pieces.filter((p) => p.id !== id));
-        success(
-          "Pièce supprimée",
-          `La pièce "${pieceToDelete?.nom}" a été supprimée avec succès.`
-        );
-      } catch (err) {
-        console.error("Erreur lors de la suppression de la pièce:", err);
-        showError(
-          "Erreur de suppression",
-          "Impossible de supprimer la pièce. Veuillez réessayer."
-        );
-      }
-    }
-  };
-
-  const handleDownloadPiece = async (piece: Piece) => {
-    try {
-      await piecesService.downloadPiece(piece);
-    } catch (err) {
-      console.error("Erreur lors du téléchargement:", err);
-      showError(
-        "Erreur de téléchargement",
-        "Impossible de télécharger le fichier. Veuillez réessayer."
+        "Erreur de création",
+        "Impossible de créer la pièce. Veuillez réessayer."
       );
     }
   };
@@ -386,66 +402,64 @@ export default function RubriqueParametresPage() {
                       Nouveau Sous-dossier
                     </button>
                   )}
-                  {activeTab === "pieces" && sousDossiers.length > 0 && (
-                    <button
-                      onClick={() => {
-                        if (sousDossiers.length === 1) {
-                          handleCreatePiece(sousDossiers[0].id);
-                        } else {
-                          // TODO: Afficher un modal pour choisir le sous-dossier
-                          handleCreatePiece(sousDossiers[0].id);
-                        }
-                      }}
-                      className="button-primary flex items-center gap-2 text-sm font-medium"
-                    >
-                      <Plus className="w-4 h-4" />
-                      Ajouter une Pièce
-                    </button>
-                  )}
                 </div>
               </div>
 
               {/* Onglets de navigation */}
-              <div className="flex space-x-2 bg-primary-100 rounded-2xl p-2">
+              <div className="flex space-x-3 bg-gradient-to-r from-gray-100 to-gray-50 rounded-2xl p-2 border border-gray-200/60">
                 <button
                   onClick={() => setActiveTab("sous-dossiers")}
-                  className={`flex-1 flex items-center justify-center gap-3 px-6 py-4 rounded-xl text-sm font-semibold transition-all ${
+                  className={`group flex-1 flex items-center justify-center gap-3 px-6 py-4 rounded-xl text-sm font-semibold transition-all duration-300 ${
                     activeTab === "sous-dossiers"
-                      ? "tab-active"
-                      : "text-primary-600 hover:text-primary-700 hover:bg-white/50"
+                      ? "bg-white shadow-lg text-indigo-700 border border-indigo-200/60"
+                      : "text-gray-600 hover:text-gray-800 hover:bg-white/70"
                   }`}
                 >
-                  <FolderOpen className="w-5 h-5" />
-                  Sous-dossiers
-                  <span className="bg-primary-200 text-primary-700 text-xs px-3 py-1 rounded-full font-medium">
+                  <div
+                    className={`transition-all duration-300 ${
+                      activeTab === "sous-dossiers"
+                        ? "text-indigo-600"
+                        : "text-gray-500 group-hover:text-gray-700"
+                    }`}
+                  >
+                    <FolderOpen className="w-5 h-5" />
+                  </div>
+                  <span>Sous-dossiers</span>
+                  <span
+                    className={`text-xs px-3 py-1 rounded-full font-medium transition-all duration-300 ${
+                      activeTab === "sous-dossiers"
+                        ? "bg-indigo-100 text-indigo-700"
+                        : "bg-gray-200 text-gray-600 group-hover:bg-gray-300"
+                    }`}
+                  >
                     {sousDossiers.length}
                   </span>
                 </button>
                 <button
-                  onClick={() => setActiveTab("pieces")}
-                  className={`flex-1 flex items-center justify-center gap-3 px-6 py-4 rounded-xl text-sm font-semibold transition-all ${
-                    activeTab === "pieces"
-                      ? "tab-active"
-                      : "text-primary-600 hover:text-primary-700 hover:bg-white/50"
-                  }`}
-                >
-                  <File className="w-5 h-5" />
-                  Pièces
-                  <span className="bg-primary-200 text-primary-700 text-xs px-3 py-1 rounded-full font-medium">
-                    {pieces.length}
-                  </span>
-                </button>
-                <button
                   onClick={() => setActiveTab("personnel")}
-                  className={`flex-1 flex items-center justify-center gap-3 px-6 py-4 rounded-xl text-sm font-semibold transition-all ${
+                  className={`group flex-1 flex items-center justify-center gap-3 px-6 py-4 rounded-xl text-sm font-semibold transition-all duration-300 ${
                     activeTab === "personnel"
-                      ? "tab-active"
-                      : "text-primary-600 hover:text-primary-700 hover:bg-white/50"
+                      ? "bg-white shadow-lg text-indigo-700 border border-indigo-200/60"
+                      : "text-gray-600 hover:text-gray-800 hover:bg-white/70"
                   }`}
                 >
-                  <UserCheck className="w-5 h-5" />
-                  Personnel
-                  <span className="bg-primary-200 text-primary-700 text-xs px-3 py-1 rounded-full font-medium">
+                  <div
+                    className={`transition-all duration-300 ${
+                      activeTab === "personnel"
+                        ? "text-indigo-600"
+                        : "text-gray-500 group-hover:text-gray-700"
+                    }`}
+                  >
+                    <UserCheck className="w-5 h-5" />
+                  </div>
+                  <span>Personnel</span>
+                  <span
+                    className={`text-xs px-3 py-1 rounded-full font-medium transition-all duration-300 ${
+                      activeTab === "personnel"
+                        ? "bg-indigo-100 text-indigo-700"
+                        : "bg-gray-200 text-gray-600 group-hover:bg-gray-300"
+                    }`}
+                  >
                     0
                   </span>
                 </button>
@@ -457,215 +471,254 @@ export default function RubriqueParametresPage() {
                 <>
                   {sousDossiers.length === 0 ? (
                     <div className="text-center py-20">
-                      <div className="w-24 h-24 bg-gradient-to-br from-primary-500 to-primary-600 rounded-3xl flex items-center justify-center mx-auto mb-8 shadow-lg">
-                        <FolderPlus className="w-12 h-12 text-white" />
+                      <div className="relative mx-auto w-28 h-28 mb-8">
+                        <div className="absolute inset-0 bg-gradient-to-br from-indigo-200 to-purple-200 rounded-3xl opacity-30 animate-pulse"></div>
+                        <div className="relative w-full h-full bg-gradient-to-br from-indigo-500 to-purple-600 rounded-3xl flex items-center justify-center shadow-xl">
+                          <FolderPlus className="w-14 h-14 text-white" />
+                        </div>
+                        <div className="absolute -top-2 -right-2 w-8 h-8 bg-gradient-to-br from-yellow-400 to-orange-500 rounded-full flex items-center justify-center shadow-lg">
+                          <Sparkles className="w-4 h-4 text-white" />
+                        </div>
                       </div>
-                      <h4 className="text-2xl font-bold text-primary-800 mb-4">
+                      <h4 className="text-3xl font-bold text-gray-800 mb-4">
                         Aucun sous-dossier créé
                       </h4>
-                      <p className="text-gray-700 mb-10 max-w-lg mx-auto text-lg">
+                      <p className="text-gray-600 mb-10 max-w-lg mx-auto text-lg leading-relaxed">
                         Créez votre premier sous-dossier pour organiser les
-                        documents de cette rubrique.
+                        documents de cette rubrique de manière structurée.
                       </p>
                       <button
                         onClick={handleCreateSousDossier}
-                        className="button-primary text-base px-10 py-4"
+                        className="group bg-gradient-to-r from-indigo-500 to-purple-600 hover:from-indigo-600 hover:to-purple-700 text-white px-10 py-4 rounded-2xl font-semibold transition-all duration-300 flex items-center gap-3 mx-auto shadow-lg hover:shadow-xl hover:scale-105 active:scale-95 text-lg"
                       >
-                        <FolderPlus className="w-5 h-5 inline mr-3" />
-                        Créer le premier sous-dossier
+                        <FolderPlus className="w-6 h-6 group-hover:rotate-12 transition-transform duration-300" />
+                        <span>Créer le premier sous-dossier</span>
+                        <Zap className="w-5 h-5 opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
                       </button>
                     </div>
                   ) : (
-                    <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
-                      <div className="overflow-x-auto">
-                        <table className="w-full">
-                          <thead className="bg-gray-50 border-b border-gray-200">
-                            <tr>
-                              <th className="px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
-                                Sous-dossier
-                              </th>
-                              <th className="px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
-                                Description
-                              </th>
-                              <th className="px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
-                                Documents
-                              </th>
-                              <th className="px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
-                                Date de création
-                              </th>
-                              <th className="px-6 py-4 text-right text-xs font-semibold text-gray-600 uppercase tracking-wider">
-                                Actions
-                              </th>
-                            </tr>
-                          </thead>
-                          <tbody className="bg-white divide-y divide-gray-200">
-                            {sousDossiers.map((sousDossier) => (
-                              <tr
-                                key={sousDossier.id}
-                                className="hover:bg-gray-50 transition-colors"
-                              >
-                                <td className="px-6 py-4">
-                                  <div className="flex items-center gap-3">
-                                    <div className="w-10 h-10 bg-gradient-to-br from-accent-blue to-accent-blue rounded-lg flex items-center justify-center shadow-sm">
-                                      <FolderPlus className="w-5 h-5 text-white" />
-                                    </div>
-                                    <div>
-                                      <h4 className="text-sm font-bold text-primary-800">
-                                        {sousDossier.titre}
-                                      </h4>
-                                    </div>
-                                  </div>
-                                </td>
-                                <td className="px-6 py-4">
-                                  <p className="text-sm text-gray-600 max-w-xs truncate">
-                                    {sousDossier.description}
-                                  </p>
-                                </td>
-                                <td className="px-6 py-4">
-                                  <div className="flex items-center gap-2 bg-accent-green-light px-3 py-1 rounded-lg w-fit">
-                                    <FileText className="w-4 h-4 text-accent-green" />
-                                    <span className="text-accent-green font-medium text-sm">
-                                      {sousDossier.documentsCount || 0}
-                                    </span>
-                                  </div>
-                                </td>
-                                <td className="px-6 py-4">
-                                  <span className="text-sm text-gray-600">
-                                    {new Date(
-                                      sousDossier.createdAt
-                                    ).toLocaleDateString("fr-FR")}
-                                  </span>
-                                </td>
-                                <td className="px-6 py-4 text-right">
-                                  <div className="flex items-center justify-end gap-2">
-                                    <button
-                                      onClick={() =>
-                                        handleCreatePiece(sousDossier.id)
-                                      }
-                                      className="bg-accent-green-light hover:bg-accent-green text-accent-green hover:text-white px-3 py-2 rounded-lg text-xs font-medium transition-all flex items-center gap-1"
-                                      title="Ajouter une pièce"
-                                    >
-                                      <Plus className="w-3 h-3" />
-                                      Ajouter
-                                    </button>
-                                    <button className="bg-accent-blue-light hover:bg-accent-blue text-accent-blue hover:text-white px-3 py-2 rounded-lg text-xs font-medium transition-all flex items-center gap-1">
-                                      <FileText className="w-3 h-3" />
-                                      Voir
-                                    </button>
-                                  </div>
-                                </td>
-                              </tr>
-                            ))}
-                          </tbody>
-                        </table>
-                      </div>
-                    </div>
-                  )}
-                </>
-              )}
-
-              {activeTab === "pieces" && (
-                <>
-                  {pieces.length === 0 ? (
-                    <div className="text-center py-20">
-                      <div className="w-24 h-24 bg-gradient-to-br from-accent-green to-accent-green rounded-3xl flex items-center justify-center mx-auto mb-8 shadow-lg">
-                        <File className="w-12 h-12 text-white" />
-                      </div>
-                      <h4 className="text-2xl font-bold text-primary-800 mb-4">
-                        Aucune pièce ajoutée
-                      </h4>
-                      <p className="text-gray-700 mb-10 max-w-lg mx-auto text-lg">
-                        Commencez par créer des sous-dossiers, puis ajoutez des
-                        pièces pour organiser vos documents.
-                      </p>
-                    </div>
-                  ) : (
                     <div className="space-y-6">
-                      {pieces.map((piece) => {
-                        const sousDossier = sousDossiers.find(
-                          (sd) => sd.id === piece.sousDossierId
-                        );
-                        return (
+                      {sousDossiers.map((sousDossier) => (
+                        <div
+                          key={sousDossier.id}
+                          className="group bg-white rounded-2xl border border-gray-200/60 overflow-hidden shadow-sm hover:shadow-lg transition-all duration-300 hover:border-accent-blue/30"
+                        >
+                          {/* Header du sous-dossier */}
                           <div
-                            key={piece.id}
-                            className="card-elevated p-6 group"
+                            className="p-6 hover:bg-gradient-to-r hover:from-gray-50/50 hover:to-blue-50/30 transition-all duration-300 cursor-pointer"
+                            onClick={() =>
+                              toggleSousDossierExpansion(sousDossier.id)
+                            }
                           >
-                            <div className="flex items-start justify-between">
-                              <div className="flex-1">
-                                <div className="flex items-center gap-4 mb-4">
-                                  <div className="w-12 h-12 bg-gradient-to-br from-accent-green to-accent-green rounded-xl flex items-center justify-center shadow-md">
-                                    <File className="w-6 h-6 text-white" />
+                            <div className="flex items-center justify-between">
+                              <div className="flex items-center gap-5">
+                                <div className="flex items-center gap-3">
+                                  <div className="relative">
+                                    {expandedSousDossier === sousDossier.id ? (
+                                      <div className="w-6 h-6 bg-gradient-to-br from-accent-blue to-blue-600 rounded-lg flex items-center justify-center shadow-md transform rotate-180 transition-all duration-300">
+                                        <ChevronDown className="w-4 h-4 text-white" />
+                                      </div>
+                                    ) : (
+                                      <div className="w-6 h-6 bg-gradient-to-br from-gray-400 to-gray-500 rounded-lg flex items-center justify-center shadow-sm group-hover:from-accent-blue group-hover:to-blue-600 transition-all duration-300">
+                                        <ChevronRight className="w-4 h-4 text-white" />
+                                      </div>
+                                    )}
                                   </div>
-                                  <div>
-                                    <h4 className="text-xl font-bold text-primary-800 mb-1">
-                                      {piece.nom}
-                                    </h4>
-                                    <p className="text-sm text-primary-600 font-medium">
-                                      Dans:{" "}
-                                      {sousDossier?.titre ||
-                                        "Sous-dossier inconnu"}
-                                    </p>
+                                  <div className="relative">
+                                    <div className="w-14 h-14 bg-gradient-to-br from-indigo-500 via-purple-500 to-pink-500 rounded-2xl flex items-center justify-center shadow-lg group-hover:shadow-xl transition-all duration-300 group-hover:scale-105">
+                                      <Folder className="w-7 h-7 text-white" />
+                                    </div>
+                                    <div className="absolute -top-1 -right-1 w-5 h-5 bg-gradient-to-br from-yellow-400 to-orange-500 rounded-full flex items-center justify-center shadow-md">
+                                      <Sparkles className="w-3 h-3 text-white" />
+                                    </div>
                                   </div>
                                 </div>
-                                <div className="flex items-center gap-6 text-sm mb-4">
-                                  <div className="flex items-center gap-2 bg-accent-blue-light px-3 py-2 rounded-lg">
-                                    <FileText className="w-4 h-4 text-accent-blue" />
-                                    <span className="text-accent-blue font-medium">
-                                      {piece.typeFichier}
-                                    </span>
-                                  </div>
-                                  <div className="flex items-center gap-2 bg-accent-purple-light px-3 py-2 rounded-lg">
-                                    <Calendar className="w-4 h-4 text-accent-purple" />
-                                    <span className="text-accent-purple font-medium">
-                                      {new Date(
-                                        piece.dateAjout
-                                      ).toLocaleDateString("fr-FR")}
-                                    </span>
-                                  </div>
-                                  <div
-                                    className={`flex items-center gap-2 px-3 py-2 rounded-lg ${
-                                      piece.statut === "valide"
-                                        ? "bg-green-100 text-green-700"
-                                        : piece.statut === "en_attente"
-                                        ? "bg-yellow-100 text-yellow-700"
-                                        : "bg-red-100 text-red-700"
-                                    }`}
-                                  >
-                                    <div
-                                      className={`w-2 h-2 rounded-full ${
-                                        piece.statut === "valide"
-                                          ? "bg-green-500"
-                                          : piece.statut === "en_attente"
-                                          ? "bg-yellow-500"
-                                          : "bg-red-500"
-                                      }`}
-                                    />
-                                    <span className="font-medium capitalize">
-                                      {piece.statut.replace("_", " ")}
+                                <div className="space-y-1">
+                                  <h4 className="text-xl font-bold text-gray-900 group-hover:text-indigo-700 transition-colors duration-300">
+                                    {sousDossier.titre}
+                                  </h4>
+                                  <p className="text-sm text-gray-600 max-w-md">
+                                    {sousDossier.description}
+                                  </p>
+                                  <div className="flex items-center gap-2 text-xs text-gray-500">
+                                    <Calendar className="w-3 h-3" />
+                                    <span>
+                                      Créé le{" "}
+                                      {formatDate(sousDossier.createdAt)}
                                     </span>
                                   </div>
                                 </div>
                               </div>
-                              <div className="flex items-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                                <button
-                                  onClick={() => handleDownloadPiece(piece)}
-                                  className="text-accent-green hover:text-accent-green p-3 hover:bg-accent-green-light rounded-xl transition-colors"
-                                  title="Télécharger"
-                                >
-                                  <Download className="w-5 h-5" />
-                                </button>
-                                <button
-                                  onClick={() => handleDeletePiece(piece.id)}
-                                  className="text-red-500 hover:text-red-600 p-3 hover:bg-red-50 rounded-xl transition-colors"
-                                  title="Supprimer"
-                                >
-                                  <Trash2 className="w-5 h-5" />
-                                </button>
+                              <div className="flex items-center gap-4">
+                                <div className="flex items-center gap-2 bg-gradient-to-r from-emerald-50 to-green-50 border border-emerald-200 px-4 py-2 rounded-xl shadow-sm">
+                                  <div className="w-2 h-2 bg-emerald-500 rounded-full animate-pulse"></div>
+                                  <FileText className="w-4 h-4 text-emerald-600" />
+                                  <span className="text-emerald-700 font-semibold text-sm">
+                                    {sousDossierPieces[sousDossier.id]
+                                      ?.length || 0}{" "}
+                                    pièce(s)
+                                  </span>
+                                </div>
+                                <div className="flex items-center gap-2">
+                                  <button
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      handleCreatePiece(sousDossier.id);
+                                    }}
+                                    className="group/btn bg-gradient-to-r from-emerald-500 to-green-600 hover:from-emerald-600 hover:to-green-700 text-white px-4 py-2.5 rounded-xl text-sm font-semibold transition-all duration-300 flex items-center gap-2 shadow-md hover:shadow-lg hover:scale-105 active:scale-95"
+                                    title="Ajouter une pièce"
+                                  >
+                                    <Plus className="w-4 h-4 group-hover/btn:rotate-90 transition-transform duration-300" />
+                                    <span>Ajouter</span>
+                                    <Zap className="w-3 h-3 opacity-0 group-hover/btn:opacity-100 transition-opacity duration-300" />
+                                  </button>
+                                </div>
                               </div>
                             </div>
                           </div>
-                        );
-                      })}
+
+                          {/* Contenu des pièces (expandable) */}
+                          {expandedSousDossier === sousDossier.id && (
+                            <div className="border-t border-gray-200/60 bg-gradient-to-br from-gray-50/80 to-blue-50/30 animate-in slide-in-from-top-2 duration-500">
+                              {sousDossierPieces[sousDossier.id]?.length ===
+                              0 ? (
+                                <div className="p-12 text-center">
+                                  <div className="relative mx-auto w-20 h-20 mb-6">
+                                    <div className="absolute inset-0 bg-gradient-to-br from-gray-200 to-gray-300 rounded-2xl opacity-20"></div>
+                                    <div className="relative w-full h-full bg-gradient-to-br from-gray-100 to-gray-200 rounded-2xl flex items-center justify-center shadow-inner">
+                                      <File className="w-10 h-10 text-gray-400" />
+                                    </div>
+                                  </div>
+                                  <h3 className="text-lg font-semibold text-gray-700 mb-2">
+                                    Aucune pièce dans ce sous-dossier
+                                  </h3>
+                                  <p className="text-sm text-gray-500 mb-4">
+                                    Commencez par ajouter votre première pièce
+                                  </p>
+                                  <button
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      handleCreatePiece(sousDossier.id);
+                                    }}
+                                    className="inline-flex items-center gap-2 bg-gradient-to-r from-indigo-500 to-purple-600 hover:from-indigo-600 hover:to-purple-700 text-white px-6 py-3 rounded-xl text-sm font-semibold transition-all duration-300 shadow-md hover:shadow-lg hover:scale-105"
+                                  >
+                                    <Plus className="w-4 h-4" />
+                                    Créer la première pièce
+                                  </button>
+                                </div>
+                              ) : (
+                                <div className="p-6 space-y-4">
+                                  <div className="flex items-center gap-2 mb-4">
+                                    <div className="w-1 h-6 bg-gradient-to-b from-indigo-500 to-purple-600 rounded-full"></div>
+                                    <h3 className="text-lg font-semibold text-gray-800">
+                                      Pièces (
+                                      {sousDossierPieces[sousDossier.id]
+                                        ?.length || 0}
+                                      )
+                                    </h3>
+                                  </div>
+                                  <div className="grid gap-4">
+                                    {sousDossierPieces[sousDossier.id]?.map(
+                                      (piece) => (
+                                        <div
+                                          key={piece.id}
+                                          className="group/piece bg-white rounded-xl p-5 border border-gray-200/60 shadow-sm hover:shadow-md transition-all duration-300 hover:border-indigo-200/60"
+                                        >
+                                          <div className="flex items-start justify-between">
+                                            <div className="flex-1">
+                                              <div className="flex items-center gap-4 mb-3">
+                                                <div className="relative">
+                                                  <div className="w-10 h-10 bg-gradient-to-br from-emerald-500 to-teal-600 rounded-xl flex items-center justify-center shadow-md group-hover/piece:shadow-lg transition-all duration-300 group-hover/piece:scale-105">
+                                                    <File className="w-5 h-5 text-white" />
+                                                  </div>
+                                                  {piece.aMetadonnees && (
+                                                    <div className="absolute -top-1 -right-1 w-4 h-4 bg-gradient-to-br from-yellow-400 to-orange-500 rounded-full flex items-center justify-center">
+                                                      <Sparkles className="w-2.5 h-2.5 text-white" />
+                                                    </div>
+                                                  )}
+                                                </div>
+                                                <div className="flex-1">
+                                                  <h5 className="font-bold text-gray-900 text-lg group-hover/piece:text-indigo-700 transition-colors duration-300">
+                                                    {piece.nom}
+                                                  </h5>
+                                                  {piece.description && (
+                                                    <p className="text-sm text-gray-600 mt-1">
+                                                      {piece.description}
+                                                    </p>
+                                                  )}
+                                                </div>
+                                              </div>
+
+                                              {/* Métadonnées */}
+                                              {piece.aMetadonnees &&
+                                                piece.metadonnees &&
+                                                piece.metadonnees.length >
+                                                  0 && (
+                                                  <div className="mt-4 ml-14">
+                                                    <div className="flex items-center gap-2 mb-3">
+                                                      <div className="w-2 h-2 bg-gradient-to-r from-emerald-500 to-teal-500 rounded-full animate-pulse"></div>
+                                                      <span className="text-sm font-semibold text-gray-700">
+                                                        Modèle de métadonnées
+                                                      </span>
+                                                    </div>
+                                                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+                                                      {piece.metadonnees.map(
+                                                        (meta) => (
+                                                          <div
+                                                            key={meta.id}
+                                                            className="bg-gradient-to-br from-gray-50 to-gray-100/50 border border-gray-200/60 rounded-lg p-3 hover:shadow-sm transition-all duration-300"
+                                                          >
+                                                            <div className="flex items-center gap-2 mb-1">
+                                                              <span className="text-sm font-semibold text-gray-800">
+                                                                {meta.nom}
+                                                              </span>
+                                                              <span className="text-xs bg-indigo-100 text-indigo-700 px-2 py-0.5 rounded-full font-medium">
+                                                                {meta.type}
+                                                              </span>
+                                                              {meta.obligatoire && (
+                                                                <span className="text-xs bg-red-100 text-red-600 px-1.5 py-0.5 rounded-full font-bold">
+                                                                  *
+                                                                </span>
+                                                              )}
+                                                            </div>
+                                                            {meta.description && (
+                                                              <p className="text-xs text-gray-600 leading-relaxed">
+                                                                {
+                                                                  meta.description
+                                                                }
+                                                              </p>
+                                                            )}
+                                                          </div>
+                                                        )
+                                                      )}
+                                                    </div>
+                                                  </div>
+                                                )}
+                                            </div>
+                                            <div className="flex flex-col items-end gap-2">
+                                              <div className="text-xs text-gray-500 bg-gray-100 px-2 py-1 rounded-lg">
+                                                {formatDate(piece.createdAt)}
+                                              </div>
+                                              {piece.aMetadonnees && (
+                                                <div className="flex items-center gap-1 text-xs text-emerald-600 bg-emerald-50 px-2 py-1 rounded-lg">
+                                                  <Sparkles className="w-3 h-3" />
+                                                  <span className="font-medium">
+                                                    Avec métadonnées
+                                                  </span>
+                                                </div>
+                                              )}
+                                            </div>
+                                          </div>
+                                        </div>
+                                      )
+                                    )}
+                                  </div>
+                                </div>
+                              )}
+                            </div>
+                          )}
+                        </div>
+                      ))}
                     </div>
                   )}
                 </>
@@ -709,9 +762,27 @@ export default function RubriqueParametresPage() {
               setSelectedSousDossier(null);
             }}
             onSubmit={handleSubmitPiece}
-            sousDossierId={selectedSousDossier}
             mode="create"
           />
+        )}
+
+        {/* Animation de succès */}
+        {showSuccessAnimation && (
+          <div className="fixed inset-0 flex items-center justify-center z-50 pointer-events-none">
+            <div className="bg-white rounded-full p-8 shadow-2xl animate-in zoom-in-50 duration-500">
+              <div className="flex flex-col items-center gap-4">
+                <div className="w-16 h-16 bg-accent-green rounded-full flex items-center justify-center animate-in scale-in-50 duration-300">
+                  <CheckCircle className="w-10 h-10 text-white" />
+                </div>
+                <div className="text-center">
+                  <h3 className="text-lg font-bold text-gray-900">
+                    Pièce créée !
+                  </h3>
+                  <p className="text-sm text-gray-600">Avec succès</p>
+                </div>
+              </div>
+            </div>
+          </div>
         )}
 
         {/* Toast Notifications */}

@@ -56,13 +56,9 @@ export interface Piece {
   id: string;
   sousDossierId: string;
   nom: string;
-  lienFichier: string;
-  typeFichier: string;
-  tailleFichier: number;
-  dateAjout: string;
-  statut: "valide" | "en_attente" | "rejeté";
+  description?: string;
+  aMetadonnees: boolean;
   createdAt: string;
-  updatedAt: string;
 }
 
 export interface MetadataModel {
@@ -83,6 +79,10 @@ export interface PieceMetadata {
   valeur: string;
   createdAt: string;
   updatedAt: string;
+}
+
+export interface PieceWithMetadata extends Piece {
+  metadonnees?: MetadataModel[];
 }
 
 // Types pour les formulaires
@@ -116,8 +116,9 @@ export interface SousDossierFormData {
 
 export interface PieceFormData {
   nom: string;
-  fichier: File;
   description?: string;
+  has_meta: boolean;
+  metadonnees?: Omit<MetadataModel, "id" | "createdAt" | "updatedAt">[];
 }
 
 // Types pour les réponses API
