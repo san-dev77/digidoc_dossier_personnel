@@ -10,8 +10,6 @@ import {
   FileText,
   Users,
   Calendar,
-  Grid3X3,
-  List,
   FolderOpen,
   File,
   UserCheck,
@@ -47,7 +45,6 @@ export default function RubriqueParametresPage() {
   const [selectedSousDossier, setSelectedSousDossier] = useState<string | null>(
     null
   );
-  const [viewMode, setViewMode] = useState<"grid" | "list">("grid");
   const [activeTab, setActiveTab] = useState<
     "sous-dossiers" | "pieces" | "personnel"
   >("sous-dossiers");
@@ -381,37 +378,13 @@ export default function RubriqueParametresPage() {
                 </div>
                 <div className="flex items-center gap-4">
                   {activeTab === "sous-dossiers" && (
-                    <>
-                      <div className="flex items-center bg-primary-100 rounded-xl p-1">
-                        <button
-                          onClick={() => setViewMode("grid")}
-                          className={`p-3 rounded-lg transition-all ${
-                            viewMode === "grid"
-                              ? "bg-white shadow-sm text-primary-600"
-                              : "text-primary-500 hover:text-primary-700"
-                          }`}
-                        >
-                          <Grid3X3 className="w-5 h-5" />
-                        </button>
-                        <button
-                          onClick={() => setViewMode("list")}
-                          className={`p-3 rounded-lg transition-all ${
-                            viewMode === "list"
-                              ? "bg-white shadow-sm text-primary-600"
-                              : "text-primary-500 hover:text-primary-700"
-                          }`}
-                        >
-                          <List className="w-5 h-5" />
-                        </button>
-                      </div>
-                      <button
-                        onClick={handleCreateSousDossier}
-                        className="button-primary flex items-center gap-2 text-sm font-medium"
-                      >
-                        <Plus className="w-4 h-4" />
-                        Nouveau Sous-dossier
-                      </button>
-                    </>
+                    <button
+                      onClick={handleCreateSousDossier}
+                      className="button-primary flex items-center gap-2 text-sm font-medium"
+                    >
+                      <Plus className="w-4 h-4" />
+                      Nouveau Sous-dossier
+                    </button>
                   )}
                   {activeTab === "pieces" && sousDossiers.length > 0 && (
                     <button
@@ -503,50 +476,89 @@ export default function RubriqueParametresPage() {
                       </button>
                     </div>
                   ) : (
-                    <div className="space-y-6">
-                      {sousDossiers.map((sousDossier) => (
-                        <div
-                          key={sousDossier.id}
-                          className="card-elevated p-6 group cursor-pointer"
-                        >
-                          <div className="flex items-start justify-between">
-                            <div className="flex-1">
-                              <div className="flex items-center gap-4 mb-4">
-                                <div className="w-12 h-12 bg-gradient-to-br from-accent-blue to-accent-blue rounded-xl flex items-center justify-center shadow-md">
-                                  <FolderPlus className="w-6 h-6 text-white" />
-                                </div>
-                                <div>
-                                  <h4 className="text-xl font-bold text-primary-800 mb-1">
-                                    {sousDossier.titre}
-                                  </h4>
-                                  <p className="text-sm text-primary-600 font-medium">
-                                    Créé le{" "}
+                    <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
+                      <div className="overflow-x-auto">
+                        <table className="w-full">
+                          <thead className="bg-gray-50 border-b border-gray-200">
+                            <tr>
+                              <th className="px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
+                                Sous-dossier
+                              </th>
+                              <th className="px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
+                                Description
+                              </th>
+                              <th className="px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
+                                Documents
+                              </th>
+                              <th className="px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
+                                Date de création
+                              </th>
+                              <th className="px-6 py-4 text-right text-xs font-semibold text-gray-600 uppercase tracking-wider">
+                                Actions
+                              </th>
+                            </tr>
+                          </thead>
+                          <tbody className="bg-white divide-y divide-gray-200">
+                            {sousDossiers.map((sousDossier) => (
+                              <tr
+                                key={sousDossier.id}
+                                className="hover:bg-gray-50 transition-colors"
+                              >
+                                <td className="px-6 py-4">
+                                  <div className="flex items-center gap-3">
+                                    <div className="w-10 h-10 bg-gradient-to-br from-accent-blue to-accent-blue rounded-lg flex items-center justify-center shadow-sm">
+                                      <FolderPlus className="w-5 h-5 text-white" />
+                                    </div>
+                                    <div>
+                                      <h4 className="text-sm font-bold text-primary-800">
+                                        {sousDossier.titre}
+                                      </h4>
+                                    </div>
+                                  </div>
+                                </td>
+                                <td className="px-6 py-4">
+                                  <p className="text-sm text-gray-600 max-w-xs truncate">
+                                    {sousDossier.description}
+                                  </p>
+                                </td>
+                                <td className="px-6 py-4">
+                                  <div className="flex items-center gap-2 bg-accent-green-light px-3 py-1 rounded-lg w-fit">
+                                    <FileText className="w-4 h-4 text-accent-green" />
+                                    <span className="text-accent-green font-medium text-sm">
+                                      {sousDossier.documentsCount || 0}
+                                    </span>
+                                  </div>
+                                </td>
+                                <td className="px-6 py-4">
+                                  <span className="text-sm text-gray-600">
                                     {new Date(
                                       sousDossier.createdAt
                                     ).toLocaleDateString("fr-FR")}
-                                  </p>
-                                </div>
-                              </div>
-                              <p className="text-gray-700 mb-4 text-lg">
-                                {sousDossier.description}
-                              </p>
-                              <div className="flex items-center gap-6 text-sm">
-                                <div className="flex items-center gap-2 bg-accent-green-light px-3 py-2 rounded-lg">
-                                  <FileText className="w-4 h-4 text-accent-green" />
-                                  <span className="text-accent-green font-medium">
-                                    {sousDossier.documentsCount || 0} documents
                                   </span>
-                                </div>
-                              </div>
-                            </div>
-                            <div className="flex items-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                              <button className="text-accent-blue hover:text-accent-blue p-3 hover:bg-accent-blue-light rounded-xl transition-colors">
-                                <FileText className="w-5 h-5" />
-                              </button>
-                            </div>
-                          </div>
-                        </div>
-                      ))}
+                                </td>
+                                <td className="px-6 py-4 text-right">
+                                  <div className="flex items-center justify-end gap-2">
+                                    <button
+                                      onClick={() =>
+                                        handleCreatePiece(sousDossier.id)
+                                      }
+                                      className="bg-accent-green-light hover:bg-accent-green text-accent-green hover:text-white px-3 py-2 rounded-lg text-xs font-medium transition-all flex items-center gap-1"
+                                      title="Ajouter une pièce"
+                                    >
+                                      <Plus className="w-3 h-3" />
+                                      Ajouter
+                                    </button>
+                                    <button className="bg-accent-blue-light hover:bg-accent-blue text-accent-blue hover:text-white px-3 py-2 rounded-lg text-xs font-medium transition-all flex items-center gap-1">
+                                      <FileText className="w-3 h-3" />
+                                      Voir
+                                    </button>
+                                  </div>
+                                </td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </div>
                     </div>
                   )}
                 </>
