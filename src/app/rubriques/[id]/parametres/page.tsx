@@ -37,10 +37,7 @@ function PieceCountBadge({ sousDossierId }: { sousDossierId: string }) {
 
   return (
     <span className="text-emerald-700 font-semibold text-sm transition-all duration-300 transform">
-      <span
-        className="inline-block animate-in zoom-in-0 duration-300"
-        key={pieceCount}
-      >
+      <span className="inline-block" key={pieceCount}>
         {pieceCount}
         {"    "}
       </span>
@@ -593,10 +590,10 @@ export default function RubriqueParametresPage() {
             </div>
 
             {/* Boutons d'action compacts */}
-            <div className="flex items-center gap-1 opacity-100 transition-opacity duration-300 flex-shrink-0">
+            <div className="flex items-center gap-1 opacity-100 flex-shrink-0">
               <button
                 onClick={() => onViewDetails(piece)}
-                className="p-1.5 bg-blue-50 text-blue-700 hover:bg-blue-100 rounded transition-colors border border-blue-200"
+                className="p-1.5 bg-blue-50 text-blue-700 hover:bg-blue-100 rounded border border-blue-200"
                 title="Voir les détails"
               >
                 <FileText className="w-4 h-4" />
@@ -604,7 +601,7 @@ export default function RubriqueParametresPage() {
               {!piece.aMetadonnees && (
                 <button
                   onClick={() => onAddMetadata(piece)}
-                  className="p-1.5 bg-purple-50 text-purple-700 hover:bg-purple-100 rounded transition-colors border border-purple-200"
+                  className="p-1.5 bg-purple-50 text-purple-700 hover:bg-purple-100 rounded border border-purple-200"
                   title="Ajouter des métadonnées"
                 >
                   <DatabaseZap className="w-4 h-4" />
@@ -612,14 +609,14 @@ export default function RubriqueParametresPage() {
               )}
               <button
                 onClick={() => onEdit(piece)}
-                className="p-1.5 bg-emerald-50 text-emerald-700 hover:bg-emerald-100 rounded transition-colors border border-emerald-200"
+                className="p-1.5 bg-emerald-50 text-emerald-700 hover:bg-emerald-100 rounded border border-emerald-200"
                 title="Modifier"
               >
                 <Edit className="w-4 h-4" />
               </button>
               <button
                 onClick={() => onDelete(piece)}
-                className="p-1.5 bg-red-50 text-red-700 hover:bg-red-100 rounded transition-colors border border-red-200"
+                className="p-1.5 bg-red-50 text-red-700 hover:bg-red-100 rounded border border-red-200"
                 title="Supprimer"
               >
                 <Trash2 className="w-4 h-4" />
@@ -674,13 +671,13 @@ export default function RubriqueParametresPage() {
                     </div>
 
                     {/* Boutons d'action compacts */}
-                    <div className="flex items-center gap-1 opacity-100 transition-all duration-300 flex-shrink-0">
+                    <div className="flex items-center gap-1 opacity-100 flex-shrink-0">
                       <button
                         onClick={(e) => {
                           e.stopPropagation();
                           handleEditMetadata(meta);
                         }}
-                        className="p-1 bg-blue-50 text-blue-700 hover:bg-blue-100 rounded transition-colors border border-blue-200"
+                        className="p-1 bg-blue-50 text-blue-700 hover:bg-blue-100 rounded border border-blue-200"
                         title="Modifier"
                       >
                         <Settings className="w-3.5 h-3.5" />
@@ -690,7 +687,7 @@ export default function RubriqueParametresPage() {
                           e.stopPropagation();
                           handleDeleteMetadata(meta);
                         }}
-                        className="p-1 bg-red-50 text-red-700 hover:bg-red-100 rounded transition-colors border border-red-200"
+                        className="p-1 bg-red-50 text-red-700 hover:bg-red-100 rounded border border-red-200"
                         title="Supprimer"
                       >
                         <Trash2 className="w-3.5 h-3.5" />
@@ -717,7 +714,7 @@ export default function RubriqueParametresPage() {
   }) => {
     if (pieces.length === 0) {
       return (
-        <div className="p-8 text-center animate-in fade-in-0 slide-in-from-bottom-4 duration-500">
+        <div className="p-8 text-center">
           <div className="relative mx-auto w-16 h-16 mb-6">
             <div className="w-full h-full bg-primary-100 rounded-xl flex items-center justify-center">
               <File className="w-8 h-8 text-primary-500" />
@@ -745,8 +742,8 @@ export default function RubriqueParametresPage() {
     }
 
     return (
-      <div className="p-6 space-y-6 animate-in fade-in-0 slide-in-from-bottom-4 duration-500">
-        <div className="flex items-center justify-between animate-in slide-in-from-left-4 duration-300">
+      <div className="p-6 space-y-6">
+        <div className="flex items-center justify-between">
           <div className="flex items-center gap-4">
             <div className="w-3 h-8 bg-gradient-to-b from-accent-blue to-blue-600 rounded-full"></div>
             <div>
@@ -759,22 +756,15 @@ export default function RubriqueParametresPage() {
               </p>
             </div>
           </div>
-          <div className="flex items-center gap-2 animate-in slide-in-from-right-4 duration-300">
+          <div className="flex items-center gap-2">
             <div className="text-xs text-gray-500 bg-gray-100 px-3 py-1.5 rounded-lg transition-all duration-300">
               {pieces.filter((p) => p.aMetadonnees).length} avec métadonnées
             </div>
           </div>
         </div>
         <div className="grid gap-4">
-          {pieces.map((piece, index) => (
-            <div
-              key={piece.id}
-              className="animate-in slide-in-from-bottom-3 fade-in-0"
-              style={{
-                animationDelay: `${index * 100}ms`,
-                animationFillMode: "both",
-              }}
-            >
+          {pieces.map((piece) => (
+            <div key={piece.id}>
               <PieceCard
                 piece={piece}
                 onEdit={handleEditPiece}
@@ -992,7 +982,7 @@ export default function RubriqueParametresPage() {
               {sousDossiers.length === 0 ? (
                 <div className="text-center py-20">
                   <div className="relative mx-auto w-28 h-28 mb-8">
-                    <div className="absolute inset-0 bg-primary-200 rounded-3xl opacity-30 animate-pulse"></div>
+                    <div className="absolute inset-0 bg-primary-200 rounded-3xl opacity-30"></div>
                     <div className="relative w-full h-full bg-primary-600 rounded-3xl flex items-center justify-center shadow-xl">
                       <FolderPlus className="w-14 h-14 text-white" />
                     </div>
@@ -1009,11 +999,11 @@ export default function RubriqueParametresPage() {
                   </p>
                   <button
                     onClick={handleCreateSousDossier}
-                    className="group bg-gradient-to-r from-indigo-500 to-purple-600 hover:from-indigo-600 hover:to-purple-700 text-white px-10 py-4 rounded-2xl font-semibold transition-all duration-300 flex items-center gap-3 mx-auto shadow-lg hover:shadow-xl hover:scale-105 active:scale-95 text-lg"
+                    className="group bg-gradient-to-r from-indigo-500 to-purple-600 hover:from-indigo-600 hover:to-purple-700 text-white px-10 py-4 rounded-2xl font-semibold flex items-center gap-3 mx-auto shadow-lg text-lg"
                   >
-                    <FolderPlus className="w-6 h-6 group-hover:rotate-12 transition-transform duration-300" />
+                    <FolderPlus className="w-6 h-6" />
                     <span>Créer le premier sous-dossier</span>
-                    <Zap className="w-5 h-5 opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
+                    <Zap className="w-5 h-5" />
                   </button>
                 </div>
               ) : (
@@ -1021,11 +1011,11 @@ export default function RubriqueParametresPage() {
                   {sousDossiers.map((sousDossier) => (
                     <div
                       key={sousDossier.id}
-                      className="card-elevated hover:shadow-primary-lg transition-all duration-300"
+                      className="card-elevated hover:shadow-primary-lg"
                     >
                       {/* Header du sous-dossier */}
                       <div
-                        className="p-4 hover:bg-primary-50 transition-colors duration-200 cursor-pointer"
+                        className="p-4 hover:bg-primary-50 cursor-pointer"
                         onClick={() =>
                           toggleSousDossierExpansion(sousDossier.id)
                         }
@@ -1035,11 +1025,11 @@ export default function RubriqueParametresPage() {
                             {/* Chevron compact */}
                             <div className="flex-shrink-0">
                               {expandedSousDossier === sousDossier.id ? (
-                                <div className="w-5 h-5 bg-accent-blue rounded flex items-center justify-center shadow-sm transform rotate-180 transition-all duration-300">
+                                <div className="w-5 h-5 bg-accent-blue rounded flex items-center justify-center shadow-sm transform rotate-180">
                                   <ChevronDown className="w-3 h-3 text-white" />
                                 </div>
                               ) : (
-                                <div className="w-5 h-5 bg-primary-400 rounded flex items-center justify-center shadow-sm group-hover:bg-accent-blue transition-all duration-300">
+                                <div className="w-5 h-5 bg-primary-400 rounded flex items-center justify-center shadow-sm group-hover:bg-accent-blue">
                                   <ChevronRight className="w-3 h-3 text-white" />
                                 </div>
                               )}
@@ -1047,14 +1037,14 @@ export default function RubriqueParametresPage() {
 
                             {/* Icône compacte */}
                             <div className="flex-shrink-0">
-                              <div className="w-10 h-10 bg-primary-600 rounded-xl flex items-center justify-center shadow-md group-hover:shadow-lg transition-all duration-300">
+                              <div className="w-10 h-10 bg-primary-600 rounded-xl flex items-center justify-center shadow-md group-hover:shadow-lg">
                                 <FolderTree className="w-5 h-5 text-white" />
                               </div>
                             </div>
 
                             {/* Contenu principal */}
                             <div className="flex-1 min-w-0">
-                              <h4 className="text-base font-semibold text-primary-800 group-hover:text-primary-700 transition-colors duration-300 truncate">
+                              <h4 className="text-base font-semibold text-primary-800 group-hover:text-primary-700 truncate">
                                 {sousDossier.titre}
                               </h4>
                               <p className="text-xs text-neutral-600 truncate">
@@ -1071,13 +1061,13 @@ export default function RubriqueParametresPage() {
                             </div>
 
                             {/* Boutons d'action compacts */}
-                            <div className="flex items-center gap-1 opacity-100 transition-opacity duration-300">
+                            <div className="flex items-center gap-1 opacity-100">
                               <button
                                 onClick={(e) => {
                                   e.stopPropagation();
                                   handleCreatePiece(sousDossier.id);
                                 }}
-                                className="p-1.5 bg-green-50 text-green-700 hover:bg-green-100 rounded transition-colors border border-green-200"
+                                className="p-1.5 bg-green-50 text-green-700 hover:bg-green-100 rounded border border-green-200"
                                 title="Ajouter une pièce"
                               >
                                 <Plus className="w-4 h-4" />
@@ -1088,7 +1078,7 @@ export default function RubriqueParametresPage() {
                                   e.stopPropagation();
                                   handleEditSousDossier(sousDossier);
                                 }}
-                                className="p-1.5 bg-blue-50 text-blue-700 hover:bg-blue-100 rounded transition-colors border border-blue-200"
+                                className="p-1.5 bg-blue-50 text-blue-700 hover:bg-blue-100 rounded border border-blue-200"
                                 title="Modifier"
                               >
                                 <Settings className="w-4 h-4" />
@@ -1099,7 +1089,7 @@ export default function RubriqueParametresPage() {
                                   e.stopPropagation();
                                   handleDeleteSousDossier(sousDossier);
                                 }}
-                                className="p-1.5 bg-red-50 text-red-700 hover:bg-red-100 rounded transition-colors border border-red-200"
+                                className="p-1.5 bg-red-50 text-red-700 hover:bg-red-100 rounded border border-red-200"
                                 title="Supprimer"
                               >
                                 <Trash2 className="w-4 h-4" />
