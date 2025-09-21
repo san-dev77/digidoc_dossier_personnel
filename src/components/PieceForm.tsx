@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { X, FileText, AlertCircle, Plus, Trash2 } from "lucide-react";
 import type { PieceFormData, MetadataModel } from "@/types";
 
@@ -20,15 +20,40 @@ export default function PieceForm({
   piece,
 }: PieceFormProps) {
   const [formData, setFormData] = useState({
-    nom: piece?.nom || "",
-    description: piece?.description || "",
-    has_meta: piece?.has_meta || false,
+    nom: "",
+    description: "",
+    has_meta: false,
   });
   const [metadonnees, setMetadonnees] = useState<
     Omit<MetadataModel, "id" | "createdAt" | "updatedAt">[]
   >([]);
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [isSubmitting, setIsSubmitting] = useState(false);
+
+  // Mettre à jour les données du formulaire quand la pièce change
+  useEffect(() => {
+    if (piece && mode === "edit") {
+      console.log(
+        "📝 Chargement des données de la pièce dans le formulaire:",
+        piece
+      );
+      setFormData({
+        nom: piece.nom || "",
+        description: piece.description || "",
+        has_meta: piece.has_meta || false,
+      });
+      setMetadonnees(piece.metadonnees || []);
+    } else {
+      // Réinitialiser pour le mode création
+      setFormData({
+        nom: "",
+        description: "",
+        has_meta: false,
+      });
+      setMetadonnees([]);
+    }
+    setErrors({});
+  }, [piece, mode, isOpen]);
 
   const addMetadata = () => {
     setMetadonnees([

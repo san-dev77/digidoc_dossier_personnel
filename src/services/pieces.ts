@@ -81,11 +81,16 @@ export const piecesService = {
 
   async updatePiece(id: string, updates: Partial<Piece>): Promise<Piece> {
     try {
+      console.log("🔧 Service updatePiece - ID:", id);
+      console.log("📝 Service updatePiece - Updates:", updates);
+
       const response = await fetch(`/api/pieces/${id}`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(updates),
       });
+
+      console.log("📡 Réponse API:", response.status, response.statusText);
 
       if (!response.ok) {
         throw new Error("Erreur lors de la mise à jour de la pièce");

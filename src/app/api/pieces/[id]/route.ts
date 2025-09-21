@@ -66,16 +66,22 @@ export async function PUT(
     }
 
     const body = await request.json();
-    const { nom, description } = body;
+    const { nom, description, aMetadonnees } = body;
+
+    console.log("🔧 Mise à jour de la pièce ID:", id);
+    console.log("📝 Données reçues:", body);
 
     const piece = await prisma.pieces.update({
       where: { id },
       data: {
         nom: nom || undefined,
         description: description !== undefined ? description : undefined,
+        has_meta: aMetadonnees !== undefined ? aMetadonnees : undefined,
         updated_at: new Date(),
       },
     });
+
+    console.log("✅ Pièce mise à jour en base:", piece);
 
     return NextResponse.json({
       id: piece.id,
