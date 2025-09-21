@@ -173,6 +173,10 @@
 .bg-primary-300 {
   background-color: var(--color-primary-300);
 }
+
+.bg-warning-600 {
+  background-color: var(--color-warning-600);
+}
 .bg-primary-400 {
   background-color: var(--color-primary-400);
 }

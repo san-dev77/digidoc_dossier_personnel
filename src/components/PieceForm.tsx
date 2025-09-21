@@ -96,8 +96,8 @@ export default function PieceForm({
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4 animate-in fade-in duration-300">
-      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-2xl max-h-[90vh] overflow-y-auto animate-in slide-in-from-bottom-4 duration-500">
+    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-2xl max-h-[90vh] overflow-y-auto transform transition-all duration-300 ease-out">
         {/* Header */}
         <div className="flex items-center justify-between p-6 border-b border-gray-200 bg-gradient-to-r from-accent-green/5 to-accent-green/10">
           <div className="flex items-center gap-4">
@@ -152,7 +152,7 @@ export default function PieceForm({
               )}
             </div>
             {errors.nom && (
-              <p className="text-red-600 text-sm mt-1 flex items-center gap-1 animate-in slide-in-from-top-1 duration-200">
+              <p className="text-red-600 text-sm mt-1 flex items-center gap-1 transform transition-all duration-200 ease-out">
                 <AlertCircle className="w-4 h-4" />
                 {errors.nom}
               </p>
@@ -201,7 +201,7 @@ export default function PieceForm({
                   className="w-5 h-5 text-black bg-white border-gray-300 rounded focus:ring-accent-green focus:ring-2 transition-all duration-200"
                 />
                 {formData.has_meta && (
-                  <div className="absolute inset-0 w-5 h-5 bg-accent-green rounded animate-in zoom-in-50 duration-200"></div>
+                  <div className="absolute inset-0 w-5 h-5 bg-accent-green rounded transform transition-all duration-200 ease-out scale-100"></div>
                 )}
               </div>
               <span className="text-sm font-semibold text-gray-700 group-hover:text-accent-green transition-colors duration-200">
@@ -216,15 +216,18 @@ export default function PieceForm({
 
           {/* Section de création des métadonnées */}
           {formData.has_meta && (
-            <div className="space-y-4 animate-in slide-in-from-top-2 duration-300">
+            <div className="space-y-6 transform transition-all duration-300 ease-out">
               <div className="flex items-center justify-between">
-                <h3 className="text-lg font-semibold text-gray-800">
-                  Modèle de métadonnées
-                </h3>
+                <div className="flex items-center gap-3">
+                  <div className="w-3 h-3 bg-accent-green rounded-full animate-pulse"></div>
+                  <h3 className="text-lg font-bold text-gray-800">
+                    Modèle de métadonnées
+                  </h3>
+                </div>
                 <button
                   type="button"
                   onClick={addMetadata}
-                  className="flex items-center gap-2 bg-accent-green hover:bg-accent-green text-white px-4 py-2 rounded-lg text-sm font-medium transition-all duration-200 hover:scale-105 shadow-md hover:shadow-lg"
+                  className="flex items-center gap-2 bg-gradient-to-r from-accent-green to-green-600 hover:from-green-600 hover:to-green-700 text-white px-4 py-2.5 rounded-xl text-sm font-semibold transition-all duration-200 hover:scale-105 shadow-md hover:shadow-lg"
                 >
                   <Plus className="w-4 h-4" />
                   Ajouter un champ
@@ -232,40 +235,49 @@ export default function PieceForm({
               </div>
 
               {metadonnees.length === 0 ? (
-                <div className="text-center py-8 border-2 border-dashed border-gray-300 rounded-xl bg-gray-50/50">
-                  <FileText className="w-12 h-12 text-gray-400 mx-auto mb-3" />
-                  <p className="text-gray-600 mb-4">
+                <div className="text-center py-12 border-2 border-dashed border-gray-300 rounded-2xl bg-gradient-to-br from-gray-50 to-gray-100/50">
+                  <div className="w-16 h-16 bg-gray-200 rounded-2xl flex items-center justify-center mx-auto mb-4">
+                    <FileText className="w-8 h-8 text-gray-400" />
+                  </div>
+                  <p className="text-gray-700 font-semibold mb-2">
                     Aucun champ de métadonnée défini
                   </p>
-                  <p className="text-sm text-gray-500">
-                    Cliquez sur &quot;Ajouter un champ&quot; pour créer votre
-                    premier champ de métadonnée
+                  <p className="text-sm text-gray-500 max-w-sm mx-auto">
+                    Cliquez sur "Ajouter un champ" pour créer votre premier
+                    champ de métadonnée personnalisé
                   </p>
                 </div>
               ) : (
-                <div className="space-y-3">
+                <div className="space-y-4">
                   {metadonnees.map((meta, index) => (
                     <div
                       key={index}
-                      className="bg-white border border-gray-200 rounded-xl p-4 shadow-sm hover:shadow-md transition-all duration-200"
+                      className="bg-white border border-gray-200 rounded-2xl p-6 shadow-sm hover:shadow-lg transition-all duration-300"
                     >
-                      <div className="flex items-center justify-between mb-3">
-                        <h4 className="font-semibold text-gray-800">
-                          Champ {index + 1}
-                        </h4>
+                      <div className="flex items-center justify-between mb-4">
+                        <div className="flex items-center gap-3">
+                          <div className="w-8 h-8 bg-gradient-to-br from-accent-green to-green-600 rounded-lg flex items-center justify-center">
+                            <span className="text-xs font-bold text-white">
+                              {index + 1}
+                            </span>
+                          </div>
+                          <h4 className="font-bold text-gray-800">
+                            Champ {index + 1}
+                          </h4>
+                        </div>
                         <button
                           type="button"
                           onClick={() => removeMetadata(index)}
-                          className="p-2 text-red-500 hover:bg-red-50 rounded-lg transition-all duration-200 hover:scale-105"
+                          className="p-2 text-red-500 hover:bg-red-50 rounded-xl transition-all duration-200 hover:scale-105"
                         >
                           <Trash2 className="w-4 h-4" />
                         </button>
                       </div>
 
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                         {/* Nom du champ */}
                         <div>
-                          <label className="block text-sm font-medium text-gray-700 mb-1">
+                          <label className="block text-sm font-semibold text-gray-700 mb-2">
                             Nom du champ *
                           </label>
                           <input
@@ -274,14 +286,14 @@ export default function PieceForm({
                             onChange={(e) =>
                               updateMetadata(index, "nom", e.target.value)
                             }
-                            className="w-full text-black px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-accent-green focus:border-accent-green transition-all duration-200"
+                            className="w-full text-black px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-accent-green focus:border-accent-green transition-all duration-200 hover:border-accent-green/50"
                             placeholder="Ex: Date d'émission"
                           />
                         </div>
 
                         {/* Type de champ */}
                         <div>
-                          <label className="block text-sm font-medium text-gray-700 mb-1">
+                          <label className="block text-sm font-semibold text-gray-700 mb-2">
                             Type de champ
                           </label>
                           <select
@@ -289,7 +301,7 @@ export default function PieceForm({
                             onChange={(e) =>
                               updateMetadata(index, "type", e.target.value)
                             }
-                            className="w-full text-black px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-accent-green focus:border-accent-green transition-all duration-200"
+                            className="w-full text-black px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-accent-green focus:border-accent-green transition-all duration-200 hover:border-accent-green/50"
                           >
                             <option value="text">Texte</option>
                             <option value="number">Nombre</option>
@@ -301,8 +313,8 @@ export default function PieceForm({
                       </div>
 
                       {/* Description */}
-                      <div className="mt-3">
-                        <label className="block text-sm font-medium text-gray-700 mb-1">
+                      <div className="mt-4">
+                        <label className="block text-sm font-semibold text-gray-700 mb-2">
                           Description (optionnel)
                         </label>
                         <textarea
@@ -310,15 +322,15 @@ export default function PieceForm({
                           onChange={(e) =>
                             updateMetadata(index, "description", e.target.value)
                           }
-                          className="w-full text-black px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-accent-green focus:border-accent-green transition-all duration-200 resize-none"
+                          className="w-full text-black px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-accent-green focus:border-accent-green transition-all duration-200 resize-none hover:border-accent-green/50"
                           rows={2}
                           placeholder="Description du champ..."
                         />
                       </div>
 
                       {/* Checkbox obligatoire */}
-                      <div className="mt-3">
-                        <label className="flex items-center gap-2 cursor-pointer">
+                      <div className="mt-4">
+                        <label className="flex items-center gap-3 cursor-pointer p-3 bg-gray-50 rounded-xl hover:bg-gray-100 transition-all duration-200">
                           <input
                             type="checkbox"
                             checked={meta.obligatoire}
@@ -329,9 +341,9 @@ export default function PieceForm({
                                 e.target.checked
                               )
                             }
-                            className="w-4 h-4 text-black bg-white border-gray-300 rounded focus:ring-accent-green focus:ring-2"
+                            className="w-5 h-5 text-accent-green bg-white border-gray-300 rounded focus:ring-accent-green focus:ring-2 transition-all duration-200"
                           />
-                          <span className="text-sm font-medium text-gray-700">
+                          <span className="text-sm font-semibold text-gray-700">
                             Champ obligatoire
                           </span>
                         </label>

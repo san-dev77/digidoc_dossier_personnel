@@ -85,9 +85,11 @@ function ToastComponent({ toast, onClose }: ToastProps) {
         ${config.bgColor} ${
         config.borderColor
       } border rounded-lg shadow-lg p-4 mb-3
-        transform transition-all duration-300 ease-in-out
+        transform transition-all duration-300 ease-out
         ${
-          isVisible ? "translate-x-0 opacity-100" : "translate-x-full opacity-0"
+          isVisible
+            ? "translate-x-0 opacity-100 scale-100"
+            : "translate-x-full opacity-0 scale-95"
         }
       `}
     >

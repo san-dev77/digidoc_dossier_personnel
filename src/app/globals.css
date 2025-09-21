@@ -1,5 +1,6 @@
 @import "tailwindcss";
 @plugin "daisyui";
+@import "../styles/components.css";
 
 /* Custom utilities */
 .line-clamp-1 {

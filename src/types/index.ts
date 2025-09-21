@@ -3,12 +3,12 @@
 export interface Agent {
   id: string;
   matricule: string;
-  nom: string;
-  prenom: string;
+  nom: string; // Nom complet
+  prenom: string; // Gardé pour compatibilité, sera vide
   email: string;
   fonction: string;
-  dateNaissance: string;
-  lieuNaissance: string;
+  date_naissance: string;
+  lieu_naissance: string;
   sexe: "M" | "F";
   situationMatrimoniale:
     | "Célibataire"
@@ -25,7 +25,7 @@ export interface Rubrique {
   id: string;
   nom: string;
   description: string;
-  createdAt: string;
+  created_at: string;
   updatedAt: string;
 }
 
@@ -43,6 +43,7 @@ export interface AgentRubrique {
 export interface SousDossier {
   id: string;
   agentRubriqueId: string;
+  rubrique_id: string;
   titre: string;
   description: string;
   dateCreation: string;
@@ -59,6 +60,7 @@ export interface Piece {
   description?: string;
   aMetadonnees: boolean;
   createdAt: string;
+  updatedAt: string;
 }
 
 export interface MetadataModel {
@@ -88,12 +90,12 @@ export interface PieceWithMetadata extends Piece {
 // Types pour les formulaires
 export interface AgentFormData {
   matricule: string;
-  nom: string;
-  prenom: string;
+  nom: string; // Nom complet
+  prenom: string; // Gardé pour compatibilité
   email: string;
   fonction: string;
-  dateNaissance: string;
-  lieuNaissance: string;
+  date_naissance: string;
+  lieu_naissance: string;
   sexe: "M" | "F";
   situationMatrimoniale:
     | "Célibataire"
@@ -112,6 +114,8 @@ export interface RubriqueFormData {
 export interface SousDossierFormData {
   titre: string;
   description: string;
+  rubrique_id: string;
+  statut?: string;
 }
 
 export interface PieceFormData {

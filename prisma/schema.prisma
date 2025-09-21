@@ -1,0 +1,99 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model agent_rubriques {
+  id          Int       @id @default(autoincrement())
+  agent_id    Int
+  rubrique_id Int
+  agents      agents    @relation(fields: [agent_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  rubriques   rubriques @relation(fields: [rubrique_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+}
+
+model agents {
+  id                     Int               @id @default(autoincrement())
+  matricule              String            @db.VarChar(50)
+  nom_complet            String            @db.VarChar(255)
+  fonction               String?           @db.VarChar(255)
+  date_naissance         DateTime?         @db.Date
+  lieu_naissance         String?           @db.VarChar(255)
+  sexe                   String?           @db.VarChar(255)
+  situation_matrimoniale String?           @db.VarChar(50)
+  adresse                String?
+  telephone              String?           @db.VarChar(50)
+  email                  String?           @db.VarChar(255)
+  created_at             DateTime?         @default(now()) @db.Timestamp(6)
+  updated_at             DateTime?         @default(now()) @db.Timestamp(6)
+  password               String            @db.VarChar(255)
+  agent_rubriques        agent_rubriques[]
+  fiabilisations         fiabilisations[]
+  notifications          notifications[]
+}
+
+model fiabilisations {
+  id          Int       @id @default(autoincrement())
+  agent_id    Int
+  piece_nom   String    @db.VarChar(255)
+  statut      String    @db.VarChar(255)
+  date_update DateTime? @default(now()) @db.Timestamp(6)
+  agents      agents    @relation(fields: [agent_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+}
+
+model notifications {
+  id         Int       @id @default(autoincrement())
+  agent_id   Int
+  message    String
+  type_notif String    @db.VarChar(255)
+  date_envoi DateTime? @default(now()) @db.Timestamp(6)
+  lu         Boolean?  @default(false)
+  agents     agents    @relation(fields: [agent_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+}
+
+model rubriques {
+  id              Int               @id @default(autoincrement())
+  nom             String            @db.VarChar(255)
+  description     String?
+  agent_rubriques agent_rubriques[]
+  sous_dossiers   sous_dossiers[]
+}
+
+model sous_dossiers {
+  id          Int       @id @default(autoincrement())
+  rubrique_id Int
+  titre       String    @db.VarChar(255)
+  description String?
+  statut      String    @default("ouvert") @db.VarChar(50)
+  created_at  DateTime? @default(now()) @db.Timestamp(6)
+  updated_at  DateTime? @default(now()) @db.Timestamp(6)
+  pieces      pieces[]
+  rubriques   rubriques @relation(fields: [rubrique_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+}
+
+model pieces {
+  id              Int              @id @default(autoincrement())
+  sous_dossier_id Int
+  nom             String           @db.VarChar(255)
+  description     String?
+  created_at      DateTime?        @default(now()) @db.Timestamp(6)
+  has_meta        Boolean?         @default(false)
+  updated_at      DateTime?        @default(now()) @db.Timestamp(6)
+  metadata_model  metadata_model[]
+  sous_dossiers   sous_dossiers    @relation(fields: [sous_dossier_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+}
+
+model metadata_model {
+  id          Int       @id @default(autoincrement())
+  piece_id    Int
+  obligatoire Boolean?  @default(false)
+  created_at  DateTime? @default(now()) @db.Timestamp(6)
+  description String?
+  libelle     String    @db.VarChar(255)
+  type        String    @db.VarChar(50)
+  updated_at  DateTime? @default(now()) @db.Timestamp(6)
+  pieces      pieces    @relation(fields: [piece_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+}

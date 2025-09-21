@@ -10,10 +10,8 @@ import {
   Edit,
   Trash2,
   Settings,
-  BarChart3,
-  Users,
   FileText,
-  Calendar,
+  RefreshCw,
 } from "lucide-react";
 import AuthGuard from "@/components/AuthGuard";
 import DashboardLayout from "@/components/DashboardLayout";
@@ -152,82 +150,85 @@ export default function RubriquesPage() {
     <AuthGuard>
       <DashboardLayout>
         <div className="p-6">
-          {/* Header avec statistiques */}
+          {/* Header Card */}
           <div className="mb-8">
-            <div className="flex items-center justify-between mb-6">
-              <div>
-                <h1 className="text-3xl font-bold text-gray-900">Rubriques</h1>
-                <p className="text-gray-600 mt-2">
-                  Organisez et gérez les catégories de documents
-                </p>
-              </div>
-              <div className="flex items-center gap-3">
-                <button
-                  onClick={() => setShowCreateForm(true)}
-                  className="bg-primary-600 hover:bg-primary-700 text-white px-4 py-2.5 rounded-lg text-sm font-medium flex items-center gap-2 shadow-lg hover:shadow-xl transition-all"
-                >
-                  <Plus className="w-4 h-4" />
-                  Nouvelle Rubrique
-                </button>
-              </div>
-            </div>
-
-            {/* Statistiques */}
-            <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-6">
-              <div className="bg-white rounded-xl shadow-md p-6 border border-gray-100">
+            <div className="bg-primary-700 mb-5 rounded-2xl shadow-2xl overflow-hidden">
+              <div className="p-8">
                 <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-sm font-medium text-gray-600">
-                      Total Rubriques
-                    </p>
-                    <p className="text-2xl font-bold text-gray-900">
-                      {rubriques.length}
-                    </p>
+                  <div className="flex items-center space-x-6">
+                    <div className="bg-white/20 backdrop-blur-sm rounded-2xl p-4">
+                      <FileText className="w-12 h-12 text-white" />
+                    </div>
+                    <div>
+                      <h1 className="text-4xl font-bold text-white mb-2">
+                        Gestion des Rubriques
+                      </h1>
+                      <p className="text-primary-100 text-lg">
+                        Organisez et gérez les catégories de documents de
+                        manière centralisée
+                      </p>
+                      <div className="flex items-center space-x-4 mt-4">
+                        <div className="flex items-center space-x-2 bg-white/20 backdrop-blur-sm rounded-lg px-3 py-2">
+                          <div className="w-2 h-2 bg-accent-green rounded-full"></div>
+                          <span className="text-white text-sm font-medium">
+                            {rubriques.length} rubriques créées
+                          </span>
+                        </div>
+                        <div className="flex items-center space-x-2 bg-white/20 backdrop-blur-sm rounded-lg px-3 py-2">
+                          <div className="w-2 h-2 bg-warning-500 rounded-full"></div>
+                          <span className="text-white text-sm font-medium">
+                            0 documents archivés
+                          </span>
+                        </div>
+                      </div>
+                    </div>
                   </div>
-                  <div className="bg-primary-100 p-3 rounded-lg">
-                    <FileText className="w-6 h-6 text-primary-600" />
+                  <div className="flex flex-col space-y-3">
+                    <div className="flex items-center space-x-3">
+                      <button
+                        onClick={loadRubriques}
+                        disabled={loading}
+                        className="p-3 rounded-xl border border-white/20 hover:bg-white/10 transition-all duration-200 backdrop-blur-sm disabled:opacity-50"
+                        title="Actualiser"
+                      >
+                        <RefreshCw
+                          className={`w-5 h-5 text-white ${
+                            loading ? "animate-spin" : ""
+                          }`}
+                        />
+                      </button>
+                      <button
+                        onClick={() => setShowCreateForm(true)}
+                        className="px-8 py-4 bg-white text-primary-700 rounded-xl hover:bg-primary-50 transition-all duration-300 flex items-center space-x-3 shadow-lg hover:shadow-xl font-semibold text-lg"
+                      >
+                        <Plus className="w-6 h-6" />
+                        <span>Nouvelle Rubrique</span>
+                      </button>
+                    </div>
+                    <div className="text-center">
+                      <div className="text-white/80 text-sm">
+                        Total des rubriques
+                      </div>
+                      <div className="text-2xl font-bold text-white">
+                        {rubriques.length}
+                      </div>
+                    </div>
                   </div>
                 </div>
               </div>
 
-              <div className="bg-white rounded-xl shadow-md p-6 border border-gray-100">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-sm font-medium text-gray-600">
-                      Documents
-                    </p>
-                    <p className="text-2xl font-bold text-gray-900">0</p>
-                  </div>
-                  <div className="bg-green-100 p-3 rounded-lg">
-                    <BarChart3 className="w-6 h-6 text-green-600" />
-                  </div>
-                </div>
-              </div>
-
-              <div className="bg-white rounded-xl shadow-md p-6 border border-gray-100">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-sm font-medium text-gray-600">
-                      Agents Actifs
-                    </p>
-                    <p className="text-2xl font-bold text-gray-900">0</p>
-                  </div>
-                  <div className="bg-blue-100 p-3 rounded-lg">
-                    <Users className="w-6 h-6 text-blue-600" />
-                  </div>
-                </div>
-              </div>
-
-              <div className="bg-white rounded-xl shadow-md p-6 border border-gray-100">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-sm font-medium text-gray-600">Ce Mois</p>
-                    <p className="text-2xl font-bold text-gray-900">0</p>
-                  </div>
-                  <div className="bg-orange-100 p-3 rounded-lg">
-                    <Calendar className="w-6 h-6 text-orange-600" />
-                  </div>
-                </div>
+              {/* Progress bar */}
+              <div className="h-1 bg-white/20">
+                <div
+                  className="h-full bg-accent-green transition-all duration-1000 ease-out"
+                  style={{
+                    width: `${
+                      rubriques.length > 0
+                        ? Math.min((rubriques.length / 10) * 100, 100)
+                        : 0
+                    }%`,
+                  }}
+                ></div>
               </div>
             </div>
           </div>
@@ -297,9 +298,7 @@ export default function RubriquesPage() {
                       <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                         Description
                       </th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                        Date de création
-                      </th>
+
                       <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
                         Actions
                       </th>
@@ -318,11 +317,7 @@ export default function RubriquesPage() {
                             {rubrique.description}
                           </div>
                         </td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600">
-                          {new Date(rubrique.createdAt).toLocaleDateString(
-                            "fr-FR"
-                          )}
-                        </td>
+
                         <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
                           <div className="flex items-center justify-end gap-2">
                             <button

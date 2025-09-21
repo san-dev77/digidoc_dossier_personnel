@@ -4,6 +4,8 @@ import "./globals.css";
 import "../styles/design-tokens.css";
 import ThemeProvider from "@/components/ThemeProvider";
 import { ConnectionErrorProvider } from "@/contexts/ConnectionErrorContext";
+import { NotificationProvider } from "@/contexts/NotificationContext";
+import AuthInitializer from "@/components/AuthInitializer";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -31,7 +33,11 @@ export default function RootLayout({
         className={`${geistSans.variable} ${geistMono.variable} antialiased`}
       >
         <ThemeProvider>
-          <ConnectionErrorProvider>{children}</ConnectionErrorProvider>
+          <ConnectionErrorProvider>
+            <NotificationProvider>
+              <AuthInitializer>{children}</AuthInitializer>
+            </NotificationProvider>
+          </ConnectionErrorProvider>
         </ThemeProvider>
       </body>
     </html>

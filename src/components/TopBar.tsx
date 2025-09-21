@@ -10,13 +10,13 @@ import {
   ChevronDown,
 } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
+import { useUser } from "@/hooks/useUser";
 import ThemeSwitcher from "./ThemeSwitcher";
 import ConnectionStatus from "./ConnectionStatus";
 
-interface TopBarProps {}
-
-export default function TopBar({}: TopBarProps) {
-  const { appUser, logout } = useAuth();
+export default function TopBar() {
+  const { logout } = useAuth();
+  const { user, fullName, fonction } = useUser();
   const [isProfileOpen, setIsProfileOpen] = useState(false);
   const [isNotificationsOpen, setIsNotificationsOpen] = useState(false);
 
@@ -149,16 +149,16 @@ export default function TopBar({}: TopBarProps) {
             >
               <div className="w-8 h-8 bg-gradient-primary rounded-full flex items-center justify-center shadow-primary">
                 <span className="text-sm font-bold text-white">
-                  {appUser?.prenom?.[0]}
-                  {appUser?.nom?.[0]}
+                  {user?.nom?.[0]}
+                  {user?.nom?.[1]}
                 </span>
               </div>
               <div className="hidden md:block text-left">
                 <p className="text-sm font-semibold text-gray-900">
-                  {appUser?.prenom} {appUser?.nom}
+                  {fullName}
                 </p>
                 <p className="text-xs text-gray-600">
-                  {appUser?.fonction || "Utilisateur"}
+                  {fonction || "Utilisateur"}
                 </p>
               </div>
               <ChevronDown className="w-4 h-4 text-gray-600" />
@@ -171,15 +171,15 @@ export default function TopBar({}: TopBarProps) {
                   <div className="flex items-center space-x-3">
                     <div className="w-10 h-10 bg-gradient-primary rounded-full flex items-center justify-center shadow-primary">
                       <span className="text-sm font-bold text-white">
-                        {appUser?.prenom?.[0]}
-                        {appUser?.nom?.[0]}
+                        {user?.nom?.[0]}
+                        {user?.nom?.[1]}
                       </span>
                     </div>
                     <div>
                       <p className="text-sm font-medium text-gray-900">
-                        {appUser?.prenom} {appUser?.nom}
+                        {fullName}
                       </p>
-                      <p className="text-xs text-gray-500">{appUser?.email}</p>
+                      <p className="text-xs text-gray-500">{user?.email}</p>
                     </div>
                   </div>
                 </div>

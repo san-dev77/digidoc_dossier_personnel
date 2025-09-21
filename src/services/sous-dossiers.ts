@@ -1,10 +1,9 @@
-import { supabase } from "@/lib/supabase";
-
 export interface SousDossier {
   id: string;
   titre: string;
   description: string;
   rubrique_id: string;
+  statut?: string;
   documentsCount?: number;
   createdAt: string;
   updatedAt: string;
@@ -14,6 +13,7 @@ export interface SousDossierFormData {
   titre: string;
   description: string;
   rubrique_id: string;
+  statut?: string;
 }
 
 export const sousDossiersService = {
@@ -21,19 +21,20 @@ export const sousDossiersService = {
     rubriqueId: string
   ): Promise<SousDossier[]> {
     try {
-      const { data, error } = await supabase
-        .from("sous_dossiers")
-        .select("*")
-        .eq("rubrique_id", rubriqueId)
-        .order("created_at", { ascending: false });
+      const response = await fetch(
+        `/api/sous-dossiers?rubriqueId=${rubriqueId}`
+      );
+      if (!response.ok) {
+        throw new Error("Erreur lors de la récupération des sous-dossiers");
+      }
 
-      if (error) throw error;
-
+      const data = await response.json();
       return data.map((sousDossier: any) => ({
         id: sousDossier.id.toString(),
         titre: sousDossier.titre,
         description: sousDossier.description,
         rubrique_id: sousDossier.rubrique_id.toString(),
+        statut: sousDossier.statut,
         createdAt: sousDossier.created_at || "",
         updatedAt: sousDossier.updated_at || "",
       }));
@@ -45,19 +46,19 @@ export const sousDossiersService = {
 
   async getSousDossierById(id: string): Promise<SousDossier | null> {
     try {
-      const { data, error } = await supabase
-        .from("sous_dossiers")
-        .select("*")
-        .eq("id", id)
-        .single();
+      const response = await fetch(`/api/sous-dossiers/${id}`);
+      if (!response.ok) {
+        if (response.status === 404) return null;
+        throw new Error("Erreur lors de la récupération du sous-dossier");
+      }
 
-      if (error) throw error;
-
+      const data = await response.json();
       return {
         id: data.id.toString(),
         titre: data.titre,
         description: data.description,
         rubrique_id: data.rubrique_id.toString(),
+        statut: data.statut,
         createdAt: data.created_at || "",
         updatedAt: data.updated_at || "",
       };
@@ -71,25 +72,28 @@ export const sousDossiersService = {
     sousDossierData: SousDossierFormData
   ): Promise<SousDossier> {
     try {
-      const { data, error } = await supabase
-        .from("sous_dossiers")
-        .insert([
-          {
-            titre: sousDossierData.titre,
-            description: sousDossierData.description,
-            rubrique_id: sousDossierData.rubrique_id,
-          },
-        ])
-        .select()
-        .single();
+      const response = await fetch("/api/sous-dossiers", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          rubrique_id: sousDossierData.rubrique_id,
+          titre: sousDossierData.titre,
+          description: sousDossierData.description,
+          statut: sousDossierData.statut || "ouvert",
+        }),
+      });
 
-      if (error) throw error;
+      if (!response.ok) {
+        throw new Error("Erreur lors de la création du sous-dossier");
+      }
 
+      const data = await response.json();
       return {
         id: data.id.toString(),
         titre: data.titre,
         description: data.description,
         rubrique_id: data.rubrique_id.toString(),
+        statut: data.statut,
         createdAt: data.created_at || "",
         updatedAt: data.updated_at || "",
       };
@@ -106,26 +110,23 @@ export const sousDossiersService = {
     >
   ): Promise<SousDossier> {
     try {
-      const updateData: any = {};
+      const response = await fetch(`/api/sous-dossiers/${id}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(sousDossierData),
+      });
 
-      if (sousDossierData.titre) updateData.titre = sousDossierData.titre;
-      if (sousDossierData.description)
-        updateData.description = sousDossierData.description;
+      if (!response.ok) {
+        throw new Error("Erreur lors de la modification du sous-dossier");
+      }
 
-      const { data, error } = await supabase
-        .from("sous_dossiers")
-        .update(updateData)
-        .eq("id", id)
-        .select()
-        .single();
-
-      if (error) throw error;
-
+      const data = await response.json();
       return {
         id: data.id.toString(),
         titre: data.titre,
         description: data.description,
         rubrique_id: data.rubrique_id.toString(),
+        statut: data.statut,
         createdAt: data.created_at || "",
         updatedAt: data.updated_at || "",
       };
@@ -137,12 +138,13 @@ export const sousDossiersService = {
 
   async deleteSousDossier(id: string): Promise<void> {
     try {
-      const { error } = await supabase
-        .from("sous_dossiers")
-        .delete()
-        .eq("id", id);
+      const response = await fetch(`/api/sous-dossiers/${id}`, {
+        method: "DELETE",
+      });
 
-      if (error) throw error;
+      if (!response.ok) {
+        throw new Error("Erreur lors de la suppression du sous-dossier");
+      }
     } catch (error) {
       console.error("Erreur lors de la suppression du sous-dossier:", error);
       throw error;

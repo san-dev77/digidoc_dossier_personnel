@@ -8,6 +8,7 @@ import {
   MetadataModel,
   PieceMetadata,
 } from "@/types";
+import { useAuthStore } from "@/store/authStore";
 
 interface AppState {
   // État de l'application

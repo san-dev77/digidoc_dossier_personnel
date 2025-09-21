@@ -1,0 +1,123 @@
+/* Classes utilitaires pour les composants */
+
+/* Limite le nombre de lignes affichées */
+.line-clamp-1 {
+  display: -webkit-box;
+  -webkit-line-clamp: 1;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.line-clamp-2 {
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.line-clamp-3 {
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+/* Animation d'entrée pour les cartes */
+@keyframes slideInFromLeft {
+  from {
+    opacity: 0;
+    transform: translateX(-20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+.animate-slide-in {
+  animation: slideInFromLeft 0.3s ease-out;
+}
+
+/* Effet de hover pour les cartes */
+.card-hover {
+  transition: all 0.2s ease-in-out;
+}
+
+.card-hover:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 25px -5px rgba(0, 0, 0, 0.1),
+    0 10px 10px -5px rgba(0, 0, 0, 0.04);
+}
+
+/* Badge de statut */
+.status-badge {
+  @apply inline-flex items-center px-2 py-1 rounded-full text-xs font-medium;
+}
+
+.status-badge.meta {
+  @apply bg-emerald-50 text-emerald-700 border border-emerald-200;
+}
+
+.status-badge.date {
+  @apply bg-gray-50 text-gray-600 border border-gray-200;
+}
+
+/* Icône avec badge */
+.icon-with-badge {
+  position: relative;
+}
+
+.icon-badge {
+  position: absolute;
+  top: -4px;
+  right: -4px;
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 8px;
+  font-weight: bold;
+  color: white;
+  background: linear-gradient(135deg, #f59e0b, #f97316);
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+/* Tags de métadonnées */
+.metadata-tag {
+  @apply inline-flex items-center gap-1 bg-white border border-gray-200 rounded-md px-2 py-1 text-xs transition-all duration-200;
+}
+
+.metadata-tag:hover {
+  @apply bg-gray-50 border-gray-300;
+}
+
+.metadata-tag .type {
+  @apply text-gray-500;
+}
+
+.metadata-tag .required {
+  @apply text-red-500 font-bold;
+}
+
+/* Indicateur de métadonnées */
+.metadata-indicator {
+  @apply flex items-center gap-1 text-xs font-medium;
+}
+
+.metadata-indicator .dot {
+  @apply w-1.5 h-1.5 bg-emerald-500 rounded-full;
+}
+
+/* Responsive grid pour les métadonnées */
+.metadata-grid {
+  @apply grid gap-1.5;
+  grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+}
+
+@media (max-width: 640px) {
+  .metadata-grid {
+    grid-template-columns: 1fr;
+  }
+}

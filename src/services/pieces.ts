@@ -1,4 +1,3 @@
-import { supabase } from "@/lib/supabase";
 import type {
   Piece,
   PieceFormData,
@@ -9,23 +8,22 @@ import type {
 export const piecesService = {
   async getAllPiecesBySousDossier(sousDossierId: string): Promise<Piece[]> {
     try {
-      const { data, error } = await supabase
-        .from("pieces")
-        .select("*")
-        .eq("sous_dossier_id", sousDossierId)
-        .order("created_at", { ascending: false });
+      const response = await fetch(
+        `/api/pieces?sousDossierId=${sousDossierId}`
+      );
+      if (!response.ok) {
+        throw new Error("Erreur lors de la récupération des pièces");
+      }
 
-      if (error) throw error;
-
-      return data.map((piece) => ({
-        id: piece.id,
-        sousDossierId: piece.sous_dossier_id,
+      const data = await response.json();
+      return data.map((piece: any) => ({
+        id: piece.id.toString(),
+        sousDossierId: piece.sousDossierId,
         nom: piece.nom,
         description: piece.description,
-        statut: piece.statut,
-        aMetadonnees: piece.has_meta || false,
-        createdAt: piece.created_at,
-        updatedAt: piece.updated_at,
+        aMetadonnees: piece.aMetadonnees,
+        createdAt: piece.createdAt,
+        updatedAt: piece.updatedAt,
       }));
     } catch (error) {
       console.error("Erreur lors du chargement des pièces:", error);
@@ -35,29 +33,9 @@ export const piecesService = {
 
   async getAllPiecesByRubrique(rubriqueId: string): Promise<Piece[]> {
     try {
-      const { data, error } = await supabase
-        .from("pieces")
-        .select(
-          `
-          *,
-          sous_dossiers!inner(rubrique_id)
-        `
-        )
-        .eq("sous_dossiers.rubrique_id", rubriqueId)
-        .order("created_at", { ascending: false });
-
-      if (error) throw error;
-
-      return data.map((piece) => ({
-        id: piece.id,
-        sousDossierId: piece.sous_dossier_id,
-        nom: piece.nom,
-        description: piece.description,
-        statut: piece.statut,
-        aMetadonnees: piece.has_meta || false,
-        createdAt: piece.created_at,
-        updatedAt: piece.updated_at,
-      }));
+      // Pour l'instant, on retourne un tableau vide car cette fonctionnalité
+      // nécessiterait une jointure complexe. On peut l'implémenter plus tard si nécessaire.
+      return [];
     } catch (error) {
       console.error("Erreur lors du chargement des pièces:", error);
       throw error;
@@ -69,54 +47,31 @@ export const piecesService = {
     formData: PieceFormData
   ): Promise<Piece> {
     try {
-      // Création de l'enregistrement en base
-      const { data, error } = await supabase
-        .from("pieces")
-        .insert({
+      const response = await fetch("/api/pieces", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
           sous_dossier_id: sousDossierId,
           nom: formData.nom,
           description: formData.description,
           has_meta: formData.has_meta,
-        })
-        .select()
-        .single();
+          metadonnees: formData.metadonnees,
+        }),
+      });
 
-      if (error) throw error;
-
-      // Créer les métadonnées si elles existent
-      if (
-        formData.has_meta &&
-        formData.metadonnees &&
-        formData.metadonnees.length > 0
-      ) {
-        const metadataToInsert = formData.metadonnees.map((meta) => ({
-          piece_id: data.id,
-          libelle: meta.nom,
-          type: meta.type,
-          obligatoire: meta.obligatoire,
-          description: meta.description,
-        }));
-
-        const { error: metadataError } = await supabase
-          .from("metadata_model")
-          .insert(metadataToInsert);
-
-        if (metadataError) {
-          console.error(
-            "Erreur lors de la création des métadonnées:",
-            metadataError
-          );
-          // On continue même si les métadonnées échouent
-        }
+      if (!response.ok) {
+        throw new Error("Erreur lors de la création de la pièce");
       }
 
+      const data = await response.json();
       return {
-        id: data.id,
-        sousDossierId: data.sous_dossier_id,
+        id: data.id.toString(),
+        sousDossierId: data.sousDossierId,
         nom: data.nom,
         description: data.description,
-        aMetadonnees: data.has_meta || false,
-        createdAt: data.created_at,
+        aMetadonnees: data.aMetadonnees,
+        createdAt: data.createdAt,
+        updatedAt: data.updatedAt,
       };
     } catch (error) {
       console.error("Erreur lors de la création de la pièce:", error);
@@ -126,25 +81,25 @@ export const piecesService = {
 
   async updatePiece(id: string, updates: Partial<Piece>): Promise<Piece> {
     try {
-      const { data, error } = await supabase
-        .from("pieces")
-        .update({
-          nom: updates.nom,
-          updated_at: new Date().toISOString(),
-        })
-        .eq("id", id)
-        .select()
-        .single();
+      const response = await fetch(`/api/pieces/${id}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(updates),
+      });
 
-      if (error) throw error;
+      if (!response.ok) {
+        throw new Error("Erreur lors de la mise à jour de la pièce");
+      }
 
+      const data = await response.json();
       return {
-        id: data.id,
-        sousDossierId: data.sous_dossier_id,
+        id: data.id.toString(),
+        sousDossierId: data.sousDossierId,
         nom: data.nom,
         description: data.description,
-        aMetadonnees: data.has_meta || false,
-        createdAt: data.created_at,
+        aMetadonnees: data.aMetadonnees,
+        createdAt: data.createdAt,
+        updatedAt: data.updatedAt,
       };
     } catch (error) {
       console.error("Erreur lors de la mise à jour de la pièce:", error);
@@ -156,57 +111,44 @@ export const piecesService = {
     sousDossierId: string
   ): Promise<PieceWithMetadata[]> {
     try {
-      // Récupérer les pièces
-      const { data: pieces, error: piecesError } = await supabase
-        .from("pieces")
-        .select("*")
-        .eq("sous_dossier_id", sousDossierId)
-        .order("created_at", { ascending: false });
-
-      if (piecesError) throw piecesError;
-
-      // Pour chaque pièce, récupérer ses métadonnées si elle en a
-      const piecesWithMetadata = await Promise.all(
-        pieces.map(async (piece) => {
-          let metadonnees: MetadataModel[] = [];
-
-          if (piece.has_meta) {
-            const { data: metadata, error: metadataError } = await supabase
-              .from("metadata_model")
-              .select("*")
-              .eq("piece_id", piece.id);
-
-            if (!metadataError && metadata) {
-              metadonnees = metadata.map((meta) => ({
-                id: meta.id,
-                nom: meta.libelle,
-                type: meta.type,
-                obligatoire: meta.obligatoire,
-                description: meta.description,
-                createdAt: meta.created_at,
-                updatedAt: meta.updated_at,
-              }));
-            }
-          }
-
-          return {
-            id: piece.id,
-            sousDossierId: piece.sous_dossier_id,
-            nom: piece.nom,
-            description: piece.description,
-            aMetadonnees: piece.has_meta || false,
-            createdAt: piece.created_at,
-            metadonnees,
-          };
-        })
+      const response = await fetch(
+        `/api/pieces?sousDossierId=${sousDossierId}`
       );
+      if (!response.ok) {
+        throw new Error("Erreur lors de la récupération des pièces");
+      }
 
-      return piecesWithMetadata;
+      const data = await response.json();
+      return data.map((piece: any) => ({
+        id: piece.id.toString(),
+        sousDossierId: piece.sousDossierId,
+        nom: piece.nom,
+        description: piece.description,
+        aMetadonnees: piece.aMetadonnees,
+        createdAt: piece.createdAt,
+        updatedAt: piece.updatedAt,
+        metadonnees: piece.metadonnees || [],
+      }));
     } catch (error) {
       console.error(
         "Erreur lors du chargement des pièces avec métadonnées:",
         error
       );
+      throw error;
+    }
+  },
+
+  async deletePiece(id: string): Promise<void> {
+    try {
+      const response = await fetch(`/api/pieces/${id}`, {
+        method: "DELETE",
+      });
+
+      if (!response.ok) {
+        throw new Error("Erreur lors de la suppression de la pièce");
+      }
+    } catch (error) {
+      console.error("Erreur lors de la suppression de la pièce:", error);
       throw error;
     }
   },

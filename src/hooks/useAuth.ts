@@ -1,112 +1,88 @@
 import { useState, useEffect } from "react";
-import { User } from "@supabase/supabase-js";
-import { supabase } from "@/lib/supabase";
 import { authService, RegisterData } from "@/services/auth";
-import { Agent } from "@/lib/supabase";
+import { notificationService } from "@/services/notifications";
+import { useAuthStore } from "@/store/authStore";
 
 export const useAuth = () => {
-  const [user, setUser] = useState<User | null>(null);
-  const [appUser, setAppUser] = useState<Agent | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
   const [isHydrated, setIsHydrated] = useState(false);
+  // Évite de bloquer l'UI lors du check de session
+  const [sessionChecking, setSessionChecking] = useState(false);
+
+  // Utiliser le store Zustand
+  const appUser = useAuthStore((state) => state.appUser);
+  const loading = useAuthStore((state) => state.loading);
+  const error = useAuthStore((state) => state.error);
+  const isAuthenticated = useAuthStore((state) => state.isAuthenticated);
+  const shouldCheckSession = useAuthStore((state) => state.shouldCheckSession);
+
+  const setAppUser = useAuthStore((state) => state.setAppUser);
+  const setLoading = useAuthStore((state) => state.setLoading);
+  const setError = useAuthStore((state) => state.setError);
+  const setLastSessionCheck = useAuthStore(
+    (state) => state.setLastSessionCheck
+  );
+  const clearAuth = useAuthStore((state) => state.clearAuth);
 
   useEffect(() => {
     setIsHydrated(true);
   }, []);
 
   useEffect(() => {
-    if (!isHydrated) return; // Attendre l'hydratation
+    if (!isHydrated) return;
 
     let mounted = true;
 
-    // Récupérer la session initiale
-    const getInitialSession = async () => {
+    // Vérifier la session seulement si nécessaire
+    const checkSessionIfNeeded = async () => {
+      if (!shouldCheckSession()) {
+        return;
+      }
+
       try {
-        console.log("🔍 Vérification de la session initiale...");
+        // Ne pas utiliser le loading global pour ne pas bloquer l'UI
+        setSessionChecking(true);
+        // Marque tout de suite un check pour éviter des checks rapprochés
+        setLastSessionCheck(Date.now());
+
+        // Vérifier si on a un utilisateur en session
+        if (appUser) {
+          console.log("✅ Session utilisateur trouvée en cache:", appUser);
+          return;
+        }
+
+        // Si pas d'utilisateur en cache, vérifier la session côté serveur
         const session = await authService.getSession();
-
-        if (mounted) {
-          if (session?.user) {
-            console.log("✅ Session trouvée:", session.user.email);
-            setUser(session.user);
-
-            try {
-              const userData = await authService.getCurrentUser();
-              if (mounted && userData) {
-                console.log("✅ Données utilisateur récupérées:", userData);
-                setAppUser(userData);
-              }
-            } catch (userError) {
-              console.error(
-                "❌ Erreur lors de la récupération des données utilisateur:",
-                userError
-              );
-              if (mounted) {
-                setAppUser(null);
-              }
-            }
-          } else {
-            console.log("❌ Aucune session trouvée");
-          }
+        if (mounted && session?.user) {
+          setAppUser(session.user);
+          // Envoyer une notification de connexion
+          notificationService.sendLoginNotification(
+            session.user.prenom || session.user.nom || "Utilisateur"
+          );
+        } else if (mounted) {
+          clearAuth();
         }
       } catch (error) {
         console.error(
-          "❌ Erreur lors de la récupération de la session:",
+          "❌ Erreur lors de la vérification de la session:",
           error
         );
-      } finally {
         if (mounted) {
-          console.log("🏁 Fin de la vérification initiale");
-          setLoading(false);
+          setError("Erreur de vérification de session");
+          clearAuth();
         }
+      } finally {
+        if (mounted) setSessionChecking(false);
       }
     };
 
-    getInitialSession();
-
-    // Écouter les changements d'authentification
-    const {
-      data: { subscription },
-    } = supabase.auth.onAuthStateChange(async (event, session) => {
-      console.log(
-        "🔄 Changement d'état d'authentification:",
-        event,
-        session?.user?.email
-      );
-
-      if (mounted) {
-        // Ne pas remettre loading à true si c'est juste un changement d'état
-        // et que l'utilisateur est déjà connecté
-        if (event === "SIGNED_IN" && session?.user) {
-          setUser(session.user);
-          try {
-            const userData = await authService.getCurrentUser();
-            if (mounted && userData) {
-              setAppUser(userData);
-            }
-          } catch (error) {
-            console.error(
-              "❌ Erreur lors de la récupération des données utilisateur:",
-              error
-            );
-            if (mounted) {
-              setAppUser(null);
-            }
-          }
-        } else if (event === "SIGNED_OUT") {
-          setUser(null);
-          setAppUser(null);
-        }
-        // Ne pas toucher à loading ici
-      }
-    });
+    checkSessionIfNeeded();
 
     return () => {
       mounted = false;
-      subscription.unsubscribe();
     };
-  }, [isHydrated]);
+  }, [isHydrated]); // eslint-disable-line react-hooks/exhaustive-deps
+  // Note: Les fonctions du store Zustand changent à chaque rendu,
+  // ce qui causerait une boucle infinie si on les incluait dans les dépendances
 
   const login = async (matricule: string, password: string) => {
     try {
@@ -117,22 +93,16 @@ export const useAuth = () => {
       const result = await authService.login({ matricule, password });
 
       if (result.user) {
-        setUser(result.user);
-        try {
-          const userData = await authService.getCurrentUser();
-          if (userData) {
-            setAppUser(userData);
-            console.log(
-              "✅ Connexion réussie, utilisateur récupéré:",
-              userData
-            );
-          }
-        } catch (userError) {
-          console.error(
-            "❌ Erreur lors de la récupération des données utilisateur après connexion:",
-            userError
-          );
-        }
+        setAppUser(result.user);
+        setLastSessionCheck(Date.now());
+        console.log(
+          "✅ Connexion réussie, utilisateur stocké en session:",
+          result.user
+        );
+        // Envoyer une notification de connexion
+        notificationService.sendLoginNotification(
+          result.user.prenom || result.user.nom || "Utilisateur"
+        );
       }
 
       return result;
@@ -151,27 +121,21 @@ export const useAuth = () => {
     try {
       setLoading(true);
       setError(null);
-      console.log("📝 Tentative d'inscription pour:", userData.email);
+      console.log("📝 Tentative d'inscription pour:", userData.matricule);
 
       const result = await authService.register(userData);
 
       if (result.user) {
-        setUser(result.user);
-        try {
-          const userData = await authService.getCurrentUser();
-          if (userData) {
-            setAppUser(userData);
-            console.log(
-              "✅ Inscription réussie, utilisateur récupéré:",
-              userData
-            );
-          }
-        } catch (userError) {
-          console.error(
-            "❌ Erreur lors de la récupération des données utilisateur après inscription:",
-            userError
-          );
-        }
+        setAppUser(result.user);
+        setLastSessionCheck(Date.now());
+        console.log(
+          "✅ Inscription réussie, utilisateur stocké en session:",
+          result.user
+        );
+        // Envoyer une notification de connexion
+        notificationService.sendLoginNotification(
+          result.user.prenom || result.user.nom || "Utilisateur"
+        );
       }
 
       return result;
@@ -190,9 +154,16 @@ export const useAuth = () => {
     try {
       setLoading(true);
       console.log("🚪 Déconnexion...");
+
+      // Envoyer une notification de déconnexion avant de se déconnecter
+      if (appUser) {
+        notificationService.sendLogoutNotification(
+          appUser.prenom || appUser.nom || "Utilisateur"
+        );
+      }
+
       await authService.logout();
-      setUser(null);
-      setAppUser(null);
+      clearAuth();
       console.log("✅ Déconnexion réussie");
     } catch (error) {
       console.error("❌ Erreur lors de la déconnexion:", error);
@@ -201,25 +172,50 @@ export const useAuth = () => {
     }
   };
 
-  // Debug: afficher l'état actuel seulement côté client
-  if (isHydrated) {
-    console.log("🔍 État actuel useAuth:", {
-      user: user?.email,
-      appUser: appUser?.email,
-      loading,
-      error,
-      isAuthenticated: !!user,
-    });
-  }
+  // Fonction pour vérifier la session si nécessaire (exposée pour l'initialisation)
+  const checkSessionIfNeeded = async () => {
+    if (!shouldCheckSession()) {
+      return;
+    }
+
+    try {
+      setSessionChecking(true);
+      setLastSessionCheck(Date.now());
+
+      // Vérifier si on a un utilisateur en session
+      if (appUser) {
+        console.log("✅ Session utilisateur trouvée en cache:", appUser);
+        return;
+      }
+
+      // Si pas d'utilisateur en cache, vérifier la session côté serveur
+      const session = await authService.getSession();
+      if (session?.user) {
+        setAppUser(session.user);
+        // Envoyer une notification de connexion
+        notificationService.sendLoginNotification(
+          session.user.prenom || session.user.nom || "Utilisateur"
+        );
+      } else {
+        clearAuth();
+      }
+    } catch (error) {
+      console.error("❌ Erreur lors de la vérification de la session:", error);
+      setError("Erreur de vérification de session");
+      clearAuth();
+    } finally {
+      setSessionChecking(false);
+    }
+  };
 
   return {
-    user,
     appUser,
-    loading: !isHydrated || loading, // Toujours loading pendant l'hydratation
+    loading: !isHydrated || loading || sessionChecking,
     error,
     login,
     register,
     logout,
-    isAuthenticated: !!user,
+    isAuthenticated,
+    checkSessionIfNeeded,
   };
 };

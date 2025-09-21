@@ -11,7 +11,17 @@ if (!supabaseUrl || !supabaseAnonKey) {
   throw new Error("Missing Supabase environment variables");
 }
 
-export const supabase = createClient(supabaseUrl, supabaseAnonKey);
+// Création du client avec persistance de session et auto-refresh activés
+export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
+  auth: {
+    persistSession: true,
+    autoRefreshToken: true,
+    detectSessionInUrl: true,
+    // Important: utiliser le storage du navigateur côté client
+    storage: typeof window !== "undefined" ? window.localStorage : undefined,
+    storageKey: "sb-auth",
+  },
+});
 
 // Types pour les tables
 export interface Agent {
