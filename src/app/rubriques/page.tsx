@@ -5,13 +5,16 @@ import { useRouter } from "next/navigation";
 import {
   Plus,
   Search,
-  Filter,
   Eye,
   Edit,
   Trash2,
-  Settings,
   FileText,
   RefreshCw,
+  FolderPlus,
+  File,
+  Sparkles,
+  ArrowRight,
+  Calendar,
 } from "lucide-react";
 import AuthGuard from "@/components/AuthGuard";
 import DashboardLayout from "@/components/DashboardLayout";
@@ -20,9 +23,19 @@ import { ToastContainer, useToast } from "@/components/Toast";
 import { rubriquesService } from "@/services/rubriques";
 import { Rubrique, RubriqueFormData } from "@/types";
 
+interface RubriqueStats {
+  sousDossiersCount: number;
+  piecesCount: number;
+  piecesWithMetadataCount: number;
+}
+
+interface RubriqueWithStats extends Rubrique {
+  stats: RubriqueStats;
+}
+
 export default function RubriquesPage() {
   const router = useRouter();
-  const [rubriques, setRubriques] = useState<Rubrique[]>([]);
+  const [rubriques, setRubriques] = useState<RubriqueWithStats[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
@@ -39,7 +52,31 @@ export default function RubriquesPage() {
     try {
       setLoading(true);
       const data = await rubriquesService.getAllRubriques();
-      setRubriques(data);
+
+      // Charger les statistiques pour chaque rubrique
+      const rubriquesWithStats = await Promise.all(
+        data.map(async (rubrique) => {
+          try {
+            const stats = await rubriquesService.getRubriqueStats(rubrique.id);
+            return { ...rubrique, stats };
+          } catch (err) {
+            console.error(
+              `Erreur lors du chargement des stats pour ${rubrique.id}:`,
+              err
+            );
+            return {
+              ...rubrique,
+              stats: {
+                sousDossiersCount: 0,
+                piecesCount: 0,
+                piecesWithMetadataCount: 0,
+              },
+            };
+          }
+        })
+      );
+
+      setRubriques(rubriquesWithStats);
     } catch (err) {
       console.error("Erreur lors du chargement des rubriques:", err);
       setError("Erreur lors du chargement des rubriques");
@@ -51,7 +88,15 @@ export default function RubriquesPage() {
   const handleCreateRubrique = async (formData: RubriqueFormData) => {
     try {
       const newRubrique = await rubriquesService.createRubrique(formData);
-      setRubriques([newRubrique, ...rubriques]);
+      const newRubriqueWithStats = {
+        ...newRubrique,
+        stats: {
+          sousDossiersCount: 0,
+          piecesCount: 0,
+          piecesWithMetadataCount: 0,
+        },
+      };
+      setRubriques([newRubriqueWithStats, ...rubriques]);
       setShowCreateForm(false);
       success(
         "Rubrique créée",
@@ -73,9 +118,23 @@ export default function RubriquesPage() {
           editingRubrique.id,
           formData
         );
+
+        // Garder les stats existantes lors de la mise à jour
+        const existingRubrique = rubriques.find(
+          (r) => r.id === editingRubrique.id
+        );
+        const updatedRubriqueWithStats = {
+          ...updatedRubrique,
+          stats: existingRubrique?.stats || {
+            sousDossiersCount: 0,
+            piecesCount: 0,
+            piecesWithMetadataCount: 0,
+          },
+        };
+
         setRubriques(
           rubriques.map((r) =>
-            r.id === editingRubrique.id ? updatedRubrique : r
+            r.id === editingRubrique.id ? updatedRubriqueWithStats : r
           )
         );
         setShowEditForm(false);
@@ -120,11 +179,6 @@ export default function RubriquesPage() {
   };
 
   const handleViewContent = (rubrique: Rubrique) => {
-    // TODO: Implémenter la navigation vers le contenu de la rubrique
-    console.log("Voir le contenu de:", rubrique.nom);
-  };
-
-  const handleSettings = (rubrique: Rubrique) => {
     router.push(`/rubriques/${rubrique.id}/parametres`);
   };
 
@@ -152,7 +206,7 @@ export default function RubriquesPage() {
         <div className="p-6">
           {/* Header Card */}
           <div className="mb-8">
-            <div className="bg-primary-700 mb-5 rounded-2xl shadow-2xl overflow-hidden">
+            <div className="bg-primary-700 mb-5 rounded-2xl shadow-primary-xl overflow-hidden">
               <div className="p-8">
                 <div className="flex items-center justify-between">
                   <div className="flex items-center space-x-6">
@@ -177,7 +231,11 @@ export default function RubriquesPage() {
                         <div className="flex items-center space-x-2 bg-white/20 backdrop-blur-sm rounded-lg px-3 py-2">
                           <div className="w-2 h-2 bg-warning-500 rounded-full"></div>
                           <span className="text-white text-sm font-medium">
-                            0 documents archivés
+                            {rubriques.reduce(
+                              (acc, r) => acc + r.stats.piecesCount,
+                              0
+                            )}{" "}
+                            documents archivés
                           </span>
                         </div>
                       </div>
@@ -236,7 +294,7 @@ export default function RubriquesPage() {
           {/* Search and Filters */}
           <div className="bg-white rounded-xl shadow-md p-6 mb-6 border border-gray-100">
             <div className="flex items-center gap-4">
-              <div className="flex-1 relative">
+              <div className="flex-1 relative text-primary-700">
                 <Search className="w-5 h-5 text-gray-500 absolute left-3 top-1/2 transform -translate-y-1/2" />
                 <input
                   type="text"
@@ -247,7 +305,7 @@ export default function RubriquesPage() {
                 />
               </div>
               <div className="flex items-center gap-2">
-                <span className="text-sm text-gray-600">
+                <span className="text-sm text-primary-700">
                   {filteredRubriques.length} rubrique
                   {filteredRubriques.length > 1 ? "s" : ""}
                 </span>
@@ -262,105 +320,157 @@ export default function RubriquesPage() {
             </div>
           )}
 
-          {/* Rubriques Table */}
-          <div className="bg-white rounded-xl shadow-md overflow-hidden border border-gray-100">
-            {filteredRubriques.length === 0 ? (
-              <div className="text-center py-16">
-                <div className="w-20 h-20 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-6">
-                  <Filter className="w-10 h-10 text-gray-400" />
-                </div>
-                <h3 className="text-xl font-semibold text-gray-900 mb-3">
-                  Aucune rubrique trouvée
-                </h3>
-                <p className="text-gray-600 mb-6 max-w-md mx-auto">
-                  {searchQuery
-                    ? "Aucune rubrique ne correspond à votre recherche. Essayez avec d'autres mots-clés."
-                    : "Commencez par créer votre première rubrique pour organiser vos documents."}
-                </p>
-                {!searchQuery && (
-                  <button
-                    onClick={() => setShowCreateForm(true)}
-                    className="bg-primary-600 hover:bg-primary-700 text-white px-6 py-3 rounded-lg text-sm font-medium transition-colors shadow-lg hover:shadow-xl"
-                  >
-                    <Plus className="w-4 h-4 inline mr-2" />
-                    Créer ma première rubrique
-                  </button>
-                )}
-              </div>
-            ) : (
-              <div className="overflow-x-auto">
-                <table className="w-full">
-                  <thead className="bg-gray-50 border-b border-gray-200">
-                    <tr>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                        Nom
-                      </th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                        Description
-                      </th>
-
-                      <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
-                        Actions
-                      </th>
-                    </tr>
-                  </thead>
-                  <tbody className="bg-white divide-y divide-gray-200">
-                    {filteredRubriques.map((rubrique) => (
-                      <tr key={rubrique.id} className="hover:bg-gray-50">
-                        <td className="px-6 py-4 whitespace-nowrap">
-                          <div className="text-sm font-medium text-gray-900">
-                            {rubrique.nom}
-                          </div>
-                        </td>
-                        <td className="px-6 py-4">
-                          <div className="text-sm text-gray-600 max-w-xs truncate">
-                            {rubrique.description}
-                          </div>
-                        </td>
-
-                        <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                          <div className="flex items-center justify-end gap-2">
-                            <button
-                              onClick={() => handleViewContent(rubrique)}
-                              className="bg-blue-50 hover:bg-blue-100 text-blue-600 hover:text-blue-700 px-3 py-2 rounded-lg text-xs font-medium transition-colors flex items-center gap-1"
-                              title="Voir le contenu"
-                            >
-                              <Eye className="w-3 h-3" />
-                              Voir
-                            </button>
-                            <button
-                              onClick={() => handleSettings(rubrique)}
-                              className="bg-purple-50 hover:bg-purple-100 text-purple-600 hover:text-purple-700 px-3 py-2 rounded-lg text-xs font-medium transition-colors flex items-center gap-1"
-                              title="Paramètres et sous-dossiers"
-                            >
-                              <Settings className="w-3 h-3" />
-                              Paramètres
-                            </button>
-                            <button
-                              onClick={() => handleEditClick(rubrique)}
-                              className="bg-gray-50 hover:bg-gray-100 text-gray-600 hover:text-gray-700 px-3 py-2 rounded-lg text-xs font-medium transition-colors flex items-center gap-1"
-                              title="Modifier"
-                            >
-                              <Edit className="w-3 h-3" />
-                              Modifier
-                            </button>
-                            <button
-                              onClick={() => handleDeleteRubrique(rubrique.id)}
-                              className="bg-red-50 hover:bg-red-100 text-red-600 hover:text-red-700 px-3 py-2 rounded-lg text-xs font-medium transition-colors flex items-center gap-1"
-                              title="Supprimer"
-                            >
-                              <Trash2 className="w-3 h-3" />
-                              Supprimer
-                            </button>
-                          </div>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            )}
+          {/* Breadcrumb Navigation */}
+          <div className="mb-6">
+            <nav className="flex items-center space-x-2 text-sm">
+              <span className="text-gray-500">Accueil</span>
+              <ArrowRight className="w-4 h-4 text-gray-400" />
+              <span className="text-gray-500">Rubriques</span>
+              <ArrowRight className="w-4 h-4 text-gray-400" />
+              <span className="text-primary-700 font-medium">
+                Gestion des rubriques
+              </span>
+            </nav>
+            <p className="text-xs text-gray-500 mt-1">
+              Gérez et organisez vos rubriques de documents
+            </p>
           </div>
+
+          {/* Rubriques Cards Grid */}
+          {filteredRubriques.length === 0 ? (
+            <div className="text-center py-16">
+              <div className="relative mx-auto w-32 h-32 mb-8">
+                <div className="absolute inset-0 bg-primary-200 rounded-3xl opacity-30"></div>
+                <div className="relative w-full h-full bg-primary-600 rounded-3xl flex items-center justify-center shadow-xl">
+                  <FileText className="w-16 h-16 text-white" />
+                </div>
+                <div className="absolute -top-2 -right-2 w-8 h-8 bg-gradient-to-br from-warning-400 to-warning-500 rounded-full flex items-center justify-center shadow-lg">
+                  <Sparkles className="w-4 h-4 text-white" />
+                </div>
+              </div>
+              <h3 className="text-3xl font-bold text-gray-800 mb-4">
+                {searchQuery
+                  ? "Aucune rubrique trouvée"
+                  : "Aucune rubrique créée"}
+              </h3>
+              <p className="text-gray-600 mb-10 max-w-lg mx-auto text-lg leading-relaxed">
+                {searchQuery
+                  ? "Aucune rubrique ne correspond à votre recherche. Essayez avec d'autres mots-clés."
+                  : "Commencez par créer votre première rubrique pour organiser vos documents de manière structurée."}
+              </p>
+              {!searchQuery && (
+                <button
+                  onClick={() => setShowCreateForm(true)}
+                  className="group button-primary px-10 py-4 rounded-2xl font-semibold flex items-center gap-3 mx-auto shadow-lg text-lg transition-all duration-300 hover:scale-105"
+                >
+                  <FileText className="w-6 h-6" />
+                  <span>Créer la première rubrique</span>
+                  <Plus className="w-5 h-5" />
+                </button>
+              )}
+            </div>
+          ) : (
+            <div className="space-y-4">
+              {filteredRubriques.map((rubrique) => (
+                <div
+                  key={rubrique.id}
+                  className="group card-elevated hover:border-primary-300 transition-all duration-300"
+                >
+                  <div className="p-6">
+                    <div className="flex items-center justify-between">
+                      {/* Informations principales */}
+                      <div className="flex items-center gap-6 flex-1 min-w-0">
+                        {/* Icône */}
+                        <div className="w-14 h-14 bg-primary-600 rounded-xl flex items-center justify-center shadow-lg flex-shrink-0">
+                          <FileText className="w-7 h-7 text-white" />
+                        </div>
+
+                        {/* Contenu principal */}
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center gap-4 mb-2">
+                            <h3 className="text-xl font-bold text-primary-800 group-hover:text-primary-700 transition-colors duration-300">
+                              {rubrique.nom}
+                            </h3>
+                            {rubrique.created_at && (
+                              <div className="flex items-center gap-1 text-xs text-primary-500 bg-primary-100 px-2 py-1 rounded-lg">
+                                <Calendar className="w-3 h-3" />
+                                <span>
+                                  {new Date(
+                                    rubrique.created_at
+                                  ).toLocaleDateString("fr-FR")}
+                                </span>
+                              </div>
+                            )}
+                          </div>
+                          <p className="text-primary-600 mb-4 line-clamp-2">
+                            {rubrique.description}
+                          </p>
+
+                          {/* Statistiques en ligne */}
+                          <div className="flex items-center gap-8">
+                            <div className="flex items-center gap-3">
+                              <div className="w-10 h-10 bg-accent-blue-light rounded-lg flex items-center justify-center">
+                                <FolderPlus className="w-5 h-5 text-accent-blue" />
+                              </div>
+                              <div>
+                                <div className="text-xl font-bold text-primary-800">
+                                  {rubrique.stats.sousDossiersCount}
+                                </div>
+                                <div className="text-sm text-primary-600">
+                                  Sous-dossiers
+                                </div>
+                              </div>
+                            </div>
+
+                            <div className="flex items-center gap-3">
+                              <div className="w-10 h-10 bg-accent-green-light rounded-lg flex items-center justify-center">
+                                <File className="w-5 h-5 text-accent-green" />
+                              </div>
+                              <div>
+                                <div className="text-xl font-bold text-primary-800">
+                                  {rubrique.stats.piecesCount}
+                                </div>
+                                <div className="text-sm text-primary-600">
+                                  Pièces
+                                </div>
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Actions */}
+                      <div className="flex items-center gap-3 flex-shrink-0">
+                        <button
+                          onClick={() => handleViewContent(rubrique)}
+                          className="button-primary cursor-pointer	 px-6 py-3 rounded-xl font-semibold flex items-center gap-2 transition-all duration-300 hover:scale-105 shadow-lg hover:shadow-xl"
+                        >
+                          <Eye className="w-4 h-4" />
+                          Voir le contenu
+                        </button>
+
+                        <button
+                          onClick={() => handleEditClick(rubrique)}
+                          className="px-4 py-3 bg-primary-50 text-primary-700 hover:bg-primary-100 rounded-xl border border-primary-500 cursor-pointer transition-all duration-300"
+                          title="Modifier"
+                        >
+                          <Edit className="w-4 h-4" />
+                        </button>
+
+                        <button
+                          onClick={() => handleDeleteRubrique(rubrique.id)}
+                          className="px-4 py-3 text-primary-500 bg-error-50 text-error-700 hover:bg-error-100 rounded-xl border border-error-500 cursor-pointer transition-all duration-300"
+                          title="Supprimer"
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
         </div>
 
         {/* Create Form Modal */}

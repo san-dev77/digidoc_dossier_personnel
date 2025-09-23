@@ -13,7 +13,7 @@ export const rubriquesService = {
         id: rubrique.id.toString(),
         nom: rubrique.nom,
         description: rubrique.description,
-        createdAt: rubrique.created_at || "",
+        created_at: rubrique.created_at || "",
         updatedAt: rubrique.updated_at || "",
       }));
     } catch (error) {
@@ -35,7 +35,7 @@ export const rubriquesService = {
         id: data.id.toString(),
         nom: data.nom,
         description: data.description,
-        createdAt: data.created_at || "",
+        created_at: data.created_at || "",
         updatedAt: data.updated_at || "",
       };
     } catch (error) {
@@ -45,7 +45,7 @@ export const rubriquesService = {
   },
 
   async createRubrique(
-    rubriqueData: Omit<Rubrique, "id" | "createdAt" | "updatedAt">
+    rubriqueData: Omit<Rubrique, "id" | "created_at" | "updatedAt">
   ): Promise<Rubrique> {
     try {
       const response = await fetch("/api/rubriques", {
@@ -66,7 +66,7 @@ export const rubriquesService = {
         id: data.id.toString(),
         nom: data.nom,
         description: data.description,
-        createdAt: data.created_at || "",
+        created_at: data.created_at || "",
         updatedAt: data.updated_at || "",
       };
     } catch (error) {
@@ -77,7 +77,7 @@ export const rubriquesService = {
 
   async updateRubrique(
     id: string,
-    rubriqueData: Partial<Omit<Rubrique, "id" | "createdAt" | "updatedAt">>
+    rubriqueData: Partial<Omit<Rubrique, "id" | "created_at" | "updatedAt">>
   ): Promise<Rubrique> {
     try {
       const response = await fetch(`/api/rubriques/${id}`, {
@@ -95,7 +95,7 @@ export const rubriquesService = {
         id: data.id.toString(),
         nom: data.nom,
         description: data.description,
-        createdAt: data.created_at || "",
+        created_at: data.created_at || "",
         updatedAt: data.updated_at || "",
       };
     } catch (error) {
@@ -133,12 +133,39 @@ export const rubriquesService = {
         id: rubrique.id.toString(),
         nom: rubrique.nom,
         description: rubrique.description,
-        createdAt: rubrique.created_at || "",
+        created_at: rubrique.created_at || "",
         updatedAt: rubrique.updated_at || "",
       }));
     } catch (error) {
       console.error("Erreur lors de la recherche des rubriques:", error);
       throw error;
+    }
+  },
+
+  async getRubriqueStats(rubriqueId: string): Promise<{
+    sousDossiersCount: number;
+    piecesCount: number;
+    piecesWithMetadataCount: number;
+  }> {
+    try {
+      const response = await fetch(`/api/rubriques/${rubriqueId}/stats`);
+      if (!response.ok) {
+        throw new Error("Erreur lors de la récupération des statistiques");
+      }
+
+      const data = await response.json();
+      return {
+        sousDossiersCount: data.sousDossiersCount || 0,
+        piecesCount: data.piecesCount || 0,
+        piecesWithMetadataCount: data.piecesWithMetadataCount || 0,
+      };
+    } catch (error) {
+      console.error("Erreur lors de la récupération des statistiques:", error);
+      return {
+        sousDossiersCount: 0,
+        piecesCount: 0,
+        piecesWithMetadataCount: 0,
+      };
     }
   },
 };

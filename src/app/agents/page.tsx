@@ -38,12 +38,107 @@ import {
 } from "@/services/sous-dossiers";
 import { piecesService } from "@/services/pieces";
 
-import type { Piece } from "@/types";
+import type { PieceWithCheck } from "@/types";
+import { piecesCheckService } from "@/services/pieces-check";
 
-// Composant pour une carte de pièce
-function PieceCard({ piece }: { piece: Piece }) {
+// Types pour le statut de vérification des sous-dossiers
+export type SousDossierStatus =
+  | "all_checked"
+  | "partial_checked"
+  | "none_checked"
+  | "no_pieces";
+
+// Interface pour les données de statut
+export interface SousDossierWithStatus extends SousDossier {
+  status: SousDossierStatus;
+  checkedCount: number;
+  totalPieces: number;
+}
+
+// Interface pour un sous-dossier avec pièces pré-chargées
+export interface SousDossierWithPieces extends SousDossier {
+  pieces: PieceWithCheck[];
+}
+
+// Fonction pour calculer le statut d'un sous-dossier
+function calculateSousDossierStatus(pieces: PieceWithCheck[]): {
+  status: SousDossierStatus;
+  checkedCount: number;
+  totalPieces: number;
+} {
+  if (pieces.length === 0) {
+    return { status: "no_pieces", checkedCount: 0, totalPieces: 0 };
+  }
+
+  const checkedCount = pieces.filter((piece) => {
+    // Vérifier si cette pièce a été vérifiée comme disponible par cet agent
+    // true = disponible, false = non disponible, null = non vérifié
+    return piece.isDisponible === true;
+  }).length;
+
+  const verifiedCount = pieces.filter((piece) => {
+    // Compter toutes les pièces qui ont été vérifiées (disponible ou non)
+    return piece.isDisponible !== null;
+  }).length;
+
+  const totalPieces = pieces.length;
+
+  if (verifiedCount === 0) {
+    // Aucune pièce vérifiée
+    return { status: "none_checked", checkedCount: 0, totalPieces };
+  } else if (checkedCount === totalPieces && verifiedCount === totalPieces) {
+    // Toutes les pièces sont vérifiées ET toutes sont disponibles
+    return { status: "all_checked", checkedCount, totalPieces };
+  } else if (checkedCount > 0 && checkedCount < totalPieces) {
+    // Certaines pièces sont vérifiées comme disponibles (mais pas toutes)
+    return { status: "partial_checked", checkedCount, totalPieces };
+  } else if (verifiedCount === totalPieces && checkedCount === 0) {
+    // Toutes les pièces vérifiées mais aucune n'est disponible
+    return { status: "none_checked", checkedCount: 0, totalPieces };
+  } else {
+    // Cas mixte : certaines vérifiées, certaines disponibles
+    return { status: "partial_checked", checkedCount, totalPieces };
+  }
+}
+
+// Composant pour une carte de pièce avec checkbox de disponibilité
+function PieceCard({
+  piece,
+  agentId,
+  onAvailabilityChange,
+}: {
+  piece: PieceWithCheck;
+  agentId: string;
+  onAvailabilityChange?: (pieceId: string, disponible: boolean) => void;
+}) {
+  const [isDisponible, setIsDisponible] = useState<boolean | null>(
+    piece.isDisponible ?? null
+  );
+  const [isUpdating, setIsUpdating] = useState(false);
+
+  const handleAvailabilityChange = async (disponible: boolean) => {
+    setIsUpdating(true);
+    try {
+      await piecesCheckService.updatePieceAvailability({
+        piece_id: piece.id,
+        disponible,
+        agent_id: agentId,
+      });
+
+      setIsDisponible(disponible);
+      onAvailabilityChange?.(piece.id, disponible);
+    } catch (error) {
+      console.error(
+        "Erreur lors de la mise à jour de la disponibilité:",
+        error
+      );
+    } finally {
+      setIsUpdating(false);
+    }
+  };
+
   return (
-    <div className="bg-white border border-slate-200 rounded-xl p-4 hover:shadow-md">
+    <div className="bg-white border border-slate-200 rounded-xl p-4 hover:shadow-md transition-all duration-200">
       <div className="flex items-center gap-3">
         <div className="w-10 h-10 bg-gradient-to-br from-green-500 to-green-600 rounded-lg flex items-center justify-center">
           <FileText className="w-5 h-5 text-white" />
@@ -68,6 +163,40 @@ function PieceCard({ piece }: { piece: Piece }) {
             )}
           </div>
         </div>
+
+        {/* Checkbox de disponibilité */}
+        <div className="flex flex-col items-center gap-2">
+          <label className="flex items-center gap-2 cursor-pointer">
+            <input
+              type="checkbox"
+              checked={isDisponible === true}
+              onChange={(e) => handleAvailabilityChange(e.target.checked)}
+              disabled={isUpdating}
+              className="w-5 h-5 text-primary-600 bg-white border-2 border-slate-300 rounded focus:ring-primary-500 focus:ring-2 disabled:opacity-50"
+            />
+            <span className="text-sm font-medium text-slate-700">
+              {isDisponible === null
+                ? "Non vérifié"
+                : isDisponible
+                ? "Disponible"
+                : "Non disponible"}
+            </span>
+          </label>
+
+          {isUpdating && (
+            <div className="flex items-center gap-1 text-xs text-slate-500">
+              <div className="w-3 h-3 border-2 border-slate-300 border-t-slate-600 rounded-full animate-spin"></div>
+              <span>Mise à jour...</span>
+            </div>
+          )}
+
+          {piece.lastCheckDate && (
+            <div className="text-xs text-slate-400">
+              Vérifié le{" "}
+              {new Date(piece.lastCheckDate).toLocaleDateString("fr-FR")}
+            </div>
+          )}
+        </div>
       </div>
     </div>
   );
@@ -76,49 +205,137 @@ function PieceCard({ piece }: { piece: Piece }) {
 // Composant pour une carte de sous-dossier avec état local
 function SousDossierCard({
   sousDossier,
-  initialPieces = [],
+  agentId,
+  onAvailabilityChange,
 }: {
-  sousDossier: SousDossier;
-  initialPieces?: Piece[];
+  sousDossier: SousDossierWithPieces;
+  agentId: string;
+  onAvailabilityChange?: (pieceId: string, disponible: boolean) => void;
 }) {
   const [isExpanded, setIsExpanded] = useState(false);
-  const [pieces, setPieces] = useState<Piece[]>(initialPieces);
-  const [loadingPieces, setLoadingPieces] = useState(false);
-  const [piecesLoaded, setPiecesLoaded] = useState(false);
+  const [pieces, setPieces] = useState<PieceWithCheck[]>(
+    sousDossier.pieces || []
+  );
 
-  const handleToggle = async () => {
-    if (isExpanded) {
-      setIsExpanded(false);
-    } else {
-      setIsExpanded(true);
-      if (!piecesLoaded) {
-        setLoadingPieces(true);
-        try {
-          const data = await piecesService.getAllPiecesBySousDossier(
-            sousDossier.id
-          );
-          setPieces(data);
-          setPiecesLoaded(true);
-        } catch (err) {
-          console.error("Erreur lors du chargement des pièces:", err);
-          setPieces([]);
-        } finally {
-          setLoadingPieces(false);
-        }
-      }
+  // Calculer le statut du sous-dossier
+  const statusData = calculateSousDossierStatus(pieces);
+
+  // Fonctions pour obtenir les styles selon le statut
+  const getStatusStyles = (status: SousDossierStatus) => {
+    switch (status) {
+      case "all_checked":
+        return {
+          cardClass:
+            "bg-gradient-to-r from-green-50 to-emerald-50 border-green-200 shadow-green-100",
+          headerClass: "bg-gradient-to-r from-green-100 to-emerald-100",
+          iconClass: "text-green-600 bg-green-100",
+          badgeClass: "bg-green-500 text-white",
+          borderClass: "border-green-300",
+        };
+      case "partial_checked":
+        return {
+          cardClass:
+            "bg-gradient-to-r from-yellow-50 to-amber-50 border-yellow-200 shadow-yellow-100",
+          headerClass: "bg-gradient-to-r from-yellow-100 to-amber-100",
+          iconClass: "text-yellow-600 bg-yellow-100",
+          badgeClass: "bg-yellow-500 text-white",
+          borderClass: "border-yellow-300",
+        };
+      case "none_checked":
+        return {
+          cardClass:
+            "bg-gradient-to-r from-red-50 to-rose-50 border-red-200 shadow-red-100",
+          headerClass: "bg-gradient-to-r from-red-100 to-rose-100",
+          iconClass: "text-red-600 bg-red-100",
+          badgeClass: "bg-red-500 text-white",
+          borderClass: "border-red-300",
+        };
+      case "no_pieces":
+        return {
+          cardClass:
+            "bg-gradient-to-r from-gray-50 to-slate-50 border-gray-200 shadow-gray-100",
+          headerClass: "bg-gradient-to-r from-gray-100 to-slate-100",
+          iconClass: "text-gray-600 bg-gray-100",
+          badgeClass: "bg-gray-500 text-white",
+          borderClass: "border-gray-300",
+        };
+      default:
+        return {
+          cardClass: "bg-white border-gray-200",
+          headerClass: "bg-gray-50",
+          iconClass: "text-gray-600 bg-gray-100",
+          badgeClass: "bg-gray-500 text-white",
+          borderClass: "border-gray-300",
+        };
     }
   };
 
-  const renderPiecesContent = () => {
-    if (loadingPieces) {
-      return (
-        <div className="p-8 text-center">
-          <Loader2 className="w-6 h-6 text-slate-400 animate-spin mx-auto mb-3" />
-          <p className="text-slate-600">Chargement des pièces...</p>
-        </div>
-      );
+  const getStatusIcon = (status: SousDossierStatus) => {
+    switch (status) {
+      case "all_checked":
+        return <BadgeCheck className="w-5 h-5" />;
+      case "partial_checked":
+        return <AlertCircle className="w-5 h-5" />;
+      case "none_checked":
+        return <X className="w-5 h-5" />;
+      case "no_pieces":
+        return <Info className="w-5 h-5" />;
+      default:
+        return <Folder className="w-5 h-5" />;
     }
+  };
 
+  const getStatusText = (
+    status: SousDossierStatus,
+    checkedCount: number,
+    totalPieces: number
+  ) => {
+    const verifiedCount = pieces.filter((p) => p.isDisponible !== null).length;
+
+    switch (status) {
+      case "all_checked":
+        return `${checkedCount}/${totalPieces} disponibles`;
+      case "partial_checked":
+        if (verifiedCount === totalPieces && checkedCount === 0) {
+          return `${totalPieces} pièces vérifiées (aucune disponible)`;
+        } else {
+          return `${checkedCount}/${totalPieces} disponibles`;
+        }
+      case "none_checked":
+        return `${totalPieces} pièces non vérifiées`;
+      case "no_pieces":
+        return "Aucune pièce";
+      default:
+        return "";
+    }
+  };
+
+  const styles = getStatusStyles(statusData.status);
+
+  const handleToggle = () => {
+    setIsExpanded(!isExpanded);
+  };
+
+  // Fonction pour mettre à jour une pièce quand son statut change
+  const handlePieceAvailabilityChange = (
+    pieceId: string,
+    disponible: boolean
+  ) => {
+    setPieces((prevPieces) =>
+      prevPieces.map((piece) =>
+        piece.id === pieceId
+          ? {
+              ...piece,
+              isDisponible: disponible,
+              lastCheckDate: new Date().toISOString(),
+            }
+          : piece
+      )
+    );
+    onAvailabilityChange?.(pieceId, disponible);
+  };
+
+  const renderPiecesContent = () => {
     if (pieces.length === 0) {
       return (
         <div className="p-8 text-center">
@@ -138,14 +355,29 @@ function SousDossierCard({
     return (
       <div className="p-6">
         <div className="flex items-center gap-2 mb-4">
-          <div className="w-2 h-6 bg-blue-500 rounded-full"></div>
+          <div
+            className={`w-2 h-6 rounded-full ${
+              statusData.status === "all_checked"
+                ? "bg-green-500"
+                : statusData.status === "partial_checked"
+                ? "bg-yellow-500"
+                : statusData.status === "none_checked"
+                ? "bg-red-500"
+                : "bg-gray-500"
+            }`}
+          ></div>
           <h5 className="text-lg font-semibold text-slate-800">
             Documents dans ce sous-dossier
           </h5>
         </div>
         <div className="grid gap-3">
           {pieces.map((piece) => (
-            <PieceCard key={piece.id} piece={piece} />
+            <PieceCard
+              key={piece.id}
+              piece={piece}
+              agentId={agentId}
+              onAvailabilityChange={handlePieceAvailabilityChange}
+            />
           ))}
         </div>
       </div>
@@ -153,21 +385,37 @@ function SousDossierCard({
   };
 
   return (
-    <div className="bg-white border border-slate-200 rounded-2xl overflow-hidden hover:shadow-lg hover:border-slate-300">
+    <div
+      className={`${styles.cardClass} border-2 rounded-2xl overflow-hidden hover:shadow-lg transition-all duration-300 ${styles.borderClass}`}
+    >
       {/* Header du sous-dossier */}
       <div
-        className="p-6 cursor-pointer hover:bg-slate-50"
+        className={`p-6 cursor-pointer hover:opacity-90 transition-all duration-200 ${styles.headerClass}`}
         onClick={handleToggle}
       >
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-4">
-            <div className="w-12 h-12 bg-gradient-to-br from-blue-500 to-blue-600 rounded-xl flex items-center justify-center shadow-lg">
-              <Folder className="w-6 h-6 text-white" />
+            <div
+              className={`w-12 h-12 rounded-xl flex items-center justify-center shadow-lg ${styles.iconClass}`}
+            >
+              {getStatusIcon(statusData.status)}
             </div>
             <div className="flex-1">
-              <h4 className="text-xl font-bold text-slate-800 mb-1">
-                {sousDossier.titre}
-              </h4>
+              <div className="flex items-center gap-3 mb-1">
+                <h4 className="text-xl font-bold text-slate-800">
+                  {sousDossier.titre}
+                </h4>
+                {/* Badge de statut */}
+                <span
+                  className={`px-3 py-1 rounded-full text-xs font-semibold ${styles.badgeClass}`}
+                >
+                  {getStatusText(
+                    statusData.status,
+                    statusData.checkedCount,
+                    statusData.totalPieces
+                  )}
+                </span>
+              </div>
               {sousDossier.description && (
                 <p className="text-slate-600 mb-3 leading-relaxed">
                   {sousDossier.description}
@@ -191,9 +439,30 @@ function SousDossierCard({
             </div>
           </div>
           <div className="flex items-center gap-3">
-            <span className="inline-flex items-center px-3 py-1.5 rounded-full text-xs font-semibold bg-green-100 text-green-800 border border-green-200">
-              Actif
-            </span>
+            <div className="text-right">
+              <div className="text-sm text-slate-500 mb-1">Progression</div>
+              <div className="text-lg font-bold text-slate-800">
+                {statusData.checkedCount}/{statusData.totalPieces}
+              </div>
+              {statusData.totalPieces > 0 && (
+                <div className="w-20 h-2 bg-slate-200 rounded-full overflow-hidden">
+                  <div
+                    className={`h-full transition-all duration-300 ${
+                      statusData.status === "all_checked"
+                        ? "bg-green-500"
+                        : statusData.status === "partial_checked"
+                        ? "bg-yellow-500"
+                        : "bg-red-500"
+                    }`}
+                    style={{
+                      width: `${
+                        (statusData.checkedCount / statusData.totalPieces) * 100
+                      }%`,
+                    }}
+                  />
+                </div>
+              )}
+            </div>
             <div
               className={`w-8 h-8 rounded-lg flex items-center justify-center ${
                 isExpanded
@@ -254,7 +523,7 @@ export default function AgentsPage() {
   const [activeTab, setActiveTab] = useState<"details" | "sous-dossiers">(
     "sous-dossiers"
   );
-  const [sousDossiers, setSousDossiers] = useState<SousDossier[]>([]);
+  const [sousDossiers, setSousDossiers] = useState<SousDossierWithPieces[]>([]);
   const [loadingSousDossiers, setLoadingSousDossiers] = useState(false);
 
   // Charger les agents depuis l'API locale
@@ -304,15 +573,60 @@ export default function AgentsPage() {
     setShowEditForm(true);
   };
 
-  const loadSousDossiers = async (rubriqueId: string) => {
-    if (!rubriqueId) return;
+  const loadSousDossiers = async (rubriqueId: string, agentId: string) => {
+    if (!rubriqueId || !agentId) return;
 
     setLoadingSousDossiers(true);
     try {
-      const data = await sousDossiersService.getAllSousDossiersByRubrique(
-        rubriqueId
+      // Charger les sous-dossiers
+      const sousDossiersData =
+        await sousDossiersService.getAllSousDossiersByRubrique(rubriqueId);
+
+      // Charger les statuts de vérification pour cet agent
+      const checksData = await piecesCheckService.getPieceChecks(agentId);
+
+      // Pour chaque sous-dossier, charger les pièces et les statuts
+      const sousDossiersWithPieces = await Promise.all(
+        sousDossiersData.map(async (sousDossier) => {
+          try {
+            // Charger les pièces du sous-dossier
+            const piecesData = await piecesService.getAllPiecesBySousDossier(
+              sousDossier.id
+            );
+
+            // Combiner avec les statuts de vérification
+            const piecesWithStatus: PieceWithCheck[] = piecesData.map(
+              (piece) => {
+                const check = checksData.find((c) => c.piece_id === piece.id);
+                return {
+                  ...piece,
+                  isDisponible: check ? check.disponible : null,
+                  lastCheckDate: check?.date_check,
+                  pieces_check: checksData.filter(
+                    (c) => c.piece_id === piece.id
+                  ),
+                };
+              }
+            );
+
+            return {
+              ...sousDossier,
+              pieces: piecesWithStatus,
+            };
+          } catch (error) {
+            console.error(
+              `Erreur lors du chargement des pièces pour ${sousDossier.titre}:`,
+              error
+            );
+            return {
+              ...sousDossier,
+              pieces: [],
+            };
+          }
+        })
       );
-      setSousDossiers(data);
+
+      setSousDossiers(sousDossiersWithPieces);
     } catch (err) {
       console.error("Erreur lors du chargement des sous-dossiers:", err);
       setSousDossiers([]);
@@ -328,7 +642,7 @@ export default function AgentsPage() {
 
     // Charger les sous-dossiers si l'agent est affecté à une rubrique
     if (agent.rubrique_id) {
-      loadSousDossiers(agent.rubrique_id);
+      loadSousDossiers(agent.rubrique_id, agent.id);
     }
   };
 
@@ -1016,10 +1330,23 @@ export default function AgentsPage() {
                               <div className="w-px h-12 bg-slate-300"></div>
                               <div className="text-center">
                                 <div className="text-3xl font-bold text-slate-800">
-                                  0
+                                  {sousDossiers.reduce(
+                                    (total, sd) =>
+                                      total + (sd.documentsCount || 0),
+                                    0
+                                  )}
                                 </div>
                                 <div className="text-sm text-slate-600">
                                   Pièces totales
+                                </div>
+                              </div>
+                              <div className="w-px h-12 bg-slate-300"></div>
+                              <div className="text-center">
+                                <div className="text-3xl font-bold text-green-600">
+                                  Disponibles
+                                </div>
+                                <div className="text-sm text-slate-600">
+                                  Statut de disponibilité
                                 </div>
                               </div>
                             </div>
@@ -1055,6 +1382,16 @@ export default function AgentsPage() {
                               <SousDossierCard
                                 key={sousDossier.id}
                                 sousDossier={sousDossier}
+                                agentId={selectedAgent.id}
+                                onAvailabilityChange={(pieceId, disponible) => {
+                                  console.log(
+                                    `Pièce ${pieceId} marquée comme ${
+                                      disponible
+                                        ? "disponible"
+                                        : "non disponible"
+                                    } par l'agent ${selectedAgent.id}`
+                                  );
+                                }}
                               />
                             ))}
                           </div>

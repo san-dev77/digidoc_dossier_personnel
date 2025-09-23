@@ -175,3 +175,18 @@ export interface Notification {
   date: string;
   lu: boolean;
 }
+
+// Types pour le suivi de disponibilité des pièces
+export interface PieceCheck {
+  id: string;
+  piece_id: string;
+  disponible: boolean;
+  date_check: string;
+  agent_id: string;
+}
+
+export interface PieceWithCheck extends Piece {
+  pieces_check?: PieceCheck[];
+  isDisponible?: boolean | null; // null = non vérifié, true = disponible, false = non disponible
+  lastCheckDate?: string;
+}

@@ -51,15 +51,27 @@ export const useAuth = () => {
         }
 
         // Si pas d'utilisateur en cache, vérifier la session côté serveur
-        const session = await authService.getSession();
-        if (mounted && session?.user) {
-          setAppUser(session.user);
-          // Envoyer une notification de connexion
-          notificationService.sendLoginNotification(
-            session.user.prenom || session.user.nom || "Utilisateur"
+        try {
+          const session = await authService.getSession();
+          if (mounted && session?.user) {
+            setAppUser(session.user);
+            // Envoyer une notification de connexion
+            notificationService.sendLoginNotification(
+              session.user.prenom || session.user.nom || "Utilisateur"
+            );
+          } else if (mounted) {
+            clearAuth();
+          }
+        } catch (sessionError) {
+          console.warn(
+            "⚠️ Impossible de vérifier la session (connexion indisponible):",
+            sessionError
           );
-        } else if (mounted) {
-          clearAuth();
+          // Ne pas bloquer l'application si la session ne peut pas être vérifiée
+          // L'utilisateur pourra toujours utiliser l'application en mode hors ligne
+          if (mounted) {
+            clearAuth();
+          }
         }
       } catch (error) {
         console.error(
@@ -189,14 +201,23 @@ export const useAuth = () => {
       }
 
       // Si pas d'utilisateur en cache, vérifier la session côté serveur
-      const session = await authService.getSession();
-      if (session?.user) {
-        setAppUser(session.user);
-        // Envoyer une notification de connexion
-        notificationService.sendLoginNotification(
-          session.user.prenom || session.user.nom || "Utilisateur"
+      try {
+        const session = await authService.getSession();
+        if (session?.user) {
+          setAppUser(session.user);
+          // Envoyer une notification de connexion
+          notificationService.sendLoginNotification(
+            session.user.prenom || session.user.nom || "Utilisateur"
+          );
+        } else {
+          clearAuth();
+        }
+      } catch (sessionError) {
+        console.warn(
+          "⚠️ Impossible de vérifier la session (connexion indisponible):",
+          sessionError
         );
-      } else {
+        // Ne pas bloquer l'application si la session ne peut pas être vérifiée
         clearAuth();
       }
     } catch (error) {

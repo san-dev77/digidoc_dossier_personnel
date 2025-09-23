@@ -12,7 +12,6 @@ import {
 import { useAuth } from "@/hooks/useAuth";
 import { useUser } from "@/hooks/useUser";
 import ThemeSwitcher from "./ThemeSwitcher";
-import ConnectionStatus from "./ConnectionStatus";
 
 export default function TopBar() {
   const { logout } = useAuth();
@@ -73,9 +72,6 @@ export default function TopBar() {
 
         {/* Actions utilisateur */}
         <div className="flex items-center space-x-4">
-          {/* Connection Status */}
-          <ConnectionStatus />
-
           {/* Theme Switcher */}
           <ThemeSwitcher />
 
