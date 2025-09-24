@@ -1,7 +1,15 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { X, FileText, AlertCircle, Plus, Trash2 } from "lucide-react";
+import {
+  X,
+  FileText,
+  AlertCircle,
+  Plus,
+  Trash2,
+  Upload,
+  File,
+} from "lucide-react";
 import type { PieceFormData, MetadataModel } from "@/types";
 
 interface PieceFormProps {
@@ -10,6 +18,8 @@ interface PieceFormProps {
   onSubmit: (formData: PieceFormData) => void;
   mode: "create" | "edit";
   piece?: PieceFormData;
+  rubriqueId?: string;
+  sousDossierId?: string;
 }
 
 export default function PieceForm({
@@ -18,12 +28,15 @@ export default function PieceForm({
   onSubmit,
   mode,
   piece,
+  rubriqueId,
+  sousDossierId,
 }: PieceFormProps) {
   const [formData, setFormData] = useState({
     nom: "",
     description: "",
     has_meta: false,
   });
+  const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [metadonnees, setMetadonnees] = useState<
     Omit<MetadataModel, "id" | "createdAt" | "updatedAt">[]
   >([]);
@@ -52,6 +65,7 @@ export default function PieceForm({
       });
       setMetadonnees([]);
     }
+    setSelectedFile(null);
     setErrors({});
   }, [piece, mode, isOpen]);
 
@@ -81,6 +95,22 @@ export default function PieceForm({
     setMetadonnees(metadonnees.filter((_, i) => i !== index));
   };
 
+  const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      setSelectedFile(file);
+      setErrors((prev) => ({ ...prev, fichier: "" }));
+    }
+  };
+
+  const formatFileSize = (bytes: number): string => {
+    if (bytes === 0) return "0 Bytes";
+    const k = 1024;
+    const sizes = ["Bytes", "KB", "MB", "GB"];
+    const i = Math.floor(Math.log(bytes) / Math.log(k));
+    return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + " " + sizes[i];
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
@@ -91,6 +121,14 @@ export default function PieceForm({
 
     if (!formData.nom.trim()) {
       newErrors.nom = "Le nom de la pièce est requis";
+    }
+
+    if (mode === "create" && !selectedFile) {
+      newErrors.fichier = "Veuillez sélectionner un fichier";
+    }
+
+    if (selectedFile && selectedFile.size > 50 * 1024 * 1024) {
+      newErrors.fichier = "La taille du fichier ne peut pas dépasser 50MB";
     }
 
     if (Object.keys(newErrors).length > 0) {
@@ -108,6 +146,8 @@ export default function PieceForm({
           description: formData.description,
           has_meta: formData.has_meta,
           metadonnees: formData.has_meta ? metadonnees : undefined,
+          fichier: selectedFile!,
+          rubriqueId: rubriqueId!,
         });
       }
       onClose();
@@ -209,6 +249,72 @@ export default function PieceForm({
               )}
             </div>
           </div>
+
+          {/* Upload de fichier */}
+          {mode === "create" && (
+            <div className="space-y-2">
+              <label className="block text-sm font-semibold text-gray-700 mb-2">
+                Fichier à uploader *
+              </label>
+              <div className="relative">
+                <input
+                  type="file"
+                  onChange={handleFileSelect}
+                  accept=".pdf,.jpg,.jpeg,.png,.gif,.webp,.doc,.docx,.xls,.xlsx,.txt,.csv"
+                  className="hidden"
+                  id="file-upload"
+                />
+                <label
+                  htmlFor="file-upload"
+                  className={`w-full flex flex-col items-center justify-center p-8 border-2 border-dashed rounded-xl cursor-pointer transition-all duration-200 hover:scale-[1.02] ${
+                    errors.fichier
+                      ? "border-red-300 bg-red-50 hover:bg-red-100"
+                      : selectedFile
+                      ? "border-accent-green bg-accent-green/5 hover:bg-accent-green/10"
+                      : "border-gray-300 bg-gray-50 hover:bg-gray-100 hover:border-accent-green/50"
+                  }`}
+                >
+                  {selectedFile ? (
+                    <div className="text-center">
+                      <div className="w-16 h-16 bg-accent-green rounded-2xl flex items-center justify-center mx-auto mb-4">
+                        <File className="w-8 h-8 text-white" />
+                      </div>
+                      <p className="text-lg font-semibold text-gray-800 mb-1">
+                        {selectedFile.name}
+                      </p>
+                      <p className="text-sm text-gray-600">
+                        {formatFileSize(selectedFile.size)}
+                      </p>
+                      <p className="text-xs text-accent-green mt-2 font-medium">
+                        Cliquez pour changer de fichier
+                      </p>
+                    </div>
+                  ) : (
+                    <div className="text-center">
+                      <div className="w-16 h-16 bg-gray-200 rounded-2xl flex items-center justify-center mx-auto mb-4">
+                        <Upload className="w-8 h-8 text-gray-400" />
+                      </div>
+                      <p className="text-lg font-semibold text-gray-700 mb-1">
+                        Sélectionner un fichier
+                      </p>
+                      <p className="text-sm text-gray-500 mb-2">
+                        PDF, Images, Documents Office, TXT, CSV
+                      </p>
+                      <p className="text-xs text-gray-400">
+                        Taille maximale : 50MB
+                      </p>
+                    </div>
+                  )}
+                </label>
+              </div>
+              {errors.fichier && (
+                <p className="text-red-600 text-sm mt-1 flex items-center gap-1 transform transition-all duration-200 ease-out">
+                  <AlertCircle className="w-4 h-4" />
+                  {errors.fichier}
+                </p>
+              )}
+            </div>
+          )}
 
           {/* Checkbox pour les métadonnées */}
           <div className="p-4 border border-gray-200 rounded-xl bg-gradient-to-r from-gray-50 to-gray-100/50 transition-all duration-200 hover:shadow-sm">

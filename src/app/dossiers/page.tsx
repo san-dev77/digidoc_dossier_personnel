@@ -1,0 +1,1544 @@
+"use client";
+
+import { useState, useEffect } from "react";
+import AuthGuard from "@/components/AuthGuard";
+import DashboardLayout from "@/components/DashboardLayout";
+import {
+  Folder,
+  Search,
+  FileText,
+  Calendar,
+  Building2,
+  ChevronDown,
+  ChevronRight,
+  Plus,
+  Edit,
+  Trash2,
+  Eye,
+  Archive,
+  Clock,
+  CheckCircle,
+  XCircle,
+  Database,
+  Upload,
+  Download,
+  X,
+  User,
+  ChevronLeft,
+  File,
+} from "lucide-react";
+import { rubriquesService } from "@/services/rubriques";
+import {
+  sousDossiersService,
+  type SousDossier,
+} from "@/services/sous-dossiers";
+import { piecesService } from "@/services/pieces";
+import { agentsService } from "@/services/agents";
+import type { Rubrique, MetaValue, Agent } from "@/types";
+
+// Types pour les dossiers
+interface DossierData {
+  rubrique: Rubrique;
+  sousDossiers: SousDossierWithStats[];
+  totalPieces: number;
+  totalSousDossiers: number;
+  totalMetadata: number;
+}
+
+interface SousDossierWithStats extends SousDossier {
+  pieces: PieceWithMetadata[];
+  piecesCount: number;
+  piecesWithMetadataCount: number;
+  totalMetadataCount: number;
+  lastActivity: string;
+}
+
+interface PieceWithMetadata {
+  id: string;
+  nom: string;
+  description?: string;
+  aMetadonnees: boolean;
+  createdAt: string;
+  updatedAt: string;
+  metadata: MetaValue[];
+  filePath?: string;
+  files?: PieceFile[];
+  metadataModels?: MetadataModel[];
+}
+
+interface MetadataModel {
+  id: string;
+  piece_id: string;
+  libelle: string;
+  type: string;
+  obligatoire: boolean;
+  description?: string;
+  created_at: string;
+  updated_at?: string;
+}
+
+interface PieceFile {
+  id: string;
+  id_piece: string;
+  file_path: string;
+  created_at: string;
+}
+
+// Composant pour afficher les métadonnées d'une pièce
+function PieceMetadata({ piece }: { piece: PieceWithMetadata }) {
+  if (!piece.metadata || piece.metadata.length === 0) {
+    return (
+      <div className="text-sm text-slate-500 italic">
+        Aucune métadonnée renseignée
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-2">
+      {piece.metadata.map((meta) => (
+        <div key={meta.id} className="flex items-center gap-2 text-sm">
+          <span className="font-medium text-slate-700">
+            {meta.metadataModel?.libelle || "Métadonnée"}:
+          </span>
+          <span className="text-slate-600">{meta.valeur}</span>
+          {meta.metadataModel?.obligatoire && (
+            <span className="text-red-500 text-xs">*</span>
+          )}
+        </div>
+      ))}
+    </div>
+  );
+}
+
+// Composant pour une pièce
+function PieceCard({ piece }: { piece: PieceWithMetadata }) {
+  return (
+    <div className="bg-slate-50 border border-slate-200 rounded-lg p-4">
+      <div className="flex items-start justify-between mb-3">
+        <div className="flex items-start gap-3">
+          <div className="w-8 h-8 bg-gradient-to-br from-slate-400 to-slate-500 rounded-lg flex items-center justify-center">
+            <FileText className="w-4 h-4 text-white" />
+          </div>
+          <div className="flex-1">
+            <h5 className="font-semibold text-slate-800 mb-1">{piece.nom}</h5>
+            {piece.description && (
+              <p className="text-sm text-slate-600 mb-2">{piece.description}</p>
+            )}
+            <div className="flex items-center gap-4 text-xs text-slate-500">
+              <div className="flex items-center gap-1">
+                <Calendar className="w-3 h-3" />
+                <span>
+                  Ajouté le {new Date(piece.createdAt).toLocaleDateString()}
+                </span>
+              </div>
+              {piece.aMetadonnees && (
+                <div className="flex items-center gap-1">
+                  <Database className="w-3 h-3" />
+                  <span>{piece.metadata.length} métadonnée(s)</span>
+                </div>
+              )}
+              {piece.filePath && (
+                <div className="flex items-center gap-1">
+                  <Upload className="w-3 h-3" />
+                  <span>Fichier uploadé</span>
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+        <div className="flex items-center gap-1">
+          {piece.filePath && (
+            <button
+              className="p-1 text-slate-600 hover:text-slate-800 hover:bg-slate-200 rounded transition-colors"
+              title="Télécharger le fichier"
+            >
+              <Download className="w-4 h-4" />
+            </button>
+          )}
+        </div>
+      </div>
+
+      {piece.aMetadonnees && (
+        <div className="border-t border-slate-200 pt-3">
+          <h6 className="text-sm font-medium text-slate-700 mb-2">
+            Métadonnées:
+          </h6>
+          <PieceMetadata piece={piece} />
+        </div>
+      )}
+    </div>
+  );
+}
+
+// Composant pour un sous-dossier
+function SousDossierAccordion({
+  sousDossier,
+  onEdit,
+  onDelete,
+  onView,
+}: {
+  sousDossier: SousDossierWithStats;
+  onEdit: (sousDossier: SousDossierWithStats) => void;
+  onDelete: (sousDossier: SousDossierWithStats) => void;
+  onView: (sousDossier: SousDossierWithStats) => void;
+}) {
+  const [isExpanded, setIsExpanded] = useState(false);
+
+  const getStatusColor = (statut?: string) => {
+    switch (statut) {
+      case "ouvert":
+        return "bg-green-100 text-green-800 border-green-200";
+      case "ferme":
+        return "bg-red-100 text-red-800 border-red-200";
+      case "archive":
+        return "bg-gray-100 text-gray-800 border-gray-200";
+      default:
+        return "bg-slate-100 text-slate-800 border-slate-200";
+    }
+  };
+
+  const getStatusIcon = (statut?: string) => {
+    switch (statut) {
+      case "ouvert":
+        return <CheckCircle className="w-4 h-4" />;
+      case "ferme":
+        return <XCircle className="w-4 h-4" />;
+      case "archive":
+        return <Archive className="w-4 h-4" />;
+      default:
+        return <Clock className="w-4 h-4" />;
+    }
+  };
+
+  return (
+    <div className="bg-white border border-slate-200 rounded-xl overflow-hidden hover:shadow-lg transition-all duration-200">
+      {/* Header du sous-dossier */}
+      <div
+        className="p-6 cursor-pointer hover:bg-slate-50 transition-colors"
+        onClick={() => setIsExpanded(!isExpanded)}
+      >
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-4">
+            <div className="w-12 h-12 bg-gradient-to-br from-slate-500 to-slate-600 rounded-xl flex items-center justify-center shadow-lg">
+              <Folder className="w-6 h-6 text-white" />
+            </div>
+            <div className="flex-1">
+              <div className="flex items-center gap-3 mb-1">
+                <h4 className="text-xl font-bold text-slate-800">
+                  {sousDossier.titre}
+                </h4>
+                <span
+                  className={`px-3 py-1 rounded-full text-xs font-semibold border flex items-center gap-1 ${getStatusColor(
+                    sousDossier.statut
+                  )}`}
+                >
+                  {getStatusIcon(sousDossier.statut)}
+                  {sousDossier.statut || "Ouvert"}
+                </span>
+              </div>
+              {sousDossier.description && (
+                <p className="text-slate-600 mb-3 leading-relaxed">
+                  {sousDossier.description}
+                </p>
+              )}
+              <div className="flex items-center gap-6 text-sm text-slate-500">
+                <div className="flex items-center gap-2">
+                  <Calendar className="w-4 h-4" />
+                  <span>
+                    Créé le{" "}
+                    {new Date(sousDossier.createdAt).toLocaleDateString()}
+                  </span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <FileText className="w-4 h-4" />
+                  <span>
+                    {sousDossier.piecesCount} pièce
+                    {sousDossier.piecesCount !== 1 ? "s" : ""}
+                  </span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <Database className="w-4 h-4" />
+                  <span>{sousDossier.totalMetadataCount} métadonnée(s)</span>
+                </div>
+              </div>
+            </div>
+          </div>
+          <div className="flex items-center gap-3">
+            <div className="flex items-center gap-2">
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onView(sousDossier);
+                }}
+                className="p-2 text-slate-600 hover:text-slate-800 hover:bg-slate-100 rounded-lg transition-colors"
+                title="Voir les détails"
+              >
+                <Eye className="w-4 h-4" />
+              </button>
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onEdit(sousDossier);
+                }}
+                className="p-2 text-slate-600 hover:text-slate-800 hover:bg-slate-100 rounded-lg transition-colors"
+                title="Modifier"
+              >
+                <Edit className="w-4 h-4" />
+              </button>
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onDelete(sousDossier);
+                }}
+                className="p-2 text-red-600 hover:text-red-800 hover:bg-red-50 rounded-lg transition-colors"
+                title="Supprimer"
+              >
+                <Trash2 className="w-4 h-4" />
+              </button>
+            </div>
+            <div className="w-10 h-10 bg-slate-100 rounded-xl flex items-center justify-center">
+              {isExpanded ? (
+                <ChevronDown className="w-5 h-5 text-slate-600" />
+              ) : (
+                <ChevronRight className="w-5 h-5 text-slate-600" />
+              )}
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Contenu des pièces */}
+      {isExpanded && (
+        <div className="border-t border-slate-200">
+          {sousDossier.pieces.length === 0 ? (
+            <div className="p-8 text-center">
+              <div className="w-16 h-16 bg-slate-100 rounded-xl flex items-center justify-center mx-auto mb-4">
+                <FileText className="w-8 h-8 text-slate-400" />
+              </div>
+              <h4 className="text-lg font-semibold text-slate-800 mb-2">
+                Aucun document
+              </h4>
+              <p className="text-slate-600">
+                Ce sous-dossier ne contient pas encore de pièces.
+              </p>
+            </div>
+          ) : (
+            <div className="p-6">
+              <div className="flex items-center gap-2 mb-4">
+                <div className="w-2 h-6 bg-slate-500 rounded-full"></div>
+                <h5 className="text-lg font-semibold text-slate-800">
+                  Documents dans ce sous-dossier
+                </h5>
+              </div>
+              <div className="grid gap-3">
+                {sousDossier.pieces.map((piece) => (
+                  <PieceCard key={piece.id} piece={piece} />
+                ))}
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
+// Composant Modal pour créer/éditer un sous-dossier
+interface ModalData {
+  agent: Agent | null;
+  rubrique: Rubrique | null;
+  sousDossier: SousDossier | null;
+  pieces: PieceWithMetadata[];
+}
+
+function NouveauSousDossierModal({
+  isOpen,
+  onClose,
+  onSave,
+}: {
+  isOpen: boolean;
+  onClose: () => void;
+  onSave: (data: ModalData) => void;
+}) {
+  const [step, setStep] = useState(1);
+  const [selectedAgent, setSelectedAgent] = useState<Agent | null>(null);
+  const [selectedRubrique, setSelectedRubrique] = useState<Rubrique | null>(
+    null
+  );
+  const [selectedSousDossier, setSelectedSousDossier] =
+    useState<SousDossier | null>(null);
+  const [agents, setAgents] = useState<Agent[]>([]);
+  const [rubriques, setRubriques] = useState<Rubrique[]>([]);
+  const [sousDossiers, setSousDossiers] = useState<SousDossier[]>([]);
+  const [pieces, setPieces] = useState<PieceWithMetadata[]>([]);
+  const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
+  const [uploadedFiles, setUploadedFiles] = useState<
+    Array<{ name: string; size: number; url: string }>
+  >([]);
+  const [loading, setLoading] = useState(false);
+  const [searchAgent, setSearchAgent] = useState("");
+  const [searchRubrique, setSearchRubrique] = useState("");
+  const [searchSousDossier, setSearchSousDossier] = useState("");
+
+  useEffect(() => {
+    if (isOpen) {
+      loadAgents();
+      loadRubriques();
+    }
+  }, [isOpen]);
+
+  useEffect(() => {
+    if (selectedRubrique) {
+      loadSousDossiers(selectedRubrique.id);
+    }
+  }, [selectedRubrique]);
+
+  useEffect(() => {
+    if (selectedSousDossier) {
+      loadPieces(selectedSousDossier.id);
+    }
+  }, [selectedSousDossier]);
+
+  const loadAgents = async () => {
+    try {
+      const agentsData = await agentsService.getAllAgents();
+      setAgents(agentsData);
+    } catch (error) {
+      console.error("Erreur lors du chargement des agents:", error);
+    }
+  };
+
+  const loadRubriques = async () => {
+    try {
+      const rubriquesData = await rubriquesService.getAllRubriques();
+      setRubriques(rubriquesData);
+    } catch (error) {
+      console.error("Erreur lors du chargement des rubriques:", error);
+    }
+  };
+
+  const loadSousDossiers = async (rubriqueId: string) => {
+    try {
+      const sousDossiersData =
+        await sousDossiersService.getAllSousDossiersByRubrique(rubriqueId);
+      setSousDossiers(sousDossiersData);
+    } catch (error) {
+      console.error("Erreur lors du chargement des sous-dossiers:", error);
+    }
+  };
+
+  const loadPieces = async (sousDossierId: string) => {
+    try {
+      setLoading(true);
+      const piecesData = await piecesService.getAllPiecesBySousDossier(
+        sousDossierId
+      );
+
+      // Pour chaque pièce, charger ses métadonnées et fichiers
+      const piecesWithData: PieceWithMetadata[] = await Promise.all(
+        piecesData.map(async (piece) => {
+          try {
+            // Charger les métadonnées
+            const metadataResponse = await fetch(
+              `/api/pieces/${piece.id}/metadata`
+            );
+            let metadata: MetaValue[] = [];
+            if (metadataResponse.ok) {
+              metadata = await metadataResponse.json();
+            }
+
+            // Charger les modèles de métadonnées
+            const metadataModelsResponse = await fetch(
+              `/api/pieces/${piece.id}/metadata-models`
+            );
+            let metadataModels: MetadataModel[] = [];
+            if (metadataModelsResponse.ok) {
+              metadataModels = await metadataModelsResponse.json();
+            }
+
+            // Charger les fichiers
+            const filesResponse = await fetch(`/api/pieces/${piece.id}/files`);
+            let files: PieceFile[] = [];
+            if (filesResponse.ok) {
+              files = await filesResponse.json();
+            }
+
+            return {
+              ...piece,
+              metadata,
+              metadataModels,
+              files,
+            };
+          } catch (error) {
+            console.error(
+              `Erreur lors du chargement des données pour ${piece.nom}:`,
+              error
+            );
+            return {
+              ...piece,
+              metadata: [],
+              metadataModels: [],
+              files: [],
+            };
+          }
+        })
+      );
+
+      setPieces(piecesWithData);
+    } catch (error) {
+      console.error("Erreur lors du chargement des pièces:", error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const filteredAgents = agents.filter(
+    (agent) =>
+      agent.nom.toLowerCase().includes(searchAgent.toLowerCase()) ||
+      agent.matricule.toLowerCase().includes(searchAgent.toLowerCase())
+  );
+
+  const filteredRubriques = rubriques.filter((rubrique) =>
+    rubrique.nom.toLowerCase().includes(searchRubrique.toLowerCase())
+  );
+
+  const filteredSousDossiers = sousDossiers.filter((sousDossier) =>
+    sousDossier.titre.toLowerCase().includes(searchSousDossier.toLowerCase())
+  );
+
+  const handleClose = () => {
+    setStep(1);
+    setSelectedAgent(null);
+    setSelectedRubrique(null);
+    setSelectedSousDossier(null);
+    setPieces([]);
+    setSearchAgent("");
+    setSearchRubrique("");
+    setSearchSousDossier("");
+    onClose();
+  };
+
+  if (!isOpen) return null;
+
+  return (
+    <div className="fixed inset-0 bg-black/70 transition-all duration-300 backdrop-blur-md flex items-center justify-center z-50 p-4">
+      <div className="bg-white rounded-2xl shadow-2xl max-w-6xl w-full max-h-[90vh] overflow-hidden">
+        {/* Header du modal */}
+        <div className="relative bg-gradient-to-r from-slate-50 to-white p-8 border-b border-slate-200">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-4">
+              <div className="relative">
+                <div className="w-16 h-16 bg-gradient-to-br from-slate-600 to-slate-700 rounded-2xl flex items-center justify-center shadow-lg">
+                  <Plus className="w-8 h-8 text-white" />
+                </div>
+                <div className="absolute -top-2 -right-2 w-6 h-6 bg-gradient-to-r from-emerald-400 to-emerald-500 rounded-full flex items-center justify-center shadow-lg">
+                  <div className="w-2 h-2 bg-white rounded-full animate-pulse"></div>
+                </div>
+              </div>
+              <div>
+                <h2 className="text-2xl font-bold text-slate-800 mb-1">
+                  Gestion des Dossiers
+                </h2>
+                <p className="text-slate-600">
+                  Étape {step}/4 -{" "}
+                  {step === 1
+                    ? "Sélection de l'agent"
+                    : step === 2
+                    ? "Sélection de la rubrique"
+                    : step === 3
+                    ? "Sélection du sous-dossier"
+                    : "Gestion des pièces"}
+                </p>
+                {/* Progress bar */}
+                <div className="mt-3 w-64 bg-slate-200 rounded-full h-2">
+                  <div
+                    className="bg-gradient-to-r from-slate-600 to-slate-700 h-2 rounded-full transition-all duration-500"
+                    style={{ width: `${(step / 4) * 100}%` }}
+                  ></div>
+                </div>
+              </div>
+            </div>
+            <button
+              onClick={handleClose}
+              className="w-12 h-12 bg-slate-100 hover:bg-slate-200 rounded-2xl flex items-center justify-center transition-all duration-300 hover:scale-110"
+            >
+              <X className="w-6 h-6 text-slate-600" />
+            </button>
+          </div>
+        </div>
+
+        {/* Contenu du modal */}
+        <div className="p-6 overflow-y-auto max-h-[calc(85vh-200px)]">
+          {step === 1 && (
+            <div>
+              <h3 className="text-lg font-semibold text-slate-800 mb-4">
+                Sélectionner un agent
+              </h3>
+              <div className="relative mb-4">
+                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-slate-400" />
+                <input
+                  type="text"
+                  placeholder="Rechercher un agent..."
+                  value={searchAgent}
+                  onChange={(e) => setSearchAgent(e.target.value)}
+                  className="w-full pl-10 pr-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-slate-500 focus:border-slate-500 text-black"
+                />
+              </div>
+              <div className="space-y-3 max-h-60 overflow-y-auto">
+                {filteredAgents.map((agent) => (
+                  <div
+                    key={agent.id}
+                    onClick={() => setSelectedAgent(agent)}
+                    className={`group p-4 border-2 rounded-2xl cursor-pointer transition-all duration-300 transform hover:scale-[1.02] ${
+                      selectedAgent?.id === agent.id
+                        ? "border-slate-500 bg-gradient-to-r from-slate-50 to-slate-100 shadow-lg"
+                        : "border-slate-200 hover:border-slate-300 hover:shadow-md"
+                    }`}
+                  >
+                    <div className="flex items-center gap-4">
+                      <div
+                        className={`w-12 h-12 rounded-xl flex items-center justify-center transition-all duration-300 ${
+                          selectedAgent?.id === agent.id
+                            ? "bg-gradient-to-r from-slate-600 to-slate-700"
+                            : "bg-slate-100 group-hover:bg-slate-200"
+                        }`}
+                      >
+                        <User
+                          className={`w-6 h-6 ${
+                            selectedAgent?.id === agent.id
+                              ? "text-white"
+                              : "text-slate-600"
+                          }`}
+                        />
+                      </div>
+                      <div className="flex-1">
+                        <div className="font-semibold text-slate-800 text-lg">
+                          {agent.nom}
+                        </div>
+                        <div className="text-sm text-slate-600">
+                          {agent.matricule} • {agent.fonction}
+                        </div>
+                      </div>
+                      {selectedAgent?.id === agent.id && (
+                        <div className="w-6 h-6 bg-gradient-to-r from-emerald-400 to-emerald-500 rounded-full flex items-center justify-center">
+                          <CheckCircle className="w-4 h-4 text-white" />
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {step === 2 && (
+            <div>
+              <h3 className="text-lg font-semibold text-slate-800 mb-4">
+                Sélectionner une rubrique
+              </h3>
+              <div className="relative mb-4">
+                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-slate-400" />
+                <input
+                  type="text"
+                  placeholder="Rechercher une rubrique..."
+                  value={searchRubrique}
+                  onChange={(e) => setSearchRubrique(e.target.value)}
+                  className="w-full pl-10 pr-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-slate-500 focus:border-slate-500 text-black"
+                />
+              </div>
+              <div className="space-y-3 max-h-60 overflow-y-auto">
+                {filteredRubriques.map((rubrique) => (
+                  <div
+                    key={rubrique.id}
+                    onClick={() => setSelectedRubrique(rubrique)}
+                    className={`group p-4 border-2 rounded-2xl cursor-pointer transition-all duration-300 transform hover:scale-[1.02] ${
+                      selectedRubrique?.id === rubrique.id
+                        ? "border-slate-500 bg-gradient-to-r from-slate-50 to-slate-100 shadow-lg"
+                        : "border-slate-200 hover:border-slate-300 hover:shadow-md"
+                    }`}
+                  >
+                    <div className="flex items-center gap-4">
+                      <div
+                        className={`w-12 h-12 rounded-xl flex items-center justify-center transition-all duration-300 ${
+                          selectedRubrique?.id === rubrique.id
+                            ? "bg-gradient-to-r from-slate-600 to-slate-700"
+                            : "bg-slate-100 group-hover:bg-slate-200"
+                        }`}
+                      >
+                        <Building2
+                          className={`w-6 h-6 ${
+                            selectedRubrique?.id === rubrique.id
+                              ? "text-white"
+                              : "text-slate-600"
+                          }`}
+                        />
+                      </div>
+                      <div className="flex-1">
+                        <div className="font-semibold text-slate-800 text-lg">
+                          {rubrique.nom}
+                        </div>
+                        {rubrique.description && (
+                          <div className="text-sm text-slate-600">
+                            {rubrique.description}
+                          </div>
+                        )}
+                      </div>
+                      {selectedRubrique?.id === rubrique.id && (
+                        <div className="w-6 h-6 bg-gradient-to-r from-emerald-400 to-emerald-500 rounded-full flex items-center justify-center">
+                          <CheckCircle className="w-4 h-4 text-white" />
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {step === 3 && (
+            <div>
+              <div className="relative mb-4 border border-slate-500 text-black rounded-lg">
+                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-slate-400" />
+                <input
+                  type="text"
+                  placeholder="Rechercher un sous-dossier..."
+                  value={searchSousDossier}
+                  onChange={(e) => setSearchSousDossier(e.target.value)}
+                  className="w-full pl-10 pr-4 py-2 border border-slate-500 text-black rounded-lg focus:ring-2 focus:ring-slate-500 focus:border-slate-500"
+                />
+              </div>
+              <div className="space-y-3 border-2 border-slate-500 text-black rounded-lg max-h-60 overflow-y-auto">
+                {filteredSousDossiers.map((sousDossier) => (
+                  <div
+                    key={sousDossier.id}
+                    onClick={() => setSelectedSousDossier(sousDossier)}
+                    className={`group p-4 border-2 rounded-2xl cursor-pointer transition-all duration-300 transform hover:scale-[1.02] ${
+                      selectedSousDossier?.id === sousDossier.id
+                        ? "border-slate-500 bg-gradient-to-r from-slate-50 to-slate-100 shadow-lg"
+                        : "border-slate-200 hover:border-slate-300 hover:shadow-md"
+                    }`}
+                  >
+                    <div className="flex items-center gap-4">
+                      <div
+                        className={`w-12 h-12 rounded-xl flex items-center justify-center transition-all duration-300 ${
+                          selectedSousDossier?.id === sousDossier.id
+                            ? "bg-gradient-to-r from-slate-600 to-slate-700"
+                            : "bg-slate-100 group-hover:bg-slate-200"
+                        }`}
+                      >
+                        <Folder
+                          className={`w-6 h-6 ${
+                            selectedSousDossier?.id === sousDossier.id
+                              ? "text-white"
+                              : "text-slate-600"
+                          }`}
+                        />
+                      </div>
+                      <div className="flex-1">
+                        <div className="font-semibold text-slate-800 text-lg">
+                          {sousDossier.titre}
+                        </div>
+                        {sousDossier.description && (
+                          <div className="text-sm text-slate-600">
+                            {sousDossier.description}
+                          </div>
+                        )}
+                      </div>
+                      {selectedSousDossier?.id === sousDossier.id && (
+                        <div className="w-6 h-6 bg-gradient-to-r from-emerald-400 to-emerald-500 rounded-full flex items-center justify-center">
+                          <CheckCircle className="w-4 h-4 text-white" />
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {step === 4 && (
+            <div>
+              <h3 className="text-lg font-semibold text-slate-800 mb-4">
+                Gestion des pièces
+              </h3>
+              {loading ? (
+                <div className="text-center py-8">
+                  <div className="w-8 h-8 border-4 border-slate-300 border-t-slate-600 rounded-full animate-spin mx-auto mb-4"></div>
+                  <p className="text-slate-600">Chargement des pièces...</p>
+                </div>
+              ) : (
+                <div className="space-y-3 max-h-96 overflow-y-auto">
+                  {pieces.map((piece) => (
+                    <div
+                      key={piece.id}
+                      className="border border-slate-200 rounded-lg p-3"
+                    >
+                      <div className="flex items-center justify-between mb-3">
+                        <h4 className="font-semibold text-slate-800">
+                          {piece.nom}
+                        </h4>
+                        <div className="flex items-center gap-2">
+                          {piece.files && piece.files.length > 0 && (
+                            <span className="text-xs bg-green-100 text-green-800 px-2 py-1 rounded">
+                              {piece.files.length} fichier(s)
+                            </span>
+                          )}
+                          {piece.metadataModels &&
+                            piece.metadataModels.length > 0 && (
+                              <span className="text-xs bg-slate-100 text-slate-800 px-2 py-1 rounded">
+                                {piece.metadataModels.length} métadonnée(s)
+                              </span>
+                            )}
+                        </div>
+                      </div>
+
+                      {piece.description && (
+                        <p className="text-sm text-slate-600 mb-3">
+                          {piece.description}
+                        </p>
+                      )}
+
+                      {/* Métadonnées */}
+                      {piece.metadataModels &&
+                        piece.metadataModels.length > 0 && (
+                          <div className="mb-3">
+                            <h5 className="text-sm font-medium text-slate-700 mb-2">
+                              Métadonnées:
+                            </h5>
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
+                              {piece.metadataModels.map(
+                                (model: MetadataModel) => {
+                                  const existingValue = piece.metadata.find(
+                                    (m) => m.meta_model_id === model.id
+                                  );
+                                  return (
+                                    <div key={model.id} className="space-y-1">
+                                      <label className="text-sm font-medium text-slate-700">
+                                        {model.libelle}
+                                        {model.obligatoire && (
+                                          <span className="text-red-500 ml-1">
+                                            *
+                                          </span>
+                                        )}
+                                      </label>
+                                      {model.type === "text" && (
+                                        <input
+                                          type="text"
+                                          defaultValue={
+                                            existingValue?.valeur || ""
+                                          }
+                                          className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-slate-500 focus:border-slate-500 text-black"
+                                        />
+                                      )}
+                                      {model.type === "number" && (
+                                        <input
+                                          type="number"
+                                          defaultValue={
+                                            existingValue?.valeur || ""
+                                          }
+                                          className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-slate-500 focus:border-slate-500 text-black"
+                                        />
+                                      )}
+                                      {model.type === "date" && (
+                                        <input
+                                          type="date"
+                                          defaultValue={
+                                            existingValue?.valeur || ""
+                                          }
+                                          className="w-full px-3 py-2 border bg-gray-700 border-slate-300 rounded-lg focus:ring-2 focus:ring-slate-500 focus:border-slate-500"
+                                        />
+                                      )}
+                                      {model.type === "boolean" && (
+                                        <select
+                                          defaultValue={
+                                            existingValue?.valeur || ""
+                                          }
+                                          className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-slate-500 focus:border-slate-500 text-black"
+                                        >
+                                          <option value="">
+                                            Sélectionner...
+                                          </option>
+                                          <option value="true">Oui</option>
+                                          <option value="false">Non</option>
+                                        </select>
+                                      )}
+                                    </div>
+                                  );
+                                }
+                              )}
+                            </div>
+                          </div>
+                        )}
+
+                      {/* Upload de fichiers */}
+                      <div>
+                        <h5 className="text-sm font-medium text-slate-700 mb-2">
+                          Fichiers:
+                        </h5>
+
+                        {/* Liste des fichiers sélectionnés */}
+                        {selectedFiles.length > 0 && (
+                          <div className="mb-3 p-3 bg-slate-50 rounded-lg border border-slate-200">
+                            <h6 className="text-xs font-semibold text-slate-600 mb-2">
+                              Fichiers sélectionnés ({selectedFiles.length}):
+                            </h6>
+                            <div className="space-y-2">
+                              {selectedFiles.map((file, index) => (
+                                <div
+                                  key={index}
+                                  className="flex items-center justify-between p-2 bg-white rounded border border-slate-200"
+                                >
+                                  <div className="flex items-center gap-2">
+                                    <File className="w-4 h-4 text-slate-500" />
+                                    <span className="text-sm text-slate-700">
+                                      {file.name}
+                                    </span>
+                                    <span className="text-xs text-slate-500">
+                                      ({(file.size / 1024 / 1024).toFixed(2)}{" "}
+                                      MB)
+                                    </span>
+                                  </div>
+                                  <button
+                                    onClick={() => {
+                                      setSelectedFiles(
+                                        selectedFiles.filter(
+                                          (_, i) => i !== index
+                                        )
+                                      );
+                                    }}
+                                    className="text-red-500 hover:text-red-700 p-1"
+                                  >
+                                    <X className="w-4 h-4" />
+                                  </button>
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+                        )}
+
+                        <div className="border-2 border-dashed border-slate-300 rounded-lg p-3 text-center">
+                          <Upload className="w-8 h-8 text-slate-400 mx-auto mb-2" />
+                          <p className="text-sm text-slate-600 mb-2">
+                            Glissez-déposez vos fichiers ici ou cliquez pour
+                            sélectionner
+                          </p>
+                          <input
+                            type="file"
+                            multiple
+                            className="hidden"
+                            id={`file-upload-${piece.id}`}
+                            onChange={(e) => {
+                              const files = e.target.files;
+                              if (files && files.length > 0) {
+                                console.log("Fichiers sélectionnés:", files);
+                                // Ajouter les nouveaux fichiers aux fichiers déjà sélectionnés
+                                setSelectedFiles((prev) => [
+                                  ...prev,
+                                  ...Array.from(files),
+                                ]);
+                              }
+                            }}
+                          />
+                          <label
+                            htmlFor={`file-upload-${piece.id}`}
+                            className="inline-flex items-center gap-2 px-4 py-2 bg-slate-600 text-white rounded-lg hover:bg-slate-700 transition-colors cursor-pointer"
+                          >
+                            <Upload className="w-4 h-4" />
+                            {selectedFiles.length > 0
+                              ? "Ajouter des fichiers"
+                              : "Sélectionner des fichiers"}
+                          </label>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
+        </div>
+
+        {/* Footer du modal */}
+        <div className="flex items-center justify-between p-8 border-t border-slate-200 bg-gradient-to-r from-slate-50 to-white">
+          <div className="flex items-center gap-3">
+            {step > 1 && (
+              <button
+                onClick={() => setStep(step - 1)}
+                className="group flex items-center gap-2 px-6 py-3 bg-gradient-to-r from-slate-500 to-slate-600 text-white rounded-xl hover:from-slate-600 hover:to-slate-700 transition-all duration-300 shadow-lg hover:shadow-xl transform hover:scale-105"
+              >
+                <ChevronLeft className="w-4 h-4 group-hover:-translate-x-1 transition-transform duration-300" />
+                Précédent
+              </button>
+            )}
+          </div>
+          <div className="flex items-center gap-4">
+            <button
+              onClick={handleClose}
+              className="px-6 py-3 text-slate-600 hover:text-slate-800 transition-all duration-300 hover:bg-slate-100 rounded-xl font-medium"
+            >
+              Annuler
+            </button>
+            {step < 4 ? (
+              <button
+                onClick={() => setStep(step + 1)}
+                disabled={
+                  (step === 1 && !selectedAgent) ||
+                  (step === 2 && !selectedRubrique) ||
+                  (step === 3 && !selectedSousDossier)
+                }
+                className="group flex items-center gap-2 px-6 py-3 bg-gradient-to-r from-slate-600 to-slate-700 text-white rounded-xl hover:from-slate-700 hover:to-slate-800 transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed shadow-lg hover:shadow-xl transform hover:scale-105 disabled:hover:scale-100"
+              >
+                Suivant
+                <ChevronRight className="w-4 h-4 group-hover:translate-x-1 transition-transform duration-300" />
+              </button>
+            ) : (
+              <button
+                onClick={async () => {
+                  // Uploader les fichiers sélectionnés
+                  if (
+                    selectedFiles.length > 0 &&
+                    selectedRubrique &&
+                    selectedSousDossier
+                  ) {
+                    try {
+                      for (const file of selectedFiles) {
+                        const formData = new FormData();
+                        formData.append("file", file);
+                        formData.append("rubriqueId", selectedRubrique.id);
+                        formData.append(
+                          "sousDossierId",
+                          selectedSousDossier.id
+                        );
+                        formData.append("nom", file.name);
+                        formData.append(
+                          "description",
+                          `Fichier uploadé: ${file.name}`
+                        );
+
+                        const response = await fetch("/api/upload", {
+                          method: "POST",
+                          body: formData,
+                        });
+
+                        if (!response.ok) {
+                          const error = await response.json();
+                          console.error("Erreur upload:", error);
+                          alert(`Erreur lors de l'upload de ${file.name}`);
+                          return;
+                        }
+                      }
+                      console.log(
+                        `${selectedFiles.length} fichier(s) uploadé(s) avec succès !`
+                      );
+                    } catch (error) {
+                      console.error("Erreur lors de l'upload:", error);
+                      alert("Erreur lors de l'upload des fichiers");
+                      return;
+                    }
+                  }
+
+                  // Appeler onSave avec les données
+                  onSave({
+                    agent: selectedAgent,
+                    rubrique: selectedRubrique,
+                    sousDossier: selectedSousDossier,
+                    pieces: pieces,
+                  });
+                }}
+                className="group flex items-center gap-2 px-6 py-3 bg-gradient-to-r from-emerald-500 to-emerald-600 text-white rounded-xl hover:from-emerald-600 hover:to-emerald-700 transition-all duration-300 shadow-lg hover:shadow-xl transform hover:scale-105"
+              >
+                <CheckCircle className="w-4 h-4 group-hover:scale-110 transition-transform duration-300" />
+                Sauvegarder
+              </button>
+            )}
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// Composant principal pour les dossiers
+export default function DossiersPage() {
+  const [dossiers, setDossiers] = useState<DossierData[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [searchTerm, setSearchTerm] = useState("");
+  const [expandedRubriques, setExpandedRubriques] = useState<Set<string>>(
+    new Set()
+  );
+  const [showNouveauModal, setShowNouveauModal] = useState(false);
+
+  useEffect(() => {
+    loadDossiers();
+  }, []);
+
+  const loadDossiers = async () => {
+    try {
+      setLoading(true);
+
+      // Charger toutes les rubriques
+      const rubriques = await rubriquesService.getAllRubriques();
+
+      // Pour chaque rubrique, charger les sous-dossiers et leurs statistiques
+      const dossiersData: DossierData[] = await Promise.all(
+        rubriques.map(async (rubrique) => {
+          try {
+            // Charger les sous-dossiers de la rubrique
+            const sousDossiers =
+              await sousDossiersService.getAllSousDossiersByRubrique(
+                rubrique.id
+              );
+
+            // Pour chaque sous-dossier, charger les pièces avec leurs métadonnées
+            const sousDossiersWithStats: SousDossierWithStats[] =
+              await Promise.all(
+                sousDossiers.map(async (sousDossier) => {
+                  try {
+                    const pieces =
+                      await piecesService.getAllPiecesBySousDossier(
+                        sousDossier.id
+                      );
+
+                    // Pour chaque pièce, charger ses métadonnées
+                    const piecesWithMetadata: PieceWithMetadata[] =
+                      await Promise.all(
+                        pieces.map(async (piece) => {
+                          try {
+                            // Charger les métadonnées de la pièce
+                            const metadataResponse = await fetch(
+                              `/api/pieces/${piece.id}/metadata`
+                            );
+                            let metadata: MetaValue[] = [];
+
+                            if (metadataResponse.ok) {
+                              const metadataData =
+                                await metadataResponse.json();
+                              metadata = metadataData || [];
+                            }
+
+                            return {
+                              ...piece,
+                              metadata,
+                            };
+                          } catch (error) {
+                            console.error(
+                              `Erreur lors du chargement des métadonnées pour ${piece.nom}:`,
+                              error
+                            );
+                            return {
+                              ...piece,
+                              metadata: [],
+                            };
+                          }
+                        })
+                      );
+
+                    const piecesWithMetadataCount = piecesWithMetadata.filter(
+                      (piece) => piece.aMetadonnees
+                    ).length;
+
+                    const totalMetadataCount = piecesWithMetadata.reduce(
+                      (sum, piece) => sum + piece.metadata.length,
+                      0
+                    );
+
+                    const lastActivity =
+                      piecesWithMetadata.length > 0
+                        ? piecesWithMetadata.reduce((latest, piece) => {
+                            const pieceDate = new Date(piece.createdAt);
+                            const latestDate = new Date(latest);
+                            return pieceDate > latestDate
+                              ? piece.createdAt
+                              : latest;
+                          }, piecesWithMetadata[0].createdAt)
+                        : sousDossier.updatedAt;
+
+                    return {
+                      ...sousDossier,
+                      pieces: piecesWithMetadata,
+                      piecesCount: piecesWithMetadata.length,
+                      piecesWithMetadataCount,
+                      totalMetadataCount,
+                      lastActivity,
+                    };
+                  } catch (error) {
+                    console.error(
+                      `Erreur lors du chargement des pièces pour ${sousDossier.titre}:`,
+                      error
+                    );
+                    return {
+                      ...sousDossier,
+                      pieces: [],
+                      piecesCount: 0,
+                      piecesWithMetadataCount: 0,
+                      totalMetadataCount: 0,
+                      lastActivity: sousDossier.updatedAt,
+                    };
+                  }
+                })
+              );
+
+            const totalPieces = sousDossiersWithStats.reduce(
+              (sum, sd) => sum + sd.piecesCount,
+              0
+            );
+
+            const totalMetadata = sousDossiersWithStats.reduce(
+              (sum, sd) => sum + sd.totalMetadataCount,
+              0
+            );
+
+            return {
+              rubrique,
+              sousDossiers: sousDossiersWithStats,
+              totalPieces,
+              totalSousDossiers: sousDossiersWithStats.length,
+              totalMetadata,
+            };
+          } catch (error) {
+            console.error(
+              `Erreur lors du chargement des sous-dossiers pour ${rubrique.nom}:`,
+              error
+            );
+            return {
+              rubrique,
+              sousDossiers: [],
+              totalPieces: 0,
+              totalSousDossiers: 0,
+              totalMetadata: 0,
+            };
+          }
+        })
+      );
+
+      setDossiers(dossiersData);
+    } catch (error) {
+      console.error("Erreur lors du chargement des dossiers:", error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const filteredDossiers = dossiers.filter(
+    (dossier) =>
+      dossier.rubrique.nom.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      dossier.rubrique.description
+        .toLowerCase()
+        .includes(searchTerm.toLowerCase()) ||
+      dossier.sousDossiers.some(
+        (sd) =>
+          sd.titre.toLowerCase().includes(searchTerm.toLowerCase()) ||
+          sd.description.toLowerCase().includes(searchTerm.toLowerCase())
+      )
+  );
+
+  const toggleRubrique = (rubriqueId: string) => {
+    const newExpanded = new Set(expandedRubriques);
+    if (newExpanded.has(rubriqueId)) {
+      newExpanded.delete(rubriqueId);
+    } else {
+      newExpanded.add(rubriqueId);
+    }
+    setExpandedRubriques(newExpanded);
+  };
+
+  const handleEditSousDossier = (sousDossier: SousDossierWithStats) => {
+    // TODO: Implémenter l'édition du sous-dossier
+    console.log("Éditer le sous-dossier:", sousDossier);
+  };
+
+  const handleDeleteSousDossier = (sousDossier: SousDossierWithStats) => {
+    // TODO: Implémenter la suppression du sous-dossier
+    console.log("Supprimer le sous-dossier:", sousDossier);
+  };
+
+  const handleViewSousDossier = (sousDossier: SousDossierWithStats) => {
+    // TODO: Implémenter la vue détaillée du sous-dossier
+    console.log("Voir le sous-dossier:", sousDossier);
+  };
+
+  const handleNouveauSousDossier = () => {
+    setShowNouveauModal(true);
+  };
+
+  const handleCloseNouveauModal = () => {
+    setShowNouveauModal(false);
+  };
+
+  const handleSaveNouveauSousDossier = (data: ModalData) => {
+    console.log("Sauvegarder les données:", data);
+    // TODO: Implémenter la sauvegarde
+    setShowNouveauModal(false);
+  };
+
+  if (loading) {
+    return (
+      <AuthGuard>
+        <DashboardLayout>
+          <div className="min-h-screen bg-gradient-to-br from-slate-100 via-white to-slate-200 flex items-center justify-center">
+            <div className="text-center">
+              <div className="w-16 h-16 border-4 border-slate-300 border-t-slate-600 rounded-full animate-spin mx-auto mb-4"></div>
+              <p className="text-slate-600 font-medium">
+                Chargement des dossiers...
+              </p>
+            </div>
+          </div>
+        </DashboardLayout>
+      </AuthGuard>
+    );
+  }
+
+  return (
+    <AuthGuard>
+      <DashboardLayout>
+        {/* Header Card */}
+        <div className="mb-8">
+          <div className="relative bg-gradient-to-br from-slate-800 via-slate-700 to-slate-900 mb-5 rounded-3xl shadow-2xl overflow-hidden">
+            {/* Background Pattern */}
+            <div
+              className="absolute inset-0 opacity-20"
+              style={{
+                backgroundImage: `url("data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' fill-rule='evenodd'%3E%3Cg fill='%23ffffff' fill-opacity='0.05'%3E%3Ccircle cx='30' cy='30' r='2'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E")`,
+              }}
+            ></div>
+
+            <div className="relative p-8">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center space-x-6">
+                  <div className="relative">
+                    <div className="bg-white/20 backdrop-blur-sm rounded-3xl p-6 shadow-lg transform hover:scale-105 transition-all duration-300">
+                      <Folder className="w-14 h-14 text-white drop-shadow-lg" />
+                    </div>
+                    <div className="absolute -top-2 -right-2 w-6 h-6 bg-gradient-to-r from-emerald-400 to-emerald-500 rounded-full flex items-center justify-center shadow-lg">
+                      <div className="w-2 h-2 bg-white rounded-full animate-pulse"></div>
+                    </div>
+                  </div>
+                  <div>
+                    <h1 className="text-5xl font-bold mb-3 bg-gradient-to-r from-white to-slate-200 bg-clip-text text-transparent">
+                      Gestion des Dossiers
+                    </h1>
+                    <p className="text-slate-200 text-xl mb-6 leading-relaxed">
+                      Organisation et suivi des dossiers par rubrique et
+                      sous-dossier
+                    </p>
+                    <div className="flex items-center space-x-4">
+                      <div className="group flex items-center space-x-3 bg-white/15 backdrop-blur-sm rounded-xl px-4 py-3 hover:bg-white/20 transition-all duration-300 cursor-pointer">
+                        <div className="w-3 h-3 bg-gradient-to-r from-emerald-400 to-emerald-500 rounded-full shadow-lg animate-pulse"></div>
+                        <span className="text-white text-sm font-semibold">
+                          {dossiers.reduce(
+                            (sum, d) => sum + d.totalSousDossiers,
+                            0
+                          )}{" "}
+                          sous-dossiers
+                        </span>
+                      </div>
+                      <div className="group flex items-center space-x-3 bg-white/15 backdrop-blur-sm rounded-xl px-4 py-3 hover:bg-white/20 transition-all duration-300 cursor-pointer">
+                        <div className="w-3 h-3 bg-gradient-to-r from-slate-400 to-slate-500 rounded-full shadow-lg"></div>
+                        <span className="text-white text-sm font-semibold">
+                          {dossiers.reduce((sum, d) => sum + d.totalPieces, 0)}{" "}
+                          pièces
+                        </span>
+                      </div>
+                      <div className="group flex items-center space-x-3 bg-white/15 backdrop-blur-sm rounded-xl px-4 py-3 hover:bg-white/20 transition-all duration-300 cursor-pointer">
+                        <div className="w-3 h-3 bg-gradient-to-r from-slate-300 to-slate-400 rounded-full shadow-lg"></div>
+                        <span className="text-white text-sm font-semibold">
+                          {dossiers.reduce(
+                            (sum, d) => sum + d.totalMetadata,
+                            0
+                          )}{" "}
+                          métadonnées
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Filtres et recherche */}
+        <div className="mb-8">
+          <div className="flex items-center justify-between gap-6">
+            <div className="flex items-center space-x-4 flex-1">
+              <div className="relative w-full max-w-2xl">
+                <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
+                  <Search className="h-5 w-5 text-slate-400" />
+                </div>
+                <input
+                  type="text"
+                  placeholder="Rechercher une rubrique ou un sous-dossier..."
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  className="block w-full pl-12 pr-4 py-4 border-2 border-slate-200 rounded-2xl text-sm placeholder-slate-400 focus:outline-none focus:ring-4 focus:ring-slate-500/20 focus:border-slate-500 bg-white shadow-lg hover:shadow-xl transition-all duration-300 text-black"
+                />
+                {searchTerm && (
+                  <button
+                    onClick={() => setSearchTerm("")}
+                    className="absolute inset-y-0 right-0 pr-4 flex items-center"
+                  >
+                    <X className="h-4 w-4 text-slate-400 hover:text-slate-600 transition-colors" />
+                  </button>
+                )}
+              </div>
+            </div>
+            <button
+              onClick={handleNouveauSousDossier}
+              className="group flex items-center gap-3 px-6 py-4 bg-gradient-to-r from-slate-600 to-slate-700 text-white rounded-2xl hover:from-slate-700 hover:to-slate-800 transition-all duration-300 shadow-lg hover:shadow-xl transform hover:scale-105"
+            >
+              <Plus className="w-5 h-5 group-hover:rotate-90 transition-transform duration-300" />
+              <span className="font-semibold">Nouveau sous-dossier</span>
+            </button>
+          </div>
+        </div>
+
+        {/* Liste des dossiers */}
+        <div className="space-y-6">
+          {filteredDossiers.length === 0 ? (
+            <div className="text-center py-12">
+              <div className="w-24 h-24 bg-slate-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                <Folder className="w-12 h-12 text-slate-400" />
+              </div>
+              <h3 className="text-xl font-semibold text-slate-800 mb-2">
+                Aucun dossier trouvé
+              </h3>
+              <p className="text-slate-600">
+                {searchTerm
+                  ? "Aucun dossier ne correspond à votre recherche."
+                  : "Aucun dossier n'a encore été créé."}
+              </p>
+            </div>
+          ) : (
+            filteredDossiers.map((dossier, index) => (
+              <div
+                key={dossier.rubrique.id}
+                className="group bg-white rounded-3xl shadow-lg border border-slate-200 overflow-hidden hover:shadow-2xl hover:border-slate-300 transition-all duration-500 transform hover:-translate-y-1"
+                style={{ animationDelay: `${index * 100}ms` }}
+              >
+                {/* Header de la rubrique */}
+                <div className="relative p-8 border-b border-slate-200 bg-gradient-to-r from-slate-50 to-white">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-6">
+                      <div className="relative">
+                        <div className="w-20 h-20 bg-gradient-to-br from-slate-600 to-slate-700 rounded-2xl flex items-center justify-center shadow-xl group-hover:shadow-2xl transition-all duration-300">
+                          <Building2 className="w-10 h-10 text-white drop-shadow-lg" />
+                        </div>
+                        <div className="absolute -top-1 -right-1 w-6 h-6 bg-gradient-to-r from-emerald-400 to-emerald-500 rounded-full flex items-center justify-center shadow-lg">
+                          <div className="w-2 h-2 bg-white rounded-full"></div>
+                        </div>
+                      </div>
+                      <div>
+                        <h3 className="text-3xl font-bold text-slate-800 mb-2 group-hover:text-slate-900 transition-colors">
+                          {dossier.rubrique.nom}
+                        </h3>
+                        {dossier.rubrique.description && (
+                          <p className="text-slate-600 mb-4 text-lg leading-relaxed">
+                            {dossier.rubrique.description}
+                          </p>
+                        )}
+                        <div className="flex items-center gap-6">
+                          <div className="flex items-center gap-3 bg-slate-100 rounded-xl px-4 py-2">
+                            <div className="w-8 h-8 bg-gradient-to-r from-slate-500 to-slate-600 rounded-lg flex items-center justify-center">
+                              <Folder className="w-4 h-4 text-white" />
+                            </div>
+                            <div>
+                              <div className="text-sm font-semibold text-slate-800">
+                                {dossier.totalSousDossiers}
+                              </div>
+                              <div className="text-xs text-slate-600">
+                                sous-dossier
+                                {dossier.totalSousDossiers > 1 ? "s" : ""}
+                              </div>
+                            </div>
+                          </div>
+                          <div className="flex items-center gap-3 bg-slate-100 rounded-xl px-4 py-2">
+                            <div className="w-8 h-8 bg-gradient-to-r from-slate-500 to-slate-600 rounded-lg flex items-center justify-center">
+                              <FileText className="w-4 h-4 text-white" />
+                            </div>
+                            <div>
+                              <div className="text-sm font-semibold text-slate-800">
+                                {dossier.totalPieces}
+                              </div>
+                              <div className="text-xs text-slate-600">
+                                pièce{dossier.totalPieces > 1 ? "s" : ""}
+                              </div>
+                            </div>
+                          </div>
+                          <div className="flex items-center gap-3 bg-slate-100 rounded-xl px-4 py-2">
+                            <div className="w-8 h-8 bg-gradient-to-r from-slate-500 to-slate-600 rounded-lg flex items-center justify-center">
+                              <Database className="w-4 h-4 text-white" />
+                            </div>
+                            <div>
+                              <div className="text-sm font-semibold text-slate-800">
+                                {dossier.totalMetadata}
+                              </div>
+                              <div className="text-xs text-slate-600">
+                                métadonnée{dossier.totalMetadata > 1 ? "s" : ""}
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-4">
+                      <div
+                        className="w-12 h-12 bg-slate-100 rounded-2xl flex items-center justify-center cursor-pointer hover:bg-slate-200 transition-all duration-300 group-hover:scale-110"
+                        onClick={() => toggleRubrique(dossier.rubrique.id)}
+                      >
+                        {expandedRubriques.has(dossier.rubrique.id) ? (
+                          <ChevronDown className="w-6 h-6 text-slate-600 transition-transform duration-300" />
+                        ) : (
+                          <ChevronRight className="w-6 h-6 text-slate-600 transition-transform duration-300" />
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Sous-dossiers */}
+                {expandedRubriques.has(dossier.rubrique.id) && (
+                  <div className="p-6">
+                    {dossier.sousDossiers.length === 0 ? (
+                      <div className="text-center py-8">
+                        <div className="w-16 h-16 bg-slate-100 rounded-xl flex items-center justify-center mx-auto mb-4">
+                          <Folder className="w-8 h-8 text-slate-400" />
+                        </div>
+                        <h4 className="text-lg font-semibold text-slate-800 mb-2">
+                          Aucun sous-dossier
+                        </h4>
+                        <p className="text-slate-600">
+                          Cette rubrique ne contient pas encore de
+                          sous-dossiers.
+                        </p>
+                      </div>
+                    ) : (
+                      <div className="space-y-4">
+                        {dossier.sousDossiers.map((sousDossier) => (
+                          <SousDossierAccordion
+                            key={sousDossier.id}
+                            sousDossier={sousDossier}
+                            onEdit={handleEditSousDossier}
+                            onDelete={handleDeleteSousDossier}
+                            onView={handleViewSousDossier}
+                          />
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
+            ))
+          )}
+        </div>
+
+        {/* Modal Nouveau Sous-dossier */}
+        <NouveauSousDossierModal
+          isOpen={showNouveauModal}
+          onClose={handleCloseNouveauModal}
+          onSave={handleSaveNouveauSousDossier}
+        />
+      </DashboardLayout>
+    </AuthGuard>
+  );
+}

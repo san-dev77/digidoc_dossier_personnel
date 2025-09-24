@@ -123,6 +123,8 @@ export interface PieceFormData {
   description?: string;
   has_meta: boolean;
   metadonnees?: Omit<MetadataModel, "id" | "createdAt" | "updatedAt">[];
+  fichier?: File;
+  rubriqueId?: string;
 }
 
 // Types pour les réponses API
@@ -189,4 +191,17 @@ export interface PieceWithCheck extends Piece {
   pieces_check?: PieceCheck[];
   isDisponible?: boolean | null; // null = non vérifié, true = disponible, false = non disponible
   lastCheckDate?: string;
+}
+
+// Types pour les métadonnées des pièces
+export interface MetaValue {
+  id: string;
+  meta_model_id: string;
+  valeur: string;
+  created_at: string;
+  metadataModel?: {
+    libelle: string;
+    type: string;
+    obligatoire: boolean;
+  };
 }

@@ -16,6 +16,7 @@ import {
   Zap,
   Shield,
   Bell,
+  BarChart3,
 } from "lucide-react";
 import { useState } from "react";
 
@@ -69,6 +70,17 @@ export default function Sidebar({
       bgColor: "bg-purple-50",
       textColor: "text-purple-700",
       borderColor: "border-purple-200",
+    },
+    {
+      name: "Rapports",
+      href: "/rapports",
+      icon: BarChart3,
+      current: pathname.startsWith("/rapports"),
+      description: "Rapports de conformité",
+      color: "from-blue-500 to-blue-600",
+      bgColor: "bg-indigo-50",
+      textColor: "text-indigo-700",
+      borderColor: "border-indigo-200",
     },
     {
       name: "Notifications",

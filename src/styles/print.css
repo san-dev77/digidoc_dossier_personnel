@@ -1,0 +1,224 @@
+/* Styles pour l'impression de la fiche d'état */
+
+@media print {
+  /* Masquer tous les éléments non nécessaires à l'impression */
+  body * {
+    visibility: hidden;
+  }
+
+  /* Afficher uniquement le contenu de la fiche */
+  .print-content,
+  .print-content * {
+    visibility: visible;
+  }
+
+  /* Positionner le contenu de la fiche */
+  .print-content {
+    position: absolute;
+    left: 0;
+    top: 0;
+    width: 100%;
+    background: white !important;
+    color: black !important;
+  }
+
+  /* Styles spécifiques pour l'impression */
+  .print-content {
+    font-family: Arial, sans-serif;
+    font-size: 12px;
+    line-height: 1.4;
+    color: #000 !important;
+  }
+
+  .print-content h1 {
+    font-size: 24px;
+    font-weight: bold;
+    text-align: center;
+    margin-bottom: 20px;
+    color: #000 !important;
+  }
+
+  .print-content h2 {
+    font-size: 18px;
+    font-weight: bold;
+    margin-top: 20px;
+    margin-bottom: 15px;
+    color: #000 !important;
+    border-bottom: 2px solid #000;
+    padding-bottom: 5px;
+  }
+
+  .print-content h3 {
+    font-size: 16px;
+    font-weight: bold;
+    margin-top: 15px;
+    margin-bottom: 10px;
+    color: #000 !important;
+  }
+
+  .print-content h4 {
+    font-size: 14px;
+    font-weight: bold;
+    margin-bottom: 8px;
+    color: #000 !important;
+  }
+
+  /* Styles pour les cartes et sections */
+  .print-content .bg-gradient-to-r,
+  .print-content .bg-slate-50,
+  .print-content .bg-green-50,
+  .print-content .bg-blue-50,
+  .print-content .bg-purple-50,
+  .print-content .bg-yellow-50,
+  .print-content .bg-red-50,
+  .print-content .bg-gray-50 {
+    background: #f8f9fa !important;
+    border: 1px solid #000 !important;
+    margin-bottom: 10px;
+    padding: 10px !important;
+  }
+
+  /* Styles pour les bordures */
+  .print-content .border,
+  .print-content .border-2 {
+    border: 1px solid #000 !important;
+  }
+
+  /* Styles pour les couleurs de texte */
+  .print-content .text-primary-800,
+  .print-content .text-slate-800,
+  .print-content .text-slate-700,
+  .print-content .text-slate-600 {
+    color: #000 !important;
+  }
+
+  .print-content .text-slate-500,
+  .print-content .text-slate-400 {
+    color: #666 !important;
+  }
+
+  /* Styles pour les couleurs de statut */
+  .print-content .text-green-600 {
+    color: #000 !important;
+    font-weight: bold;
+  }
+
+  .print-content .text-yellow-600 {
+    color: #000 !important;
+    font-weight: bold;
+  }
+
+  .print-content .text-red-600 {
+    color: #000 !important;
+    font-weight: bold;
+  }
+
+  /* Styles pour les grilles */
+  .print-content .grid {
+    display: table;
+    width: 100%;
+  }
+
+  .print-content .grid > * {
+    display: table-cell;
+    vertical-align: top;
+    padding-right: 10px;
+  }
+
+  /* Styles pour les flexbox */
+  .print-content .flex {
+    display: block;
+  }
+
+  .print-content .flex.justify-between {
+    display: flex;
+    justify-content: space-between;
+  }
+
+  /* Masquer les icônes lors de l'impression */
+  .print-content svg {
+    display: none !important;
+  }
+
+  /* Styles pour les badges de statut */
+  .print-content .text-xs {
+    font-size: 10px;
+    padding: 2px 4px;
+    border: 1px solid #000;
+    display: inline-block;
+    margin-left: 5px;
+  }
+
+  /* Styles pour les marges et espacements */
+  .print-content .mb-8 {
+    margin-bottom: 20px;
+  }
+
+  .print-content .mb-6 {
+    margin-bottom: 15px;
+  }
+
+  .print-content .mb-4 {
+    margin-bottom: 10px;
+  }
+
+  .print-content .p-4 {
+    padding: 10px;
+  }
+
+  .print-content .p-6 {
+    padding: 15px;
+  }
+
+  /* Éviter les sauts de page dans les sections importantes */
+  .print-content .mb-8 {
+    page-break-inside: avoid;
+  }
+
+  /* Forcer un saut de page après l'en-tête */
+  .print-content > div:first-child {
+    page-break-after: always;
+  }
+
+  /* Styles pour les tableaux de données */
+  .print-content .space-y-3 > * {
+    margin-bottom: 8px;
+  }
+
+  .print-content .space-y-4 > * {
+    margin-bottom: 10px;
+  }
+
+  /* Styles pour les arrondis - les désactiver pour l'impression */
+  .print-content .rounded,
+  .print-content .rounded-lg,
+  .print-content .rounded-xl,
+  .print-content .rounded-2xl {
+    border-radius: 0 !important;
+  }
+
+  /* Styles pour les ombres - les désactiver pour l'impression */
+  .print-content .shadow,
+  .print-content .shadow-md,
+  .print-content .shadow-lg,
+  .print-content .shadow-xl {
+    box-shadow: none !important;
+  }
+}
+
+/* Styles pour l'affichage à l'écran */
+.print-content {
+  max-width: 800px;
+  margin: 0 auto;
+  padding: 20px;
+  background: white;
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+  border-radius: 8px;
+}
+
+@media screen {
+  .print-content {
+    font-family: system-ui, -apple-system, sans-serif;
+  }
+}
+

@@ -85,19 +85,21 @@ model pieces {
   updated_at      DateTime?        @default(now()) @db.Timestamp(6)
   metadata_model  metadata_model[]
   pieces_check    pieces_check[]
+  piece_file      piece_file[]
   sous_dossiers   sous_dossiers    @relation(fields: [sous_dossier_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
 }
 
 model metadata_model {
-  id          Int       @id @default(autoincrement())
-  piece_id    Int
-  obligatoire Boolean?  @default(false)
-  created_at  DateTime? @default(now()) @db.Timestamp(6)
-  description String?
-  libelle     String    @db.VarChar(255)
-  type        String    @db.VarChar(50)
-  updated_at  DateTime? @default(now()) @db.Timestamp(6)
-  pieces      pieces    @relation(fields: [piece_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  id            Int           @id @default(autoincrement())
+  piece_id      Int
+  obligatoire   Boolean?      @default(false)
+  created_at    DateTime?     @default(now()) @db.Timestamp(6)
+  description   String?
+  libelle       String        @db.VarChar(255)
+  type          String        @db.VarChar(50)
+  updated_at    DateTime?     @default(now()) @db.Timestamp(6)
+  pieces        pieces        @relation(fields: [piece_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  meta_values   meta_values[]
 }
 
 model pieces_check {
@@ -108,4 +110,20 @@ model pieces_check {
   agent_id   Int
   pieces     pieces    @relation(fields: [piece_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
   agents     agents    @relation(fields: [agent_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+}
+
+model piece_file {
+  id         Int       @id @default(autoincrement())
+  id_piece   Int
+  file_path  String
+  created_at DateTime  @default(now()) @db.Timestamp(6)
+  pieces     pieces    @relation(fields: [id_piece], references: [id], onDelete: Cascade, onUpdate: NoAction)
+}
+
+model meta_values {
+  id            Int            @id @default(autoincrement())
+  meta_model_id Int
+  valeur        String
+  created_at    DateTime       @default(now()) @db.Timestamp(6)
+  metadata_model metadata_model @relation(fields: [meta_model_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
 }

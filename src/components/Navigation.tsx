@@ -40,6 +40,11 @@ export default function Navigation({
       label: "Gestion des Rubriques",
       href: "/rubriques",
     });
+  } else if (pathname.startsWith("/rapports")) {
+    defaultBreadcrumbs.push({
+      label: "Rapports de Conformité",
+      href: "/rapports",
+    });
   }
 
   const finalBreadcrumbs = breadcrumbs || defaultBreadcrumbs;

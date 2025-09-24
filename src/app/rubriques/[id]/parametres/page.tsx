@@ -1162,6 +1162,8 @@ export default function RubriqueParametresPage() {
           }}
           onSubmit={handleSubmitPiece}
           mode="create"
+          rubriqueId={rubriqueId}
+          sousDossierId={selectedSousDossier?.id}
         />
 
         {/* Edit Piece Form Modal */}
@@ -1188,6 +1190,8 @@ export default function RubriqueParametresPage() {
                 }
               : undefined
           }
+          rubriqueId={rubriqueId}
+          sousDossierId={selectedPiece?.sousDossierId}
         />
 
         {/* Metadata Form Modal */}

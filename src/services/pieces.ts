@@ -47,6 +47,28 @@ export const piecesService = {
     formData: PieceFormData
   ): Promise<Piece> {
     try {
+      // Créer un FormData pour l'upload
+      const uploadFormData = new FormData();
+      uploadFormData.append("file", formData.fichier!);
+      uploadFormData.append("rubriqueId", formData.rubriqueId!);
+      uploadFormData.append("sousDossierId", sousDossierId);
+      uploadFormData.append("nom", formData.nom);
+      uploadFormData.append("description", formData.description || "");
+
+      // Upload du fichier via notre API
+      const uploadResponse = await fetch("/api/upload", {
+        method: "POST",
+        body: uploadFormData,
+      });
+
+      if (!uploadResponse.ok) {
+        const errorData = await uploadResponse.json();
+        throw new Error(errorData.error || "Erreur lors de l'upload");
+      }
+
+      const uploadData = await uploadResponse.json();
+
+      // Créer l'enregistrement en base via l'API pieces
       const response = await fetch("/api/pieces", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -56,6 +78,10 @@ export const piecesService = {
           description: formData.description,
           has_meta: formData.has_meta,
           metadonnees: formData.metadonnees,
+          filePath: uploadData.data.filePath,
+          fileName: uploadData.data.fileName,
+          fileSize: uploadData.data.fileSize,
+          mimeType: uploadData.data.mimeType,
         }),
       });
 
