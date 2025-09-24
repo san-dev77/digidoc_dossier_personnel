@@ -20,6 +20,7 @@ export async function GET(request: NextRequest) {
       },
       include: {
         metadata_model: true,
+        piece_file: true,
       },
       orderBy: {
         created_at: "desc",
@@ -34,6 +35,11 @@ export async function GET(request: NextRequest) {
       aMetadonnees: piece.has_meta || false,
       createdAt: piece.created_at?.toISOString() || "",
       updatedAt: piece.updated_at?.toISOString() || "",
+      files: piece.piece_file.map((file) => ({
+        id: file.id,
+        filePath: file.file_path,
+        createdAt: file.created_at?.toISOString() || "",
+      })),
       metadonnees: piece.metadata_model.map((meta) => ({
         id: meta.id,
         nom: meta.libelle,
@@ -56,7 +62,17 @@ export async function GET(request: NextRequest) {
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
-    const { sous_dossier_id, nom, description, has_meta, metadonnees } = body;
+    const {
+      sous_dossier_id,
+      nom,
+      description,
+      has_meta,
+      metadonnees,
+      filePath,
+      fileName,
+      fileSize,
+      mimeType,
+    } = body;
 
     if (!sous_dossier_id || !nom) {
       return NextResponse.json(
@@ -74,6 +90,16 @@ export async function POST(request: NextRequest) {
         has_meta: has_meta || false,
       },
     });
+
+    // Créer l'enregistrement du fichier si filePath existe
+    if (filePath) {
+      await prisma.piece_file.create({
+        data: {
+          id_piece: piece.id,
+          file_path: filePath,
+        },
+      });
+    }
 
     // Créer les métadonnées si elles existent
     if (has_meta && metadonnees && metadonnees.length > 0) {

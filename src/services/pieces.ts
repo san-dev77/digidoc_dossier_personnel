@@ -16,7 +16,7 @@ export const piecesService = {
       }
 
       const data = await response.json();
-      return data.map((piece: any) => ({
+      return data.map((piece: Piece) => ({
         id: piece.id.toString(),
         sousDossierId: piece.sousDossierId,
         nom: piece.nom,

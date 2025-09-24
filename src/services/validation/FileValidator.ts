@@ -87,13 +87,13 @@ export class FileValidator {
       warnings.push("La description est très longue (plus de 1000 caractères)");
     }
 
-    // Validation des IDs
-    if (!metadata.rubriqueId || !this.isValidUUID(metadata.rubriqueId)) {
-      errors.push("ID de rubrique invalide");
+    // Validation des IDs (plus flexible - accepte UUIDs, nombres, ou chaînes non vides)
+    if (!metadata.rubriqueId || metadata.rubriqueId.trim() === "") {
+      errors.push("ID de rubrique requis");
     }
 
-    if (!metadata.sousDossierId || !this.isValidUUID(metadata.sousDossierId)) {
-      errors.push("ID de sous-dossier invalide");
+    if (!metadata.sousDossierId || metadata.sousDossierId.trim() === "") {
+      errors.push("ID de sous-dossier requis");
     }
 
     return {

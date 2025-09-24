@@ -19,7 +19,9 @@ export async function GET(
     // Récupérer les métadonnées de la pièce avec les modèles de métadonnées
     const metaValues = await (prisma as any).meta_values.findMany({
       where: {
-        meta_model_id: pieceId,
+        metadata_model: {
+          piece_id: pieceId,
+        },
       },
       include: {
         metadata_model: {
@@ -84,6 +86,7 @@ export async function POST(
 
     console.log("📝 Création d'une métadonnée pour la pièce ID:", pieceId);
     console.log("📋 Données:", { meta_model_id, valeur });
+    console.log("🔍 meta_model_id parsé:", parseInt(meta_model_id));
 
     // Vérifier que la pièce existe
     const piece = await prisma.pieces.findUnique({
@@ -97,10 +100,48 @@ export async function POST(
       );
     }
 
+    // Lister tous les modèles de métadonnées disponibles
+    const allMetadataModels = await prisma.metadata_model.findMany({
+      where: { piece_id: pieceId },
+    });
+    console.log(
+      "📋 Tous les modèles de métadonnées pour cette pièce:",
+      allMetadataModels
+    );
+    console.log(
+      "🔍 IDs disponibles:",
+      allMetadataModels.map((m) => m.id)
+    );
+
+    // Vérifier que le modèle de métadonnée existe
+    const metadataModel = await prisma.metadata_model.findUnique({
+      where: { id: parseInt(meta_model_id) },
+    });
+
+    if (!metadataModel) {
+      console.error("❌ Modèle de métadonnée non trouvé:", meta_model_id);
+      console.error(
+        "📋 Modèles disponibles:",
+        allMetadataModels.map((m) => ({ id: m.id, libelle: m.libelle }))
+      );
+      return NextResponse.json(
+        { message: "Modèle de métadonnée non trouvé" },
+        { status: 404 }
+      );
+    }
+
+    console.log("✅ Modèle de métadonnée trouvé:", metadataModel);
+
     // Créer la métadonnée
-    const metaValue = await (prisma as any).meta_values.create({
+    console.log("🔍 Données pour création meta_value:", {
+      meta_model_id: parseInt(meta_model_id),
+      valeur: valeur,
+    });
+    console.log(meta_model_id);
+
+    const metaValue = await prisma.meta_values.create({
       data: {
-        meta_model_id: pieceId,
+        meta_model_id: parseInt(meta_model_id),
         valeur: valeur,
       },
       include: {
@@ -115,15 +156,6 @@ export async function POST(
     });
 
     console.log("✅ Métadonnée créée:", metaValue);
-
-    // Mettre à jour le flag has_meta de la pièce
-    await prisma.pieces.update({
-      where: { id: pieceId },
-      data: {
-        has_meta: true,
-        updated_at: new Date(),
-      },
-    });
 
     return NextResponse.json({
       id: metaValue.id.toString(),
@@ -239,7 +271,11 @@ export async function DELETE(
 
     // Vérifier s'il reste des métadonnées pour cette pièce
     const remainingMetadata = await (prisma as any).meta_values.count({
-      where: { meta_model_id: pieceId },
+      where: {
+        metadata_model: {
+          piece_id: pieceId,
+        },
+      },
     });
 
     // Si plus de métadonnées, mettre à jour le flag de la pièce
