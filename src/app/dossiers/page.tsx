@@ -34,6 +34,15 @@ import {
 } from "@/services/sous-dossiers";
 import { piecesService } from "@/services/pieces";
 import { agentsService } from "@/services/agents";
+import {
+  agentDataService,
+  type AgentData,
+  type RubriqueData,
+  type SousDossierData,
+  type PieceData,
+} from "@/services/agent-data";
+import AgentDataViewer from "@/components/AgentDataViewer";
+import PieceViewerModal from "@/components/PieceViewerModal";
 import type { Rubrique, MetaValue, Agent } from "@/types";
 
 // Types pour les dossiers
@@ -172,177 +181,6 @@ function PieceCard({ piece }: { piece: PieceWithMetadata }) {
 }
 
 // Composant pour un sous-dossier
-function SousDossierAccordion({
-  sousDossier,
-  onEdit,
-  onDelete,
-  onView,
-}: {
-  sousDossier: SousDossierWithStats;
-  onEdit: (sousDossier: SousDossierWithStats) => void;
-  onDelete: (sousDossier: SousDossierWithStats) => void;
-  onView: (sousDossier: SousDossierWithStats) => void;
-}) {
-  const [isExpanded, setIsExpanded] = useState(false);
-
-  const getStatusColor = (statut?: string) => {
-    switch (statut) {
-      case "ouvert":
-        return "bg-green-100 text-green-800 border-green-200";
-      case "ferme":
-        return "bg-red-100 text-red-800 border-red-200";
-      case "archive":
-        return "bg-gray-100 text-gray-800 border-gray-200";
-      default:
-        return "bg-slate-100 text-slate-800 border-slate-200";
-    }
-  };
-
-  const getStatusIcon = (statut?: string) => {
-    switch (statut) {
-      case "ouvert":
-        return <CheckCircle className="w-4 h-4" />;
-      case "ferme":
-        return <XCircle className="w-4 h-4" />;
-      case "archive":
-        return <Archive className="w-4 h-4" />;
-      default:
-        return <Clock className="w-4 h-4" />;
-    }
-  };
-
-  return (
-    <div className="bg-white border border-slate-200 rounded-xl overflow-hidden hover:shadow-lg transition-all duration-200">
-      {/* Header du sous-dossier */}
-      <div
-        className="p-6 cursor-pointer hover:bg-slate-50 transition-colors"
-        onClick={() => setIsExpanded(!isExpanded)}
-      >
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-4">
-            <div className="w-12 h-12 bg-gradient-to-br from-slate-500 to-slate-600 rounded-xl flex items-center justify-center shadow-lg">
-              <Folder className="w-6 h-6 text-white" />
-            </div>
-            <div className="flex-1">
-              <div className="flex items-center gap-3 mb-1">
-                <h4 className="text-xl font-bold text-slate-800">
-                  {sousDossier.titre}
-                </h4>
-                <span
-                  className={`px-3 py-1 rounded-full text-xs font-semibold border flex items-center gap-1 ${getStatusColor(
-                    sousDossier.statut
-                  )}`}
-                >
-                  {getStatusIcon(sousDossier.statut)}
-                  {sousDossier.statut || "Ouvert"}
-                </span>
-              </div>
-              {sousDossier.description && (
-                <p className="text-slate-600 mb-3 leading-relaxed">
-                  {sousDossier.description}
-                </p>
-              )}
-              <div className="flex items-center gap-6 text-sm text-slate-500">
-                <div className="flex items-center gap-2">
-                  <Calendar className="w-4 h-4" />
-                  <span>
-                    Créé le{" "}
-                    {new Date(sousDossier.createdAt).toLocaleDateString()}
-                  </span>
-                </div>
-                <div className="flex items-center gap-2">
-                  <FileText className="w-4 h-4" />
-                  <span>
-                    {sousDossier.piecesCount} pièce
-                    {sousDossier.piecesCount !== 1 ? "s" : ""}
-                  </span>
-                </div>
-                <div className="flex items-center gap-2">
-                  <Database className="w-4 h-4" />
-                  <span>{sousDossier.totalMetadataCount} métadonnée(s)</span>
-                </div>
-              </div>
-            </div>
-          </div>
-          <div className="flex items-center gap-3">
-            <div className="flex items-center gap-2">
-              <button
-                onClick={(e) => {
-                  e.stopPropagation();
-                  onView(sousDossier);
-                }}
-                className="p-2 text-slate-600 hover:text-slate-800 hover:bg-slate-100 rounded-lg transition-colors"
-                title="Voir les détails"
-              >
-                <Eye className="w-4 h-4" />
-              </button>
-              <button
-                onClick={(e) => {
-                  e.stopPropagation();
-                  onEdit(sousDossier);
-                }}
-                className="p-2 text-slate-600 hover:text-slate-800 hover:bg-slate-100 rounded-lg transition-colors"
-                title="Modifier"
-              >
-                <Edit className="w-4 h-4" />
-              </button>
-              <button
-                onClick={(e) => {
-                  e.stopPropagation();
-                  onDelete(sousDossier);
-                }}
-                className="p-2 text-red-600 hover:text-red-800 hover:bg-red-50 rounded-lg transition-colors"
-                title="Supprimer"
-              >
-                <Trash2 className="w-4 h-4" />
-              </button>
-            </div>
-            <div className="w-10 h-10 bg-slate-100 rounded-xl flex items-center justify-center">
-              {isExpanded ? (
-                <ChevronDown className="w-5 h-5 text-slate-600" />
-              ) : (
-                <ChevronRight className="w-5 h-5 text-slate-600" />
-              )}
-            </div>
-          </div>
-        </div>
-      </div>
-
-      {/* Contenu des pièces */}
-      {isExpanded && (
-        <div className="border-t border-slate-200">
-          {sousDossier.pieces.length === 0 ? (
-            <div className="p-8 text-center">
-              <div className="w-16 h-16 bg-slate-100 rounded-xl flex items-center justify-center mx-auto mb-4">
-                <FileText className="w-8 h-8 text-slate-400" />
-              </div>
-              <h4 className="text-lg font-semibold text-slate-800 mb-2">
-                Aucun document
-              </h4>
-              <p className="text-slate-600">
-                Ce sous-dossier ne contient pas encore de pièces.
-              </p>
-            </div>
-          ) : (
-            <div className="p-6">
-              <div className="flex items-center gap-2 mb-4">
-                <div className="w-2 h-6 bg-slate-500 rounded-full"></div>
-                <h5 className="text-lg font-semibold text-slate-800">
-                  Documents dans ce sous-dossier
-                </h5>
-              </div>
-              <div className="grid gap-3">
-                {sousDossier.pieces.map((piece) => (
-                  <PieceCard key={piece.id} piece={piece} />
-                ))}
-              </div>
-            </div>
-          )}
-        </div>
-      )}
-    </div>
-  );
-}
 
 // Composant Modal pour créer/éditer un sous-dossier
 interface ModalData {
@@ -355,8 +193,6 @@ interface ModalData {
 function NouveauSousDossierModal({
   isOpen,
   onClose,
-  onSave,
-  showSuccessPopup,
   setShowSuccessPopup,
   onReset,
 }: {
@@ -1384,6 +1220,10 @@ export default function DossiersPage() {
   );
   const [showNouveauModal, setShowNouveauModal] = useState(false);
   const [showSuccessPopup, setShowSuccessPopup] = useState(false);
+  const [showPieceViewer, setShowPieceViewer] = useState(false);
+  const [selectedPieceData, setSelectedPieceData] = useState<PieceData | null>(
+    null
+  );
 
   useEffect(() => {
     loadDossiers();
@@ -1589,6 +1429,11 @@ export default function DossiersPage() {
     setShowNouveauModal(false);
   };
 
+  const handlePieceClick = (pieceData: PieceData) => {
+    setSelectedPieceData(pieceData);
+    setShowPieceViewer(true);
+  };
+
   if (loading) {
     return (
       <AuthGuard>
@@ -1712,141 +1557,7 @@ export default function DossiersPage() {
 
         {/* Liste des dossiers */}
         <div className="space-y-6">
-          {filteredDossiers.length === 0 ? (
-            <div className="text-center py-12">
-              <div className="w-24 h-24 bg-slate-100 rounded-full flex items-center justify-center mx-auto mb-4">
-                <Folder className="w-12 h-12 text-slate-400" />
-              </div>
-              <h3 className="text-xl font-semibold text-slate-800 mb-2">
-                Aucun dossier trouvé
-              </h3>
-              <p className="text-slate-600">
-                {searchTerm
-                  ? "Aucun dossier ne correspond à votre recherche."
-                  : "Aucun dossier n'a encore été créé."}
-              </p>
-            </div>
-          ) : (
-            filteredDossiers.map((dossier, index) => (
-              <div
-                key={dossier.rubrique.id}
-                className="group bg-white rounded-3xl shadow-lg border border-slate-200 overflow-hidden hover:shadow-2xl hover:border-slate-300 transition-all duration-500 transform hover:-translate-y-1"
-                style={{ animationDelay: `${index * 100}ms` }}
-              >
-                {/* Header de la rubrique */}
-                <div className="relative p-8 border-b border-slate-200 bg-gradient-to-r from-slate-50 to-white">
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-6">
-                      <div className="relative">
-                        <div className="w-20 h-20 bg-gradient-to-br from-slate-600 to-slate-700 rounded-2xl flex items-center justify-center shadow-xl group-hover:shadow-2xl transition-all duration-300">
-                          <Building2 className="w-10 h-10 text-white drop-shadow-lg" />
-                        </div>
-                        <div className="absolute -top-1 -right-1 w-6 h-6 bg-gradient-to-r from-emerald-400 to-emerald-500 rounded-full flex items-center justify-center shadow-lg">
-                          <div className="w-2 h-2 bg-white rounded-full"></div>
-                        </div>
-                      </div>
-                      <div>
-                        <h3 className="text-3xl font-bold text-slate-800 mb-2 group-hover:text-slate-900 transition-colors">
-                          {dossier.rubrique.nom}
-                        </h3>
-                        {dossier.rubrique.description && (
-                          <p className="text-slate-600 mb-4 text-lg leading-relaxed">
-                            {dossier.rubrique.description}
-                          </p>
-                        )}
-                        <div className="flex items-center gap-6">
-                          <div className="flex items-center gap-3 bg-slate-100 rounded-xl px-4 py-2">
-                            <div className="w-8 h-8 bg-gradient-to-r from-slate-500 to-slate-600 rounded-lg flex items-center justify-center">
-                              <Folder className="w-4 h-4 text-white" />
-                            </div>
-                            <div>
-                              <div className="text-sm font-semibold text-slate-800">
-                                {dossier.totalSousDossiers}
-                              </div>
-                              <div className="text-xs text-slate-600">
-                                sous-dossier
-                                {dossier.totalSousDossiers > 1 ? "s" : ""}
-                              </div>
-                            </div>
-                          </div>
-                          <div className="flex items-center gap-3 bg-slate-100 rounded-xl px-4 py-2">
-                            <div className="w-8 h-8 bg-gradient-to-r from-slate-500 to-slate-600 rounded-lg flex items-center justify-center">
-                              <FileText className="w-4 h-4 text-white" />
-                            </div>
-                            <div>
-                              <div className="text-sm font-semibold text-slate-800">
-                                {dossier.totalPieces}
-                              </div>
-                              <div className="text-xs text-slate-600">
-                                pièce{dossier.totalPieces > 1 ? "s" : ""}
-                              </div>
-                            </div>
-                          </div>
-                          <div className="flex items-center gap-3 bg-slate-100 rounded-xl px-4 py-2">
-                            <div className="w-8 h-8 bg-gradient-to-r from-slate-500 to-slate-600 rounded-lg flex items-center justify-center">
-                              <Database className="w-4 h-4 text-white" />
-                            </div>
-                            <div>
-                              <div className="text-sm font-semibold text-slate-800">
-                                {dossier.totalMetadata}
-                              </div>
-                              <div className="text-xs text-slate-600">
-                                métadonnée{dossier.totalMetadata > 1 ? "s" : ""}
-                              </div>
-                            </div>
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-                    <div className="flex items-center gap-4">
-                      <div
-                        className="w-12 h-12 bg-slate-100 rounded-2xl flex items-center justify-center cursor-pointer hover:bg-slate-200 transition-all duration-300 group-hover:scale-110"
-                        onClick={() => toggleRubrique(dossier.rubrique.id)}
-                      >
-                        {expandedRubriques.has(dossier.rubrique.id) ? (
-                          <ChevronDown className="w-6 h-6 text-slate-600 transition-transform duration-300" />
-                        ) : (
-                          <ChevronRight className="w-6 h-6 text-slate-600 transition-transform duration-300" />
-                        )}
-                      </div>
-                    </div>
-                  </div>
-                </div>
-
-                {/* Sous-dossiers */}
-                {expandedRubriques.has(dossier.rubrique.id) && (
-                  <div className="p-6">
-                    {dossier.sousDossiers.length === 0 ? (
-                      <div className="text-center py-8">
-                        <div className="w-16 h-16 bg-slate-100 rounded-xl flex items-center justify-center mx-auto mb-4">
-                          <Folder className="w-8 h-8 text-slate-400" />
-                        </div>
-                        <h4 className="text-lg font-semibold text-slate-800 mb-2">
-                          Aucun sous-dossier
-                        </h4>
-                        <p className="text-slate-600">
-                          Cette rubrique ne contient pas encore de
-                          sous-dossiers.
-                        </p>
-                      </div>
-                    ) : (
-                      <div className="space-y-4">
-                        {dossier.sousDossiers.map((sousDossier) => (
-                          <SousDossierAccordion
-                            key={sousDossier.id}
-                            sousDossier={sousDossier}
-                            onEdit={handleEditSousDossier}
-                            onDelete={handleDeleteSousDossier}
-                            onView={handleViewSousDossier}
-                          />
-                        ))}
-                      </div>
-                    )}
-                  </div>
-                )}
-              </div>
-            ))
-          )}
+          <AgentDataViewer onPieceClick={handlePieceClick} />
         </div>
 
         {/* Modal Nouveau Sous-dossier */}
@@ -1859,6 +1570,13 @@ export default function DossiersPage() {
           onReset={() => {
             // Reset sera géré dans la modale
           }}
+        />
+
+        {/* Modal de consultation des pièces */}
+        <PieceViewerModal
+          isOpen={showPieceViewer}
+          onClose={() => setShowPieceViewer(false)}
+          pieceData={selectedPieceData}
         />
 
         {/* Popup de succès */}
