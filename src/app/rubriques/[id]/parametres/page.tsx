@@ -26,8 +26,10 @@ import MetadataForm from "@/components/MetadataForm";
 import MetadataViewer from "@/components/MetadataViewer";
 import { ToastContainer, useToast } from "@/components/Toast";
 import { usePiecesStore } from "@/store/piecesStore";
-import { metadataService } from "@/services/metadata";
 import { rubriquesService } from "@/services/rubriques";
+import CreditMetadataManager from "@/components/CreditMetadataManager";
+import { isDossierCredit } from "@/utils/rubrique-utils";
+import { MetadataService } from "@/services/metadata";
 
 // Composant réactif pour le badge de comptage des pièces
 function PieceCountBadge({ sousDossierId }: { sousDossierId: string }) {
@@ -97,6 +99,10 @@ export default function RubriqueParametresPage() {
   const [selectedSousDossierForEdit, setSelectedSousDossierForEdit] =
     useState<SousDossier | null>(null);
   const [showEditSousDossierForm, setShowEditSousDossierForm] = useState(false);
+  const [showCreditMetadataManager, setShowCreditMetadataManager] =
+    useState(false);
+  const [selectedSousDossierForMetadata, setSelectedSousDossierForMetadata] =
+    useState<string | null>(null);
   const { toasts, removeToast, success, error: showError } = useToast();
 
   useEffect(() => {
@@ -159,6 +165,11 @@ export default function RubriqueParametresPage() {
   const handleEditSousDossier = (sousDossier: SousDossier) => {
     setSelectedSousDossierForEdit(sousDossier);
     setShowEditSousDossierForm(true);
+  };
+
+  const handleManageCreditMetadata = (sousDossierId: string) => {
+    setSelectedSousDossierForMetadata(sousDossierId);
+    setShowCreditMetadataManager(true);
   };
 
   const handleDeleteSousDossier = async (sousDossier: SousDossier) => {
@@ -431,7 +442,7 @@ export default function RubriqueParametresPage() {
     try {
       console.log("🗑️ Suppression de la métadonnée:", metadata);
 
-      await metadataService.deleteMetadata(metadata.id);
+      await MetadataService.deleteMetadata(parseInt(metadata.id));
 
       // Rafraîchir les pièces du sous-dossier
       if (expandedSousDossier) {
@@ -460,7 +471,10 @@ export default function RubriqueParametresPage() {
       console.log("🔧 Modification de la métadonnée:", selectedMetadata);
       console.log("📝 Nouvelles données:", formData[0]); // Prendre le premier élément
 
-      await metadataService.updateMetadata(selectedMetadata.id, formData[0]);
+      await MetadataService.updateMetadata(parseInt(selectedMetadata.id), {
+        nom_meta: formData[0].nom,
+        type_meta: formData[0].type,
+      });
 
       // Rafraîchir les pièces du sous-dossier
       if (expandedSousDossier) {
@@ -1073,6 +1087,20 @@ export default function RubriqueParametresPage() {
                                 <Plus className="w-4 h-4" />
                               </button>
 
+                              {/* Bouton métadonnées de crédit - seulement pour les dossiers de crédit */}
+                              {rubrique && isDossierCredit(rubrique) && (
+                                <button
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    handleManageCreditMetadata(sousDossier.id);
+                                  }}
+                                  className="p-1.5 bg-slate-50 text-slate-700 hover:bg-slate-100 rounded border border-slate-200"
+                                  title="Gérer les métadonnées de crédit"
+                                >
+                                  <DatabaseZap className="w-4 h-4" />
+                                </button>
+                              )}
+
                               <button
                                 onClick={(e) => {
                                   e.stopPropagation();
@@ -1163,7 +1191,7 @@ export default function RubriqueParametresPage() {
           onSubmit={handleSubmitPiece}
           mode="create"
           rubriqueId={rubriqueId}
-          sousDossierId={selectedSousDossier?.id}
+          sousDossierId={selectedSousDossier || undefined}
         />
 
         {/* Edit Piece Form Modal */}
@@ -1237,6 +1265,19 @@ export default function RubriqueParametresPage() {
               setSelectedPieceForView(null);
             }}
             piece={selectedPieceForView}
+          />
+        )}
+
+        {/* Credit Metadata Manager Modal */}
+        {showCreditMetadataManager && selectedSousDossierForMetadata && (
+          <CreditMetadataManager
+            isOpen={showCreditMetadataManager}
+            onClose={() => {
+              setShowCreditMetadataManager(false);
+              setSelectedSousDossierForMetadata(null);
+            }}
+            sousDossierId={selectedSousDossierForMetadata}
+            rubriqueId={rubriqueId}
           />
         )}
 

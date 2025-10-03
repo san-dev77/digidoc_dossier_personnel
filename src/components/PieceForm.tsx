@@ -123,9 +123,10 @@ export default function PieceForm({
       newErrors.nom = "Le nom de la pièce est requis";
     }
 
-    if (mode === "create" && !selectedFile) {
-      newErrors.fichier = "Veuillez sélectionner un fichier";
-    }
+    // L'upload de fichier est optionnel pour la création d'une pièce
+    // if (mode === "create" && !selectedFile) {
+    //   newErrors.fichier = "Veuillez sélectionner un fichier";
+    // }
 
     if (selectedFile && selectedFile.size > 50 * 1024 * 1024) {
       newErrors.fichier = "La taille du fichier ne peut pas dépasser 50MB";
@@ -146,7 +147,7 @@ export default function PieceForm({
           description: formData.description,
           has_meta: formData.has_meta,
           metadonnees: formData.has_meta ? metadonnees : undefined,
-          fichier: selectedFile!,
+          fichier: selectedFile || undefined, // Fichier optionnel
           rubriqueId: rubriqueId!,
         });
       }
@@ -254,7 +255,7 @@ export default function PieceForm({
           {mode === "create" && (
             <div className="space-y-2">
               <label className="block text-sm font-semibold text-gray-700 mb-2">
-                Fichier à uploader *
+                Fichier à uploader (optionnel)
               </label>
               <div className="relative">
                 <input
@@ -295,13 +296,14 @@ export default function PieceForm({
                         <Upload className="w-8 h-8 text-gray-400" />
                       </div>
                       <p className="text-lg font-semibold text-gray-700 mb-1">
-                        Sélectionner un fichier
+                        Sélectionner un fichier (optionnel)
                       </p>
                       <p className="text-sm text-gray-500 mb-2">
                         PDF, Images, Documents Office, TXT, CSV
                       </p>
                       <p className="text-xs text-gray-400">
-                        Taille maximale : 50MB
+                        Taille maximale : 50MB • Vous pouvez créer la pièce sans
+                        fichier
                       </p>
                     </div>
                   )}

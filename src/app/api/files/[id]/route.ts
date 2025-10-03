@@ -5,10 +5,11 @@ import path from "path";
 
 export async function GET(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const pieceId = params.id;
+    const resolvedParams = await params;
+    const pieceId = resolvedParams.id;
     const { searchParams } = new URL(request.url);
     const rubriqueId = searchParams.get("rubriqueId");
     const sousDossierId = searchParams.get("sousDossierId");
@@ -88,10 +89,11 @@ export async function GET(
 
 export async function DELETE(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const pieceId = params.id;
+    const resolvedParams = await params;
+    const pieceId = resolvedParams.id;
     const { searchParams } = new URL(request.url);
     const rubriqueId = searchParams.get("rubriqueId");
     const sousDossierId = searchParams.get("sousDossierId");

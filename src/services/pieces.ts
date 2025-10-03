@@ -47,26 +47,29 @@ export const piecesService = {
     formData: PieceFormData
   ): Promise<Piece> {
     try {
-      // Créer un FormData pour l'upload
-      const uploadFormData = new FormData();
-      uploadFormData.append("file", formData.fichier!);
-      uploadFormData.append("rubriqueId", formData.rubriqueId!);
-      uploadFormData.append("sousDossierId", sousDossierId);
-      uploadFormData.append("nom", formData.nom);
-      uploadFormData.append("description", formData.description || "");
+      let uploadData = null;
 
-      // Upload du fichier via notre API
-      const uploadResponse = await fetch("/api/upload", {
-        method: "POST",
-        body: uploadFormData,
-      });
+      // Upload du fichier seulement si un fichier est fourni
+      if (formData.fichier) {
+        const uploadFormData = new FormData();
+        uploadFormData.append("file", formData.fichier);
+        uploadFormData.append("rubriqueId", formData.rubriqueId!);
+        uploadFormData.append("sousDossierId", sousDossierId);
+        uploadFormData.append("nom", formData.nom);
+        uploadFormData.append("description", formData.description || "");
 
-      if (!uploadResponse.ok) {
-        const errorData = await uploadResponse.json();
-        throw new Error(errorData.error || "Erreur lors de l'upload");
+        const uploadResponse = await fetch("/api/upload", {
+          method: "POST",
+          body: uploadFormData,
+        });
+
+        if (!uploadResponse.ok) {
+          const errorData = await uploadResponse.json();
+          throw new Error(errorData.error || "Erreur lors de l'upload");
+        }
+
+        uploadData = await uploadResponse.json();
       }
-
-      const uploadData = await uploadResponse.json();
 
       // Créer l'enregistrement en base via l'API pieces
       const response = await fetch("/api/pieces", {
@@ -78,10 +81,10 @@ export const piecesService = {
           description: formData.description,
           has_meta: formData.has_meta,
           metadonnees: formData.metadonnees,
-          filePath: uploadData.data.filePath,
-          fileName: uploadData.data.fileName,
-          fileSize: uploadData.data.fileSize,
-          mimeType: uploadData.data.mimeType,
+          filePath: uploadData?.data?.filePath || null,
+          fileName: uploadData?.data?.fileName || null,
+          fileSize: uploadData?.data?.fileSize || null,
+          mimeType: uploadData?.data?.mimeType || null,
         }),
       });
 
