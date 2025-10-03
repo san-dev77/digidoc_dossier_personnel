@@ -57,7 +57,7 @@ export interface MetaValueData {
   meta_model_id: string;
   valeur: string;
   metadataModel: {
-    nom: string;
+    libelle: string;
     type: string;
     obligatoire: boolean;
   } | null;

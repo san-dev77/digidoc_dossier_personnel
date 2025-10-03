@@ -200,7 +200,7 @@ export interface MetaValue {
   valeur: string;
   created_at: string;
   metadataModel?: {
-    nom: string;
+    libelle: string;
     type: string;
     obligatoire: boolean;
   };

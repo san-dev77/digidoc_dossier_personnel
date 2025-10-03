@@ -34,6 +34,7 @@ import { useDossiersStore } from "@/store/dossiersStore";
 import AgentDataViewer from "@/components/AgentDataViewer";
 import PieceViewerModal from "@/components/PieceViewerModal";
 import type { Rubrique, MetaValue, Agent } from "@/types";
+import Image from "next/image";
 
 // Types pour les dossiers
 interface DossierData {
@@ -207,6 +208,8 @@ function NouveauSousDossierModal({
     useState<SousDossier | null>(null);
   const [sousDossiers, setSousDossiers] = useState<SousDossier[]>([]);
   const [pieces, setPieces] = useState<PieceWithMetadata[]>([]);
+  const [creditMetadata, setCreditMetadata] = useState<any[]>([]);
+  const [creditValues, setCreditValues] = useState<Record<string, string>>({});
   const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
   // const [uploadedFiles, setUploadedFiles] = useState<
   //   Array<{ name: string; size: number; url: string }>
@@ -308,6 +311,59 @@ function NouveauSousDossierModal({
       return () => clearTimeout(timer);
     }
   }, [ignoreExistingValues]);
+
+  // Charger les métadonnées de crédit quand on sélectionne un sous-dossier de crédit
+  useEffect(() => {
+    if (
+      selectedSousDossier &&
+      selectedRubrique &&
+      (selectedRubrique.nom?.toLowerCase().includes("crédit") ||
+        selectedRubrique.nom?.toLowerCase().includes("credit"))
+    ) {
+      const loadCreditMetadata = async () => {
+        try {
+          console.log(
+            "🔍 Chargement des métadonnées de crédit pour le sous-dossier:",
+            selectedSousDossier.id
+          );
+
+          // Appel à l'API pour récupérer les métadonnées de crédit
+          const response = await fetch(
+            `/api/metadata-credit?action=by-sous-dossier&sous_dossier_id=${selectedSousDossier.id}`
+          );
+          if (response.ok) {
+            const data = await response.json();
+
+            setCreditMetadata(data.data || []);
+
+            // Initialiser les valeurs vides pour les inputs
+            const valuesMap: Record<string, string> = {};
+            (data.data || []).forEach((metadata: any) => {
+              valuesMap[metadata.id] = "";
+            });
+            setCreditValues(valuesMap);
+          } else {
+            const errorData = await response.json();
+            console.error(
+              "❌ Erreur lors du chargement des métadonnées de crédit:",
+              errorData
+            );
+            setCreditMetadata([]);
+          }
+        } catch (error) {
+          console.error(
+            "❌ Erreur lors du chargement des métadonnées de crédit:",
+            error
+          );
+          setCreditMetadata([]);
+        }
+      };
+
+      loadCreditMetadata();
+    } else {
+      setCreditMetadata([]);
+    }
+  }, [selectedSousDossier, selectedRubrique]);
 
   // Les données agents et rubriques viennent maintenant du store
   // Plus besoin de les charger via API
@@ -590,9 +646,213 @@ function NouveauSousDossierModal({
           {step === 4 && (
             <div>
               <h3 className="text-lg font-semibold text-slate-800 mb-4">
-                Gestion des pièces
+                {selectedRubrique?.nom?.toLowerCase().includes("crédit") ||
+                selectedRubrique?.nom?.toLowerCase().includes("credit")
+                  ? "Gestion du dossier de crédit"
+                  : "Gestion des pièces"}
               </h3>
-              {loading ? (
+              {/* Vérifier si c'est un dossier de crédit */}
+              {selectedRubrique?.nom?.toLowerCase().includes("crédit") ||
+              selectedRubrique?.nom?.toLowerCase().includes("credit") ? (
+                /* Affichage pour dossier de crédit - métadonnées du sous-dossier */
+                <div className="space-y-4">
+                  <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+                    <h4 className="text-md font-medium text-blue-800 mb-3">
+                      Métadonnées du dossier de crédit
+                    </h4>
+                    <p className="text-sm text-blue-600">
+                      Sous-dossier sélectionné:{" "}
+                      <strong>{selectedSousDossier?.titre}</strong>
+                    </p>
+                  </div>
+
+                  {/* Ici on va afficher les métadonnées de la table metadata_credit */}
+                  <div className="bg-white border border-slate-200 rounded-lg p-4">
+                    <h5 className="text-sm font-medium text-slate-700 mb-3">
+                      Champs de métadonnées
+                    </h5>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      {creditMetadata.length > 0 ? (
+                        creditMetadata.map((metadata) => (
+                          <div key={metadata.id} className="space-y-2">
+                            <label className="text-sm font-medium text-slate-700 flex items-center gap-2">
+                              <Database className="w-4 h-4" />
+                              {metadata.nom_meta}
+                              <span className="text-xs bg-slate-100 text-slate-600 px-2 py-1 rounded">
+                                {metadata.type_meta}
+                              </span>
+                            </label>
+                            {metadata.type_meta === "text" && (
+                              <input
+                                type="text"
+                                value={creditValues[metadata.id] || ""}
+                                onChange={(e) => {
+                                  const newValues = { ...creditValues };
+                                  newValues[metadata.id] = e.target.value;
+                                  setCreditValues(newValues);
+                                }}
+                                onBlur={async () => {
+                                  if (creditValues[metadata.id]) {
+                                    try {
+                                      await fetch("/api/meta-credit-values", {
+                                        method: "POST",
+                                        headers: {
+                                          "Content-Type": "application/json",
+                                        },
+                                        body: JSON.stringify({
+                                          metadata_credit_id: metadata.id,
+                                          valeur: creditValues[metadata.id],
+                                        }),
+                                      });
+                                      console.log(
+                                        "✅ Valeur sauvegardée:",
+                                        metadata.nom_meta
+                                      );
+                                    } catch (error) {
+                                      console.error(
+                                        "❌ Erreur sauvegarde:",
+                                        error
+                                      );
+                                    }
+                                  }
+                                }}
+                                placeholder={`Saisir ${metadata.nom_meta.toLowerCase()}`}
+                                className="w-full text-black px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-slate-500 focus:border-slate-500 text-sm"
+                              />
+                            )}
+                            {metadata.type_meta === "number" && (
+                              <input
+                                type="number"
+                                value={creditValues[metadata.id] || ""}
+                                onChange={(e) => {
+                                  const newValues = { ...creditValues };
+                                  newValues[metadata.id] = e.target.value;
+                                  setCreditValues(newValues);
+                                }}
+                                onBlur={async () => {
+                                  if (creditValues[metadata.id]) {
+                                    try {
+                                      await fetch("/api/meta-credit-values", {
+                                        method: "POST",
+                                        headers: {
+                                          "Content-Type": "application/json",
+                                        },
+                                        body: JSON.stringify({
+                                          metadata_credit_id: metadata.id,
+                                          valeur: creditValues[metadata.id],
+                                        }),
+                                      });
+                                      console.log(
+                                        "✅ Valeur sauvegardée:",
+                                        metadata.nom_meta
+                                      );
+                                    } catch (error) {
+                                      console.error(
+                                        "❌ Erreur sauvegarde:",
+                                        error
+                                      );
+                                    }
+                                  }
+                                }}
+                                placeholder={`Saisir ${metadata.nom_meta.toLowerCase()}`}
+                                className="w-full text-black px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-slate-500 focus:border-slate-500 text-sm"
+                              />
+                            )}
+                            {metadata.type_meta === "date" && (
+                              <input
+                                type="date"
+                                value={creditValues[metadata.id] || ""}
+                                onChange={(e) => {
+                                  const newValues = { ...creditValues };
+                                  newValues[metadata.id] = e.target.value;
+                                  setCreditValues(newValues);
+                                }}
+                                onBlur={async () => {
+                                  if (creditValues[metadata.id]) {
+                                    try {
+                                      await fetch("/api/meta-credit-values", {
+                                        method: "POST",
+                                        headers: {
+                                          "Content-Type": "application/json",
+                                        },
+                                        body: JSON.stringify({
+                                          metadata_credit_id: metadata.id,
+                                          valeur: creditValues[metadata.id],
+                                        }),
+                                      });
+                                      console.log(
+                                        "✅ Valeur sauvegardée:",
+                                        metadata.nom_meta
+                                      );
+                                    } catch (error) {
+                                      console.error(
+                                        "❌ Erreur sauvegarde:",
+                                        error
+                                      );
+                                    }
+                                  }
+                                }}
+                                className="w-full bg-gray-700 text-white px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-slate-500 focus:border-slate-500 text-sm"
+                              />
+                            )}
+                            {metadata.type_meta === "textarea" && (
+                              <textarea
+                                value={creditValues[metadata.id] || ""}
+                                onChange={(e) => {
+                                  const newValues = { ...creditValues };
+                                  newValues[metadata.id] = e.target.value;
+                                  setCreditValues(newValues);
+                                }}
+                                onBlur={async () => {
+                                  if (creditValues[metadata.id]) {
+                                    try {
+                                      await fetch("/api/meta-credit-values", {
+                                        method: "POST",
+                                        headers: {
+                                          "Content-Type": "application/json",
+                                        },
+                                        body: JSON.stringify({
+                                          metadata_credit_id: metadata.id,
+                                          valeur: creditValues[metadata.id],
+                                        }),
+                                      });
+                                      console.log(
+                                        "✅ Valeur sauvegardée:",
+                                        metadata.nom_meta
+                                      );
+                                    } catch (error) {
+                                      console.error(
+                                        "❌ Erreur sauvegarde:",
+                                        error
+                                      );
+                                    }
+                                  }
+                                }}
+                                placeholder={`Saisir ${metadata.nom_meta.toLowerCase()}`}
+                                rows={3}
+                                className="w-full text-black px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-slate-500 focus:border-slate-500 text-sm"
+                              />
+                            )}
+                          </div>
+                        ))
+                      ) : (
+                        <div className="col-span-full text-center py-8 text-slate-500">
+                          <Database className="w-8 h-8 mx-auto mb-2" />
+                          <p>
+                            Aucune métadonnée de crédit définie pour ce
+                            sous-dossier
+                          </p>
+                          <p className="text-xs mt-1">
+                            Les métadonnées peuvent être créées dans les
+                            paramètres de la rubrique
+                          </p>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              ) : /* Affichage normal pour les autres dossiers */
+              loading ? (
                 <div className="text-center py-8">
                   <div className="w-8 h-8 border-4 border-slate-300 border-t-slate-600 rounded-full animate-spin mx-auto mb-4"></div>
                   <p className="text-slate-600">Chargement des pièces...</p>
@@ -842,6 +1102,7 @@ function NouveauSousDossierModal({
           <div className="flex items-center gap-3">
             {step > 1 && (
               <button
+                type="button"
                 onClick={() => setStep(step - 1)}
                 className="group flex items-center gap-2 px-6 py-3 bg-gradient-to-r from-slate-500 to-slate-600 text-white rounded-xl hover:from-slate-600 hover:to-slate-700 transition-all duration-300 shadow-lg hover:shadow-xl transform hover:scale-105"
               >
@@ -852,6 +1113,7 @@ function NouveauSousDossierModal({
           </div>
           <div className="flex items-center gap-4">
             <button
+              type="button"
               onClick={handleClose}
               className="px-6 py-3 text-slate-600 hover:text-slate-800 transition-all duration-300 hover:bg-slate-100 rounded-xl font-medium"
             >
@@ -859,6 +1121,7 @@ function NouveauSousDossierModal({
             </button>
             {step < 4 ? (
               <button
+                type="button"
                 onClick={() => setStep(step + 1)}
                 disabled={
                   (step === 1 && !selectedAgent) ||
@@ -872,6 +1135,7 @@ function NouveauSousDossierModal({
               </button>
             ) : (
               <button
+                type="button"
                 onClick={async () => {
                   // Uploader les fichiers sélectionnés
                   if (
@@ -900,7 +1164,9 @@ function NouveauSousDossierModal({
                             "sousDossierId",
                             selectedSousDossier.id
                           );
-                          formData.append("nom", file.name);
+                          formData.append("agentId", selectedAgent?.id || "");
+                          formData.append("nom", piece.nom);
+                          formData.append("fileName", file.name);
                           formData.append(
                             "description",
                             `Fichier uploadé: ${file.name}`
@@ -1066,10 +1332,12 @@ function NouveauSousDossierModal({
             <div className="p-6 max-h-[70vh] overflow-y-auto">
               {previewFile.type.startsWith("image/") ? (
                 <div className="text-center">
-                  <img
+                  <Image
                     src={URL.createObjectURL(previewFile)}
                     alt={previewFile.name}
                     className="max-w-full max-h-96 mx-auto rounded-lg shadow-lg"
+                    width={100}
+                    height={100}
                   />
                 </div>
               ) : previewFile.type === "application/pdf" ? (

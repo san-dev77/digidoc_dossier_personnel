@@ -72,6 +72,9 @@ interface CacheState {
   agents: Agent[];
   rubriques: Rubrique[];
 
+  // Cache des pièces avec métadonnées et fichiers
+  piecesCache: Record<string, PieceWithMetadata>; // key: pieceId
+
   // État de chargement
   loading: boolean;
   lastFetch: number;
@@ -84,6 +87,11 @@ interface CacheState {
   setAgents: (agents: Agent[]) => void;
   setRubriques: (rubriques: Rubrique[]) => void;
   setLoading: (loading: boolean) => void;
+
+  // Actions pour le cache des pièces
+  setPieceInCache: (piece: PieceWithMetadata) => void;
+  getPieceFromCache: (pieceId: string) => PieceWithMetadata | null;
+  isPieceInCache: (pieceId: string) => boolean;
 
   // Actions de cache
   isCacheValid: () => boolean;
@@ -129,6 +137,7 @@ export const useDossiersStore = create<CacheState>()(
       dossiers: [],
       agents: [],
       rubriques: [],
+      piecesCache: {},
       loading: false,
       lastFetch: 0,
       cacheExpiry: 5 * 60 * 1000, // 5 minutes
@@ -147,6 +156,25 @@ export const useDossiersStore = create<CacheState>()(
 
       setLoading: (loading) => set({ loading }),
 
+      // Actions pour le cache des pièces
+      setPieceInCache: (piece) =>
+        set((state) => ({
+          piecesCache: {
+            ...state.piecesCache,
+            [piece.id]: piece,
+          },
+        })),
+
+      getPieceFromCache: (pieceId) => {
+        const { piecesCache } = get();
+        return piecesCache[pieceId] || null;
+      },
+
+      isPieceInCache: (pieceId) => {
+        const { piecesCache } = get();
+        return pieceId in piecesCache;
+      },
+
       // Vérification de validité du cache
       isCacheValid: () => {
         const { lastFetch, cacheExpiry } = get();
@@ -159,6 +187,7 @@ export const useDossiersStore = create<CacheState>()(
           dossiers: [],
           agents: [],
           rubriques: [],
+          piecesCache: {},
           lastFetch: 0,
         }),
 

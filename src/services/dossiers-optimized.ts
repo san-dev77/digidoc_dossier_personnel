@@ -137,6 +137,24 @@ export class DossiersOptimizedService {
                       await Promise.all(
                         pieces.map(async (piece) => {
                           try {
+                            // Vérifier d'abord le cache
+                            const {
+                              isPieceInCache,
+                              getPieceFromCache,
+                              setPieceInCache,
+                            } = useDossiersStore.getState();
+
+                            if (isPieceInCache(piece.id)) {
+                              console.log(
+                                `🚀 Cache hit pour la pièce ${piece.nom} (ID: ${piece.id})`
+                              );
+                              return getPieceFromCache(piece.id)!;
+                            }
+
+                            console.log(
+                              `🔄 Chargement depuis l'API pour la pièce ${piece.nom} (ID: ${piece.id})`
+                            );
+
                             // Charger toutes les données de la pièce en parallèle
                             const [
                               metadataResponse,
@@ -154,12 +172,17 @@ export class DossiersOptimizedService {
                               ),
                             ]);
 
-                            return {
+                            const pieceWithMetadata = {
                               ...piece,
                               metadata: metadataResponse || [],
                               metadataModels: metadataModelsResponse || [],
                               files: filesResponse || [],
                             };
+
+                            // Mettre en cache la pièce
+                            setPieceInCache(pieceWithMetadata);
+
+                            return pieceWithMetadata;
                           } catch (error) {
                             console.error(
                               `❌ Erreur lors du chargement des données pour ${piece.nom}:`,

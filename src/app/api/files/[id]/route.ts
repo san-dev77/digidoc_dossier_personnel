@@ -1,7 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
 import { FileManager } from "@/services/storage/FileManager";
 import { FileValidator } from "@/services/validation/FileValidator";
+import { prisma } from "@/lib/prisma";
 import path from "path";
+import fs from "fs";
 
 export async function GET(
   request: NextRequest,
@@ -9,49 +11,89 @@ export async function GET(
 ) {
   try {
     const resolvedParams = await params;
-    const pieceId = resolvedParams.id;
+    const pieceFileId = resolvedParams.id;
     const { searchParams } = new URL(request.url);
     const rubriqueId = searchParams.get("rubriqueId");
     const sousDossierId = searchParams.get("sousDossierId");
     const type = searchParams.get("type") || "original"; // original, thumbnail, metadata
 
-    if (!rubriqueId || !sousDossierId) {
+    // Si les paramètres ne sont pas fournis, essayer de les récupérer depuis la base de données
+    let finalRubriqueId = rubriqueId;
+    let finalSousDossierId = sousDossierId;
+    let pieceId = pieceFileId;
+
+    // Récupérer les informations du fichier depuis la base de données
+    const pieceFile = await prisma.piece_file.findUnique({
+      where: { id: parseInt(pieceFileId) },
+      include: {
+        pieces: {
+          include: {
+            sous_dossiers: true,
+          },
+        },
+      },
+    });
+
+    if (!pieceFile) {
       return NextResponse.json(
-        { error: "Paramètres manquants" },
-        { status: 400 }
+        { error: "Fichier non trouvé dans la base de données" },
+        { status: 404 }
       );
     }
 
-    // Construire le chemin du fichier
-    const basePath = path.join(
-      process.cwd(),
-      "uploads",
-      "documents",
-      "rubriques",
-      rubriqueId,
-      "sous-dossiers",
-      sousDossierId,
-      "pieces",
-      pieceId
-    );
-
+    // Utiliser le chemin direct du fichier depuis la base de données
     let filePath: string;
 
     switch (type) {
       case "thumbnail":
-        filePath = path.join(basePath, "thumbnails");
+        // Construire le chemin du thumbnail
+        pieceId = pieceFile.pieces.id.toString();
+        finalSousDossierId = pieceFile.pieces.sous_dossiers.id.toString();
+        finalRubriqueId = pieceFile.pieces.sous_dossiers.rubrique_id.toString();
+        const basePath = path.join(
+          process.cwd(),
+          "uploads",
+          "documents",
+          "rubriques",
+          finalRubriqueId,
+          "sous-dossiers",
+          finalSousDossierId,
+          "pieces",
+          pieceId,
+          "thumbnails"
+        );
+        filePath = basePath;
         break;
       case "metadata":
-        filePath = path.join(basePath, "metadata", `${pieceId}.json`);
+        // Construire le chemin des métadonnées
+        pieceId = pieceFile.pieces.id.toString();
+        finalSousDossierId = pieceFile.pieces.sous_dossiers.id.toString();
+        finalRubriqueId = pieceFile.pieces.sous_dossiers.rubrique_id.toString();
+        const metaBasePath = path.join(
+          process.cwd(),
+          "uploads",
+          "documents",
+          "rubriques",
+          finalRubriqueId,
+          "sous-dossiers",
+          finalSousDossierId,
+          "pieces",
+          pieceId,
+          "metadata",
+          `${pieceId}.json`
+        );
+        filePath = metaBasePath;
         break;
       case "original":
       default:
-        filePath = path.join(basePath, "original");
+        // Utiliser le chemin direct du fichier (déjà absolu)
+        filePath = pieceFile.file_path;
         break;
     }
 
     // Vérifier si le fichier existe
     const fileInfo = await FileManager.getFileInfo(filePath);
+
     if (!fileInfo.exists) {
       return NextResponse.json(
         { error: "Fichier non trouvé" },
@@ -93,20 +135,47 @@ export async function DELETE(
 ) {
   try {
     const resolvedParams = await params;
-    const pieceId = resolvedParams.id;
+    const pieceFileId = resolvedParams.id;
     const { searchParams } = new URL(request.url);
     const rubriqueId = searchParams.get("rubriqueId");
     const sousDossierId = searchParams.get("sousDossierId");
 
-    if (!rubriqueId || !sousDossierId) {
+    // Si les paramètres ne sont pas fournis, essayer de les récupérer depuis la base de données
+    let finalRubriqueId = rubriqueId;
+    let finalSousDossierId = sousDossierId;
+    let pieceId = pieceFileId;
+
+    // Récupérer les informations du fichier depuis la base de données
+    const pieceFile = await prisma.piece_file.findUnique({
+      where: { id: parseInt(pieceFileId) },
+      include: {
+        pieces: {
+          include: {
+            sous_dossiers: true,
+          },
+        },
+      },
+    });
+
+    if (!pieceFile) {
       return NextResponse.json(
-        { error: "Paramètres manquants" },
-        { status: 400 }
+        { error: "Fichier non trouvé dans la base de données" },
+        { status: 404 }
       );
     }
 
-    // Supprimer le fichier
-    await FileManager.deleteFile(rubriqueId, sousDossierId, pieceId);
+    // Supprimer le fichier de la base de données
+    await prisma.piece_file.delete({
+      where: { id: parseInt(pieceFileId) },
+    });
+
+    // Optionnel: Supprimer le fichier physique du système de fichiers
+    try {
+      const filePath = path.join(process.cwd(), pieceFile.file_path);
+      await fs.unlink(filePath);
+    } catch (error) {
+      console.warn("Impossible de supprimer le fichier physique:", error);
+    }
 
     return NextResponse.json({
       success: true,

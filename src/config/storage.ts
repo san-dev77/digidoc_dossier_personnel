@@ -73,6 +73,67 @@ export const getStoragePath = (
   );
 };
 
+// Fonction pour remplacer les caractères spéciaux de manière lisible
+const cleanForPath = (str: string): string => {
+  return str
+    .replace(/[àáâãäå]/g, "a")
+    .replace(/[èéêë]/g, "e")
+    .replace(/[ìíîï]/g, "i")
+    .replace(/[òóôõö]/g, "o")
+    .replace(/[ùúûü]/g, "u")
+    .replace(/[ýÿ]/g, "y")
+    .replace(/[ç]/g, "c")
+    .replace(/[ñ]/g, "n")
+    .replace(/[ÀÁÂÃÄÅ]/g, "A")
+    .replace(/[ÈÉÊË]/g, "E")
+    .replace(/[ÌÍÎÏ]/g, "I")
+    .replace(/[ÒÓÔÕÖ]/g, "O")
+    .replace(/[ÙÚÛÜ]/g, "U")
+    .replace(/[ÝŸ]/g, "Y")
+    .replace(/[Ç]/g, "C")
+    .replace(/[Ñ]/g, "N")
+    .replace(/[^a-zA-Z0-9-_]/g, "_")
+    .replace(/_+/g, "_")
+    .replace(/^_|_$/g, ""); // Enlever les _ au début et fin
+};
+
+// Nouvelle fonction avec noms lisibles
+export const getReadableStoragePath = (
+  rubriqueNom: string,
+  sousDossierTitre: string,
+  pieceNom: string,
+  agentNom: string
+) => {
+  // Nettoyer les noms pour les utiliser dans les chemins de fichiers
+  const cleanRubrique = cleanForPath(rubriqueNom);
+  const cleanSousDossier = cleanForPath(sousDossierTitre);
+  const cleanPiece = cleanForPath(pieceNom);
+  const cleanAgent = cleanForPath(agentNom);
+
+  return path.join(
+    storageConfig.baseDir,
+    cleanRubrique,
+    cleanSousDossier,
+    cleanPiece,
+    cleanAgent
+  );
+};
+
 export const getTempPath = (sessionId: string) => {
   return path.join(storageConfig.tempDir, sessionId);
+};
+
+// Fonction pour générer un nom de fichier avec le nom de l'agent
+export const generateAgentFileName = (
+  originalName: string,
+  agentNom: string
+): string => {
+  const cleanAgent = cleanForPath(agentNom);
+  const extension = path.extname(originalName);
+  const baseName = path.basename(originalName, extension);
+
+  // Nettoyer le nom de base pour éviter les caractères problématiques
+  const cleanBaseName = cleanForPath(baseName);
+
+  return `${cleanAgent}_${cleanBaseName}${extension}`;
 };
