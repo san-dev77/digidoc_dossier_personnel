@@ -30,7 +30,7 @@ export interface SousDossierData {
     titre: string;
     description: string;
     rubrique_id: string;
-    statut: string;
+    statut?: string;
     createdAt: string;
   };
   pieces: PieceData[];
@@ -42,7 +42,7 @@ export interface PieceData {
   piece: {
     id: string;
     nom: string;
-    description: string;
+    description?: string;
     has_meta: boolean;
     createdAt: string;
     updatedAt: string;
@@ -57,7 +57,7 @@ export interface MetaValueData {
   meta_model_id: string;
   valeur: string;
   metadataModel: {
-    libelle: string;
+    nom: string;
     type: string;
     obligatoire: boolean;
   } | null;

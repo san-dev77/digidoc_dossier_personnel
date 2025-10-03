@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import AuthGuard from "@/components/AuthGuard";
 import DashboardLayout from "@/components/DashboardLayout";
 import {
@@ -9,16 +9,9 @@ import {
   FileText,
   Calendar,
   Building2,
-  ChevronDown,
   ChevronRight,
   Plus,
-  Edit,
-  Trash2,
   Eye,
-  Archive,
-  Clock,
-  CheckCircle,
-  XCircle,
   Database,
   Upload,
   Download,
@@ -26,6 +19,7 @@ import {
   User,
   ChevronLeft,
   File,
+  CheckCircle,
 } from "lucide-react";
 import { rubriquesService } from "@/services/rubriques";
 import {
@@ -34,13 +28,9 @@ import {
 } from "@/services/sous-dossiers";
 import { piecesService } from "@/services/pieces";
 import { agentsService } from "@/services/agents";
-import {
-  agentDataService,
-  type AgentData,
-  type RubriqueData,
-  type SousDossierData,
-  type PieceData,
-} from "@/services/agent-data";
+import { type PieceData } from "@/services/agent-data";
+import { DossiersOptimizedService } from "@/services/dossiers-optimized";
+import { useDossiersStore } from "@/store/dossiersStore";
 import AgentDataViewer from "@/components/AgentDataViewer";
 import PieceViewerModal from "@/components/PieceViewerModal";
 import type { Rubrique, MetaValue, Agent } from "@/types";
@@ -65,6 +55,7 @@ interface SousDossierWithStats extends SousDossier {
 interface PieceWithMetadata {
   id: string;
   nom: string;
+  libelle?: string;
   description?: string;
   aMetadonnees: boolean;
   createdAt: string;
@@ -88,7 +79,7 @@ interface MetadataModel {
 
 interface PieceFile {
   id: string;
-  id_piece: string;
+  piece_id: string;
   file_path: string;
   created_at: string;
 }
@@ -204,20 +195,22 @@ function NouveauSousDossierModal({
   onReset: () => void;
 }) {
   const [step, setStep] = useState(1);
+
+  // Utiliser le store au lieu de l'état local
+  const { agents, rubriques } = useDossiersStore();
+
   const [selectedAgent, setSelectedAgent] = useState<Agent | null>(null);
   const [selectedRubrique, setSelectedRubrique] = useState<Rubrique | null>(
     null
   );
   const [selectedSousDossier, setSelectedSousDossier] =
     useState<SousDossier | null>(null);
-  const [agents, setAgents] = useState<Agent[]>([]);
-  const [rubriques, setRubriques] = useState<Rubrique[]>([]);
   const [sousDossiers, setSousDossiers] = useState<SousDossier[]>([]);
   const [pieces, setPieces] = useState<PieceWithMetadata[]>([]);
   const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
-  const [uploadedFiles, setUploadedFiles] = useState<
-    Array<{ name: string; size: number; url: string }>
-  >([]);
+  // const [uploadedFiles, setUploadedFiles] = useState<
+  //   Array<{ name: string; size: number; url: string }>
+  // >([]);
   const [previewFile, setPreviewFile] = useState<File | null>(null);
   const [metadataValues, setMetadataValues] = useState<Record<string, string>>(
     {}
@@ -229,7 +222,7 @@ function NouveauSousDossierModal({
   const [justUploaded, setJustUploaded] = useState(false);
   const [modalKey, setModalKey] = useState(0);
   const [ignoreExistingValues, setIgnoreExistingValues] = useState(false);
-  const [forceRerender, setForceRerender] = useState(0);
+  // const [forceRerender, setForceRerender] = useState(0);
 
   // Fonction pour créer l'aperçu d'un fichier
   const createFilePreview = (file: File) => {
@@ -254,7 +247,7 @@ function NouveauSousDossierModal({
     setSelectedSousDossier(null);
     setPieces([]);
     setSelectedFiles([]);
-    setUploadedFiles([]);
+    // setUploadedFiles([]);
     setPreviewFile(null);
     setMetadataValues({}); // Reset des valeurs de métadonnées
     setLoading(false);
@@ -264,29 +257,47 @@ function NouveauSousDossierModal({
     setJustUploaded(false); // Reset du flag d'upload
     setIgnoreExistingValues(true); // Ignorer les valeurs existantes
     setModalKey((prev) => prev + 1); // Incrémenter la clé pour forcer la recréation
-    setForceRerender((prev) => prev + 1); // Forcer un rerender complet
+    // setForceRerender((prev) => prev + 1); // Forcer un rerender complet
   };
 
   useEffect(() => {
     if (isOpen) {
       // Reset tous les champs quand la modale s'ouvre
       resetForm();
-      loadAgents();
-      loadRubriques();
+      // Plus besoin de charger agents et rubriques, ils viennent du store
     }
   }, [isOpen]);
 
   useEffect(() => {
     if (selectedRubrique) {
-      loadSousDossiers(selectedRubrique.id);
+      // Récupérer les sous-dossiers depuis le store au lieu de faire un appel API
+      const { dossiers } = useDossiersStore.getState();
+      const dossier = dossiers.find(
+        (d) => d.rubrique.id === selectedRubrique.id
+      );
+      if (dossier) {
+        setSousDossiers(dossier.sousDossiers);
+      }
     }
   }, [selectedRubrique]);
 
   useEffect(() => {
     if (selectedSousDossier && !justUploaded) {
-      loadPieces(selectedSousDossier.id);
+      // Récupérer les pièces depuis le store au lieu de faire des appels API
+      const { dossiers } = useDossiersStore.getState();
+      const dossier = dossiers.find(
+        (d) => d.rubrique.id === selectedRubrique?.id
+      );
+      if (dossier) {
+        const sousDossier = dossier.sousDossiers.find(
+          (sd) => sd.id === selectedSousDossier.id
+        );
+        if (sousDossier) {
+          setPieces(sousDossier.pieces as PieceWithMetadata[]);
+        }
+      }
     }
-  }, [selectedSousDossier, justUploaded]);
+  }, [selectedSousDossier, selectedRubrique, justUploaded]);
 
   // Remettre le flag à false après un délai pour permettre l'affichage des valeurs existantes
   useEffect(() => {
@@ -298,98 +309,10 @@ function NouveauSousDossierModal({
     }
   }, [ignoreExistingValues]);
 
-  const loadAgents = async () => {
-    try {
-      const agentsData = await agentsService.getAllAgents();
-      setAgents(agentsData);
-    } catch (error) {
-      console.error("Erreur lors du chargement des agents:", error);
-    }
-  };
+  // Les données agents et rubriques viennent maintenant du store
+  // Plus besoin de les charger via API
 
-  const loadRubriques = async () => {
-    try {
-      const rubriquesData = await rubriquesService.getAllRubriques();
-      setRubriques(rubriquesData);
-    } catch (error) {
-      console.error("Erreur lors du chargement des rubriques:", error);
-    }
-  };
-
-  const loadSousDossiers = async (rubriqueId: string) => {
-    try {
-      const sousDossiersData =
-        await sousDossiersService.getAllSousDossiersByRubrique(rubriqueId);
-      setSousDossiers(sousDossiersData);
-    } catch (error) {
-      console.error("Erreur lors du chargement des sous-dossiers:", error);
-    }
-  };
-
-  const loadPieces = async (sousDossierId: string) => {
-    try {
-      setLoading(true);
-      const piecesData = await piecesService.getAllPiecesBySousDossier(
-        sousDossierId
-      );
-
-      // Pour chaque pièce, charger ses métadonnées et fichiers
-      const piecesWithData: PieceWithMetadata[] = await Promise.all(
-        piecesData.map(async (piece) => {
-          try {
-            // Charger les métadonnées
-            const metadataResponse = await fetch(
-              `/api/pieces/${piece.id}/metadata`
-            );
-            let metadata: MetaValue[] = [];
-            if (metadataResponse.ok) {
-              metadata = await metadataResponse.json();
-            }
-
-            // Charger les modèles de métadonnées
-            const metadataModelsResponse = await fetch(
-              `/api/pieces/${piece.id}/metadata-models`
-            );
-            let metadataModels: MetadataModel[] = [];
-            if (metadataModelsResponse.ok) {
-              metadataModels = await metadataModelsResponse.json();
-            }
-
-            // Charger les fichiers
-            const filesResponse = await fetch(`/api/pieces/${piece.id}/files`);
-            let files: PieceFile[] = [];
-            if (filesResponse.ok) {
-              files = await filesResponse.json();
-            }
-
-            return {
-              ...piece,
-              metadata,
-              metadataModels,
-              files,
-            };
-          } catch (error) {
-            console.error(
-              `Erreur lors du chargement des données pour ${piece.nom}:`,
-              error
-            );
-            return {
-              ...piece,
-              metadata: [],
-              metadataModels: [],
-              files: [],
-            };
-          }
-        })
-      );
-
-      setPieces(piecesWithData);
-    } catch (error) {
-      console.error("Erreur lors du chargement des pièces:", error);
-    } finally {
-      setLoading(false);
-    }
-  };
+  // La fonction loadPieces a été supprimée car les données viennent maintenant du store
 
   const filteredAgents = agents.filter(
     (agent) =>
@@ -413,7 +336,7 @@ function NouveauSousDossierModal({
     setSelectedSousDossier(null);
     setPieces([]);
     setSelectedFiles([]);
-    setUploadedFiles([]);
+    // setUploadedFiles([]);
     setPreviewFile(null);
     setMetadataValues({}); // Reset des valeurs de métadonnées
     setLoading(false);
@@ -679,21 +602,22 @@ function NouveauSousDossierModal({
                   {pieces.map((piece) => (
                     <div
                       key={piece.id}
-                      className="border border-slate-200 rounded-lg p-3"
+                      className="border border-slate-600 bg-slate-100 rounded-lg p-3"
                     >
                       <div className="flex items-center justify-between mb-3">
-                        <h4 className="font-semibold text-slate-800">
+                        <h4 className="font-semibold flex gap-2 justify-between bg-gradient-to-r from-slate-600 to-slate-700 text-white px-2 py-1 rounded-lg items-center text-lg">
+                          <FileText className="w-4 h-4 text-white" />
                           {piece.nom}
                         </h4>
                         <div className="flex items-center gap-2">
                           {piece.files && piece.files.length > 0 && (
-                            <span className="text-xs bg-green-100 text-green-800 px-2 py-1 rounded">
+                            <span className="text-sm bg-green-100 text-green-800 px-2 py-1 rounded">
                               {piece.files.length} fichier(s)
                             </span>
                           )}
                           {piece.metadataModels &&
                             piece.metadataModels.length > 0 && (
-                              <span className="text-xs bg-slate-100 text-slate-800 px-2 py-1 rounded">
+                              <span className="text-sm bg-slate-100 text-slate-800 px-2 py-1 rounded">
                                 {piece.metadataModels.length} métadonnée(s)
                               </span>
                             )}
@@ -701,7 +625,7 @@ function NouveauSousDossierModal({
                       </div>
 
                       {piece.description && (
-                        <p className="text-sm text-slate-600 mb-3">
+                        <p className="text-md text-slate-600 mb-3">
                           {piece.description}
                         </p>
                       )}
@@ -710,15 +634,12 @@ function NouveauSousDossierModal({
                       {piece.metadataModels &&
                         piece.metadataModels.length > 0 && (
                           <div className="mb-3">
-                            <h5 className="text-sm font-medium text-slate-700 mb-2">
+                            <h5 className="text-md font-medium text-slate-700 mb-2">
                               Métadonnées:
                             </h5>
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
                               {piece.metadataModels.map(
                                 (model: MetadataModel) => {
-                                  const existingValue = piece.metadata.find(
-                                    (m) => m.meta_model_id === model.id
-                                  );
                                   return (
                                     <div key={model.id} className="space-y-1">
                                       <label className="text-sm font-medium text-slate-700">
@@ -739,17 +660,13 @@ function NouveauSousDossierModal({
                                             ] || ""
                                           }
                                           onChange={(e) => {
-                                            console.log(
-                                              "Changement de valeur:",
-                                              e.target.value
-                                            );
                                             setMetadataValues((prev) => ({
                                               ...prev,
                                               [`${piece.id}_${model.id}`]:
                                                 e.target.value,
                                             }));
                                           }}
-                                          className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-slate-500 focus:border-slate-500 text-black"
+                                          className="w-full px-3 py-2 border border-slate-600 rounded-lg focus:ring-2 focus:ring-slate-500 focus:border-slate-500 text-black"
                                         />
                                       )}
                                       {model.type === "number" && (
@@ -768,7 +685,7 @@ function NouveauSousDossierModal({
                                                 e.target.value,
                                             }))
                                           }
-                                          className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-slate-500 focus:border-slate-500 text-black"
+                                          className="w-full px-3 py-2 border border-slate-600 rounded-lg focus:ring-2 focus:ring-slate-500 focus:border-slate-500 text-black"
                                         />
                                       )}
                                       {model.type === "date" && (
@@ -787,7 +704,7 @@ function NouveauSousDossierModal({
                                                 e.target.value,
                                             }))
                                           }
-                                          className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-slate-500 focus:border-slate-500 text-black"
+                                          className="w-full px-3 bg-gray-700 text-white py-2 border border-slate-600 rounded-lg focus:ring-2 focus:ring-slate-500 focus:border-slate-500"
                                         />
                                       )}
                                       {model.type === "boolean" && (
@@ -805,7 +722,7 @@ function NouveauSousDossierModal({
                                                 e.target.value,
                                             }))
                                           }
-                                          className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-slate-500 focus:border-slate-500 text-black"
+                                          className="w-full px-3 py-2 border border-slate-600 rounded-lg focus:ring-2 focus:ring-slate-500 focus:border-slate-500 text-black"
                                         >
                                           <option value="">
                                             Sélectionner...
@@ -878,7 +795,7 @@ function NouveauSousDossierModal({
                           </div>
                         )}
 
-                        <div className="border-2 border-dashed border-slate-300 rounded-lg p-3 text-center">
+                        <div className="border-2 border-dashed border-slate-600 rounded-lg p-3 text-center">
                           <Upload className="w-8 h-8 text-slate-400 mx-auto mb-2" />
                           <p className="text-sm text-slate-600 mb-2">
                             Glissez-déposez vos fichiers ici ou cliquez pour
@@ -1212,12 +1129,13 @@ function NouveauSousDossierModal({
 
 // Composant principal pour les dossiers
 export default function DossiersPage() {
-  const [dossiers, setDossiers] = useState<DossierData[]>([]);
-  const [loading, setLoading] = useState(true);
+  // Utiliser le store Zustand au lieu du state local
+  const { dossiers, loading, setDossiers, setLoading } = useDossiersStore();
+
   const [searchTerm, setSearchTerm] = useState("");
-  const [expandedRubriques, setExpandedRubriques] = useState<Set<string>>(
-    new Set()
-  );
+  // const [expandedRubriques, setExpandedRubriques] = useState<Set<string>>(
+  //   new Set()
+  // );
   const [showNouveauModal, setShowNouveauModal] = useState(false);
   const [showSuccessPopup, setShowSuccessPopup] = useState(false);
   const [showPieceViewer, setShowPieceViewer] = useState(false);
@@ -1225,193 +1143,57 @@ export default function DossiersPage() {
     null
   );
 
-  useEffect(() => {
-    loadDossiers();
-  }, []);
-
-  const loadDossiers = async () => {
-    try {
-      setLoading(true);
-
-      // Charger toutes les rubriques
-      const rubriques = await rubriquesService.getAllRubriques();
-
-      // Pour chaque rubrique, charger les sous-dossiers et leurs statistiques
-      const dossiersData: DossierData[] = await Promise.all(
-        rubriques.map(async (rubrique) => {
-          try {
-            // Charger les sous-dossiers de la rubrique
-            const sousDossiers =
-              await sousDossiersService.getAllSousDossiersByRubrique(
-                rubrique.id
-              );
-
-            // Pour chaque sous-dossier, charger les pièces avec leurs métadonnées
-            const sousDossiersWithStats: SousDossierWithStats[] =
-              await Promise.all(
-                sousDossiers.map(async (sousDossier) => {
-                  try {
-                    const pieces =
-                      await piecesService.getAllPiecesBySousDossier(
-                        sousDossier.id
-                      );
-
-                    // Pour chaque pièce, charger ses métadonnées
-                    const piecesWithMetadata: PieceWithMetadata[] =
-                      await Promise.all(
-                        pieces.map(async (piece) => {
-                          try {
-                            // Charger les métadonnées de la pièce
-                            const metadataResponse = await fetch(
-                              `/api/pieces/${piece.id}/metadata`
-                            );
-                            let metadata: MetaValue[] = [];
-
-                            if (metadataResponse.ok) {
-                              const metadataData =
-                                await metadataResponse.json();
-                              metadata = metadataData || [];
-                            }
-
-                            return {
-                              ...piece,
-                              metadata,
-                            };
-                          } catch (error) {
-                            console.error(
-                              `Erreur lors du chargement des métadonnées pour ${piece.nom}:`,
-                              error
-                            );
-                            return {
-                              ...piece,
-                              metadata: [],
-                            };
-                          }
-                        })
-                      );
-
-                    const piecesWithMetadataCount = piecesWithMetadata.filter(
-                      (piece) => piece.aMetadonnees
-                    ).length;
-
-                    const totalMetadataCount = piecesWithMetadata.reduce(
-                      (sum, piece) => sum + piece.metadata.length,
-                      0
-                    );
-
-                    const lastActivity =
-                      piecesWithMetadata.length > 0
-                        ? piecesWithMetadata.reduce((latest, piece) => {
-                            const pieceDate = new Date(piece.createdAt);
-                            const latestDate = new Date(latest);
-                            return pieceDate > latestDate
-                              ? piece.createdAt
-                              : latest;
-                          }, piecesWithMetadata[0].createdAt)
-                        : sousDossier.updatedAt;
-
-                    return {
-                      ...sousDossier,
-                      pieces: piecesWithMetadata,
-                      piecesCount: piecesWithMetadata.length,
-                      piecesWithMetadataCount,
-                      totalMetadataCount,
-                      lastActivity,
-                    };
-                  } catch (error) {
-                    console.error(
-                      `Erreur lors du chargement des pièces pour ${sousDossier.titre}:`,
-                      error
-                    );
-                    return {
-                      ...sousDossier,
-                      pieces: [],
-                      piecesCount: 0,
-                      piecesWithMetadataCount: 0,
-                      totalMetadataCount: 0,
-                      lastActivity: sousDossier.updatedAt,
-                    };
-                  }
-                })
-              );
-
-            const totalPieces = sousDossiersWithStats.reduce(
-              (sum, sd) => sum + sd.piecesCount,
-              0
-            );
-
-            const totalMetadata = sousDossiersWithStats.reduce(
-              (sum, sd) => sum + sd.totalMetadataCount,
-              0
-            );
-
-            return {
-              rubrique,
-              sousDossiers: sousDossiersWithStats,
-              totalPieces,
-              totalSousDossiers: sousDossiersWithStats.length,
-              totalMetadata,
-            };
-          } catch (error) {
-            console.error(
-              `Erreur lors du chargement des sous-dossiers pour ${rubrique.nom}:`,
-              error
-            );
-            return {
-              rubrique,
-              sousDossiers: [],
-              totalPieces: 0,
-              totalSousDossiers: 0,
-              totalMetadata: 0,
-            };
-          }
-        })
-      );
-
-      setDossiers(dossiersData);
-    } catch (error) {
-      console.error("Erreur lors du chargement des dossiers:", error);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const filteredDossiers = dossiers.filter(
-    (dossier) =>
-      dossier.rubrique.nom.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      dossier.rubrique.description
-        .toLowerCase()
-        .includes(searchTerm.toLowerCase()) ||
-      dossier.sousDossiers.some(
-        (sd) =>
-          sd.titre.toLowerCase().includes(searchTerm.toLowerCase()) ||
-          sd.description.toLowerCase().includes(searchTerm.toLowerCase())
-      )
+  const loadDossiers = useCallback(
+    async (forceRefresh: boolean = false) => {
+      try {
+        console.log("🚀 Chargement optimisé des dossiers...");
+        const dossiersData = await DossiersOptimizedService.loadDossiers(
+          forceRefresh
+        );
+        setDossiers(dossiersData);
+        console.log("✅ Dossiers chargés avec succès:", dossiersData.length);
+      } catch (error) {
+        console.error("❌ Erreur lors du chargement des dossiers:", error);
+      }
+    },
+    [setDossiers]
   );
 
-  const toggleRubrique = (rubriqueId: string) => {
-    const newExpanded = new Set(expandedRubriques);
-    if (newExpanded.has(rubriqueId)) {
-      newExpanded.delete(rubriqueId);
-    } else {
-      newExpanded.add(rubriqueId);
-    }
-    setExpandedRubriques(newExpanded);
-  };
+  useEffect(() => {
+    loadDossiers();
+  }, [loadDossiers]);
 
-  const handleEditSousDossier = (sousDossier: SousDossierWithStats) => {
-    // TODO: Implémenter l'édition du sous-dossier
-    console.log("Éditer le sous-dossier:", sousDossier);
-  };
+  // Filtrage des dossiers (désactivé pour l'instant)
+  const filteredDossiers = dossiers;
 
-  const handleDeleteSousDossier = (sousDossier: SousDossierWithStats) => {
-    // TODO: Implémenter la suppression du sous-dossier
-    console.log("Supprimer le sous-dossier:", sousDossier);
-  };
+  // const toggleRubrique = (rubriqueId: string) => {
+  //   const newExpanded = new Set(expandedRubriques);
+  //   if (newExpanded.has(rubriqueId)) {
+  //     newExpanded.delete(rubriqueId);
+  //   } else {
+  //     newExpanded.add(rubriqueId);
+  //   }
+  //   setExpandedRubriques(newExpanded);
+  // };
 
-  const handleViewSousDossier = (sousDossier: SousDossierWithStats) => {
-    // TODO: Implémenter la vue détaillée du sous-dossier
-    console.log("Voir le sous-dossier:", sousDossier);
+  // const handleEditSousDossier = (sousDossier: SousDossierWithStats) => {
+  //   // TODO: Implémenter l'édition du sous-dossier
+  //   console.log("Éditer le sous-dossier:", sousDossier);
+  // };
+
+  // const handleDeleteSousDossier = (sousDossier: SousDossierWithStats) => {
+  //   // TODO: Implémenter la suppression du sous-dossier
+  //   console.log("Supprimer le sous-dossier:", sousDossier);
+  // };
+
+  // const handleViewSousDossier = (sousDossier: SousDossierWithStats) => {
+  //   // TODO: Implémenter la vue détaillée du sous-dossier
+  //   console.log("Voir le sous-dossier:", sousDossier);
+  // };
+
+  const handleRefresh = () => {
+    console.log("🔄 Rafraîchissement forcé des dossiers...");
+    loadDossiers(true);
   };
 
   const handleNouveauSousDossier = () => {
@@ -1420,12 +1202,10 @@ export default function DossiersPage() {
 
   const handleCloseNouveauModal = () => {
     setShowNouveauModal(false);
-    // Le reset sera géré par la modale elle-même
   };
 
   const handleSaveNouveauSousDossier = (data: ModalData) => {
     console.log("Sauvegarder les données:", data);
-    // TODO: Implémenter la sauvegarde
     setShowNouveauModal(false);
   };
 
@@ -1433,6 +1213,9 @@ export default function DossiersPage() {
     setSelectedPieceData(pieceData);
     setShowPieceViewer(true);
   };
+
+  // Utiliser le store pour obtenir l'état du cache
+  const { isCacheValid, lastFetch } = useDossiersStore();
 
   if (loading) {
     return (
@@ -1512,7 +1295,40 @@ export default function DossiersPage() {
                           métadonnées
                         </span>
                       </div>
+                      {/* Indicateur de cache */}
+                      <div className="group flex items-center space-x-3 bg-white/15 backdrop-blur-sm rounded-xl px-4 py-3 hover:bg-white/20 transition-all duration-300 cursor-pointer">
+                        <div
+                          className={`w-3 h-3 rounded-full shadow-lg ${
+                            isCacheValid()
+                              ? "bg-gradient-to-r from-emerald-400 to-emerald-500"
+                              : "bg-gradient-to-r from-orange-400 to-orange-500"
+                          }`}
+                        ></div>
+                        <span className="text-white text-sm font-semibold">
+                          {isCacheValid() ? "Cache valide" : "Cache expiré"}
+                        </span>
+                      </div>
                     </div>
+                  </div>
+                </div>
+
+                {/* Boutons de contrôle */}
+                <div className="flex items-center space-x-3">
+                  <button
+                    onClick={handleRefresh}
+                    className="group relative px-6 py-3 bg-white/20 backdrop-blur-sm text-white rounded-xl hover:bg-white/30 transition-all duration-300 font-semibold text-sm shadow-lg hover:shadow-xl transform hover:-translate-y-1 border border-white/30"
+                  >
+                    <div className="flex items-center space-x-2">
+                      <Database className="w-4 h-4 group-hover:rotate-180 transition-transform duration-300" />
+                      <span>Rafraîchir</span>
+                    </div>
+                  </button>
+
+                  <div className="text-xs text-slate-300 bg-white/10 px-3 py-2 rounded-lg">
+                    Dernière MAJ:{" "}
+                    {lastFetch
+                      ? new Date(lastFetch).toLocaleTimeString("fr-FR")
+                      : "Jamais"}
                   </div>
                 </div>
               </div>

@@ -20,7 +20,7 @@ export async function GET(request: NextRequest) {
             { status: 400 }
           );
         }
-        const result = await MetadataService.getMetadataBySousDossier(
+        const result = await MetadataService.getMetadataBySousDossierServer(
           parseInt(sousDossierId)
         );
         return NextResponse.json(result);
@@ -59,7 +59,7 @@ export async function POST(request: NextRequest) {
 
     switch (action) {
       case "create":
-        const createResult = await MetadataService.createMetadata(data);
+        const createResult = await MetadataService.createMetadataServer(data);
         return NextResponse.json(createResult);
 
       case "search":

@@ -21,13 +21,13 @@ export interface MetadataResponse {
 
 export class MetadataService {
   /**
-   * Crée une nouvelle métadonnée
+   * Crée une nouvelle métadonnée (côté serveur - pour API routes)
    */
-  static async createMetadata(
+  static async createMetadataServer(
     metadataData: MetadataCreate
   ): Promise<MetadataResponse> {
     try {
-      const metadata = await prisma.metadata_credit_credit.create({
+      const metadata = await prisma.metadata_credit.create({
         data: {
           sous_dossier_id: metadataData.sous_dossier_id,
           nom_meta: metadataData.nom_meta,
@@ -44,6 +44,10 @@ export class MetadataService {
         data: metadata,
       };
     } catch (error: unknown) {
+      console.error(
+        "Erreur détaillée lors de la création de métadonnée:",
+        error
+      );
       const errorMessage =
         error instanceof Error
           ? error.message
@@ -57,9 +61,40 @@ export class MetadataService {
   }
 
   /**
-   * Récupère toutes les métadonnées d'un sous-dossier
+   * Crée une nouvelle métadonnée (côté client - pour composants React)
    */
-  static async getMetadataBySousDossier(
+  static async createMetadata(
+    metadataData: MetadataCreate
+  ): Promise<MetadataResponse> {
+    try {
+      const response = await fetch("/api/metadata-credit", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          action: "create",
+          ...metadataData,
+        }),
+      });
+
+      const result = await response.json();
+      return result;
+    } catch (error: unknown) {
+      const errorMessage =
+        error instanceof Error
+          ? error.message
+          : "Une erreur inconnue est survenue";
+      return {
+        success: false,
+        message: `Erreur lors de la création: ${errorMessage}`,
+        data: null,
+      };
+    }
+  }
+
+  /**
+   * Récupère toutes les métadonnées d'un sous-dossier (côté serveur)
+   */
+  static async getMetadataBySousDossierServer(
     sousDossierId: number
   ): Promise<MetadataResponse> {
     try {
@@ -100,42 +135,38 @@ export class MetadataService {
   }
 
   /**
+   * Récupère toutes les métadonnées d'un sous-dossier (côté client)
+   */
+  static async getMetadataBySousDossier(
+    sousDossierId: number
+  ): Promise<MetadataResponse> {
+    try {
+      const response = await fetch(
+        `/api/metadata-credit?action=by-sous-dossier&sous_dossier_id=${sousDossierId}`
+      );
+      const result = await response.json();
+      return result;
+    } catch (error: unknown) {
+      const errorMessage =
+        error instanceof Error
+          ? error.message
+          : "Une erreur inconnue est survenue";
+      return {
+        success: false,
+        message: `Erreur lors de la récupération: ${errorMessage}`,
+        data: null,
+      };
+    }
+  }
+
+  /**
    * Récupère une métadonnée par son ID
    */
   static async getMetadataById(id: number): Promise<MetadataResponse> {
     try {
-      const metadata = await prisma.metadata_credit.findUnique({
-        where: { id },
-        include: {
-          sous_dossiers: {
-            select: {
-              id: true,
-              titre: true,
-              description: true,
-              rubriques: {
-                select: {
-                  id: true,
-                  nom: true,
-                },
-              },
-            },
-          },
-        },
-      });
-
-      if (!metadata) {
-        return {
-          success: false,
-          message: "Métadonnée non trouvée",
-          data: null,
-        };
-      }
-
-      return {
-        success: true,
-        message: "Métadonnée trouvée",
-        data: metadata,
-      };
+      const response = await fetch(`/api/metadata-credit/${id}`);
+      const result = await response.json();
+      return result;
     } catch (error: unknown) {
       const errorMessage =
         error instanceof Error
@@ -157,19 +188,14 @@ export class MetadataService {
     updateData: MetadataUpdate
   ): Promise<MetadataResponse> {
     try {
-      const metadata = await prisma.metadata_credit.update({
-        where: { id },
-        data: updateData,
-        include: {
-          sous_dossiers: true,
-        },
+      const response = await fetch(`/api/metadata-credit/${id}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(updateData),
       });
 
-      return {
-        success: true,
-        message: "Métadonnée mise à jour avec succès",
-        data: metadata,
-      };
+      const result = await response.json();
+      return result;
     } catch (error: unknown) {
       const errorMessage =
         error instanceof Error
@@ -188,15 +214,12 @@ export class MetadataService {
    */
   static async deleteMetadata(id: number): Promise<MetadataResponse> {
     try {
-      await prisma.metadata_credit.delete({
-        where: { id },
+      const response = await fetch(`/api/metadata-credit/${id}`, {
+        method: "DELETE",
       });
 
-      return {
-        success: true,
-        message: "Métadonnée supprimée avec succès",
-        data: null,
-      };
+      const result = await response.json();
+      return result;
     } catch (error: unknown) {
       const errorMessage =
         error instanceof Error

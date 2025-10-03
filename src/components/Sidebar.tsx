@@ -132,7 +132,7 @@ export default function Sidebar({
     <div
       className={`bg-primary-800 border-r border-primary-600 transition-all duration-500 ${
         collapsed ? "w-20" : "w-64"
-      } flex flex-col h-full shadow-2xl relative overflow-hidden`}
+      } flex flex-col h-full shadow-2xl relative overflow-hidden sidebar-scrollbar`}
     >
       {/* Effet de brillance */}
       <div className="absolute inset-0 bg-gradient-to-br from-white/5 via-transparent to-transparent pointer-events-none"></div>
@@ -184,7 +184,7 @@ export default function Sidebar({
       </div>
 
       {/* Navigation */}
-      <nav className="flex-1 p-4 space-y-3 overflow-y-auto">
+      <nav className="flex-1 p-4 space-y-3 overflow-y-auto sidebar-scrollbar">
         {navigationItems.map((item) => {
           const Icon = item.icon;
           return (

@@ -17,6 +17,9 @@ import {
   Trash2,
   DatabaseZap,
   Edit,
+  Eye,
+  Database,
+  SquarePen,
 } from "lucide-react";
 import AuthGuard from "@/components/AuthGuard";
 import DashboardLayout from "@/components/DashboardLayout";
@@ -425,43 +428,6 @@ export default function RubriqueParametresPage() {
     setShowMetadataViewer(true);
   };
 
-  const handleEditMetadata = (metadata: MetadataModel) => {
-    setSelectedMetadata(metadata);
-    setShowEditMetadataForm(true);
-  };
-
-  const handleDeleteMetadata = async (metadata: MetadataModel) => {
-    if (
-      !confirm(
-        `Êtes-vous sûr de vouloir supprimer la métadonnée "${metadata.nom}" ?`
-      )
-    ) {
-      return;
-    }
-
-    try {
-      console.log("🗑️ Suppression de la métadonnée:", metadata);
-
-      await MetadataService.deleteMetadata(parseInt(metadata.id));
-
-      // Rafraîchir les pièces du sous-dossier
-      if (expandedSousDossier) {
-        await loadSousDossierPieces(expandedSousDossier);
-      }
-
-      success(
-        "Métadonnée supprimée",
-        `La métadonnée "${metadata.nom}" a été supprimée avec succès.`
-      );
-    } catch (err) {
-      console.error("❌ Erreur lors de la suppression de la métadonnée:", err);
-      showError(
-        "Erreur de suppression",
-        "Impossible de supprimer la métadonnée. Veuillez réessayer."
-      );
-    }
-  };
-
   const handleSubmitEditMetadata = async (
     formData: Omit<MetadataModel, "id" | "createdAt" | "updatedAt">[]
   ) => {
@@ -512,24 +478,26 @@ export default function RubriqueParametresPage() {
       console.log("💾 Sauvegarde des métadonnées:", metadata);
       console.log("📄 Pour la pièce:", selectedPieceForMetadata);
 
-      // Créer l'API call pour sauvegarder les métadonnées
+      // Créer l'API call pour sauvegarder les modèles de métadonnées
       const response = await fetch(
-        `/api/pieces/${selectedPieceForMetadata.id}/metadata`,
+        `/api/pieces/${selectedPieceForMetadata.id}/metadata-models`,
         {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ metadata }),
+          body: JSON.stringify({ metadataModels: metadata }),
         }
       );
 
       if (!response.ok) {
-        throw new Error("Erreur lors de la sauvegarde des métadonnées");
+        const errorData = await response.json();
+        throw new Error(
+          errorData.message ||
+            "Erreur lors de la sauvegarde des modèles de métadonnées"
+        );
       }
 
-      // Mettre à jour la pièce pour indiquer qu'elle a des métadonnées
-      await piecesService.updatePiece(selectedPieceForMetadata.id, {
-        aMetadonnees: true,
-      });
+      const result = await response.json();
+      console.log("✅ Modèles de métadonnées sauvegardés:", result);
 
       // Rafraîchir les pièces du sous-dossier
       if (expandedSousDossier) {
@@ -537,183 +505,29 @@ export default function RubriqueParametresPage() {
       }
 
       success(
-        "Métadonnées ajoutées",
-        `Les métadonnées ont été ajoutées à la pièce "${selectedPieceForMetadata.nom}".`
+        "Modèles de métadonnées créés",
+        `${
+          result.models?.length || 0
+        } modèle(s) de métadonnées configuré(s) pour "${
+          selectedPieceForMetadata.nom
+        }"`
       );
 
       // Fermer la modale
       setShowMetadataForm(false);
       setSelectedPieceForMetadata(null);
     } catch (err) {
-      console.error("❌ Erreur lors de l'ajout des métadonnées:", err);
+      console.error(
+        "❌ Erreur lors de l'ajout des modèles de métadonnées:",
+        err
+      );
       showError(
         "Erreur d'ajout",
-        "Impossible d'ajouter les métadonnées. Veuillez réessayer."
+        err instanceof Error
+          ? err.message
+          : "Impossible d'ajouter les modèles de métadonnées. Veuillez réessayer."
       );
     }
-  };
-
-  // Composant pour une carte de pièce
-  const PieceCard = ({
-    piece,
-    onEdit,
-    onDelete,
-    onViewDetails,
-    onAddMetadata,
-  }: {
-    piece: PieceWithMetadata;
-    onEdit: (piece: PieceWithMetadata) => void;
-    onDelete: (piece: PieceWithMetadata) => void;
-    onViewDetails: (piece: PieceWithMetadata) => void;
-    onAddMetadata: (piece: PieceWithMetadata) => void;
-  }) => {
-    return (
-      <div className="bg-white rounded-xl border border-gray-200 shadow-sm hover:shadow-md transition-all duration-300 group hover:border-accent-blue/30 overflow-hidden">
-        {/* Header principal du document */}
-        <div className="p-4">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-3 flex-1 min-w-0">
-              <div className="relative flex-shrink-0">
-                <div className="w-8 h-8 bg-gradient-to-br from-accent-green to-green-600 rounded-lg flex items-center justify-center shadow-sm">
-                  <File className="w-4 h-4 text-white" />
-                </div>
-                {piece.aMetadonnees && (
-                  <div className="absolute -top-1 -right-1 w-3 h-3 bg-gradient-to-br from-warning-500 to-orange-500 rounded-full flex items-center justify-center shadow-sm">
-                    <DatabaseZap className="w-2 h-2 text-white" />
-                  </div>
-                )}
-              </div>
-              <div className="flex-1 min-w-0">
-                <h4 className="font-semibold text-gray-900 text-sm group-hover:text-accent-blue transition-colors duration-300 truncate">
-                  {piece.nom}
-                </h4>
-                {piece.description && (
-                  <p className="text-xs text-gray-600 truncate">
-                    {piece.description}
-                  </p>
-                )}
-                <div className="flex items-center gap-2 mt-1">
-                  {piece.aMetadonnees && (
-                    <div className="flex items-center gap-1 text-xs text-accent-green bg-accent-green-light px-2 py-0.5 rounded">
-                      <DatabaseZap className="w-2.5 h-2.5" />
-                      <span>{piece.metadonnees?.length || 0}</span>
-                    </div>
-                  )}
-                </div>
-              </div>
-            </div>
-
-            {/* Boutons d'action compacts */}
-            <div className="flex items-center gap-1 opacity-100 flex-shrink-0">
-              <button
-                onClick={() => onViewDetails(piece)}
-                className="p-1.5 bg-blue-50 text-blue-700 hover:bg-blue-100 rounded border border-blue-200"
-                title="Voir les détails"
-              >
-                <FileText className="w-4 h-4" />
-              </button>
-              {!piece.aMetadonnees && (
-                <button
-                  onClick={() => onAddMetadata(piece)}
-                  className="p-1.5 bg-purple-50 text-purple-700 hover:bg-purple-100 rounded border border-purple-200"
-                  title="Ajouter des métadonnées"
-                >
-                  <DatabaseZap className="w-4 h-4" />
-                </button>
-              )}
-              <button
-                onClick={() => onEdit(piece)}
-                className="p-1.5 bg-emerald-50 text-emerald-700 hover:bg-emerald-100 rounded border border-emerald-200"
-                title="Modifier"
-              >
-                <Edit className="w-4 h-4" />
-              </button>
-              <button
-                onClick={() => onDelete(piece)}
-                className="p-1.5 bg-red-50 text-red-700 hover:bg-red-100 rounded border border-red-200"
-                title="Supprimer"
-              >
-                <Trash2 className="w-4 h-4" />
-              </button>
-            </div>
-          </div>
-        </div>
-
-        {/* Section des champs personnalisés */}
-        {piece.aMetadonnees &&
-          piece.metadonnees &&
-          piece.metadonnees.length > 0 && (
-            <div className="border-t border-gray-200 bg-gradient-to-r from-accent-green-light/20 to-blue-50/30 p-3">
-              <div className="flex items-center gap-2 mb-3">
-                <div className="w-2 h-2 bg-accent-green rounded-full"></div>
-                <h5 className="text-xs font-semibold text-gray-800">
-                  Champs personnalisés
-                </h5>
-              </div>
-              <div className="grid gap-2">
-                {piece.metadonnees.map((meta) => (
-                  <div
-                    key={meta.id}
-                    className="group flex items-center justify-between bg-white rounded-lg p-3 border border-gray-200 shadow-sm hover:shadow-sm transition-all duration-200 hover:border-accent-green/50"
-                  >
-                    <div className="flex items-center gap-3 flex-1 min-w-0">
-                      <div className="w-6 h-6 bg-gradient-to-br from-accent-green to-green-600 rounded flex items-center justify-center shadow-sm flex-shrink-0">
-                        <span className="text-xs font-bold text-white">
-                          {meta.type.charAt(0).toUpperCase()}
-                        </span>
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-center gap-2">
-                          <span className="text-xs font-semibold text-gray-900 truncate">
-                            {meta.nom}
-                          </span>
-                          <span className="text-xs bg-gray-100 text-gray-600 px-1.5 py-0.5 rounded flex-shrink-0">
-                            {meta.type}
-                          </span>
-                          {meta.obligatoire && (
-                            <span className="text-xs bg-red-100 text-red-600 px-1.5 py-0.5 rounded flex-shrink-0">
-                              Req.
-                            </span>
-                          )}
-                        </div>
-                        {meta.description && (
-                          <p className="text-xs text-gray-600 truncate">
-                            {meta.description}
-                          </p>
-                        )}
-                      </div>
-                    </div>
-
-                    {/* Boutons d'action compacts */}
-                    <div className="flex items-center gap-1 opacity-100 flex-shrink-0">
-                      <button
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          handleEditMetadata(meta);
-                        }}
-                        className="p-1 bg-blue-50 text-blue-700 hover:bg-blue-100 rounded border border-blue-200"
-                        title="Modifier"
-                      >
-                        <Settings className="w-3.5 h-3.5" />
-                      </button>
-                      <button
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          handleDeleteMetadata(meta);
-                        }}
-                        className="p-1 bg-red-50 text-red-700 hover:bg-red-100 rounded border border-red-200"
-                        title="Supprimer"
-                      >
-                        <Trash2 className="w-3.5 h-3.5" />
-                      </button>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
-      </div>
-    );
   };
 
   // Composant pour le contenu des pièces d'un sous-dossier
@@ -770,24 +584,116 @@ export default function RubriqueParametresPage() {
               </p>
             </div>
           </div>
-          <div className="flex items-center gap-2">
-            <div className="text-xs text-gray-500 bg-gray-100 px-3 py-1.5 rounded-lg transition-all duration-300">
+          <div className="flex items-center gap-3">
+            <div className="text-xs text-primary-600 bg-primary-100 px-3 py-1.5 rounded-lg">
               {pieces.filter((p) => p.aMetadonnees).length} avec métadonnées
             </div>
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                onCreatePiece(sousDossierId);
+              }}
+              className="button-primary btn-sm gap-2"
+            >
+              <Plus className="w-4 h-4" />
+              Ajouter un document
+            </button>
           </div>
         </div>
-        <div className="grid gap-4">
-          {pieces.map((piece) => (
-            <div key={piece.id}>
-              <PieceCard
-                piece={piece}
-                onEdit={handleEditPiece}
-                onDelete={handleDeletePiece}
-                onViewDetails={handleViewPieceDetails}
-                onAddMetadata={handleAddMetadata}
-              />
-            </div>
-          ))}
+        <div className="overflow-x-auto content-scrollbar">
+          <table className="table table-zebra w-full">
+            <thead>
+              <tr className="bg-primary-50 border-b border-primary-600">
+                <th className="text-primary-700 font-semibold">#</th>
+                <th className="text-primary-700 font-semibold">
+                  Nom du document
+                </th>
+                <th className="text-primary-700 font-semibold">Description</th>
+                <th className="text-primary-700 font-semibold">Métadonnées</th>
+                <th className="text-primary-700 font-semibold">
+                  Date de création
+                </th>
+                <th className="text-primary-700 font-semibold text-center">
+                  Actions
+                </th>
+              </tr>
+            </thead>
+            <tbody>
+              {pieces.map((piece, index) => (
+                <tr
+                  key={piece.id}
+                  className="hover:bg-primary-25 border-b border-primary-600 bg-primary-100"
+                >
+                  <td>
+                    <div className="w-8 h-8 bg-primary-200 rounded-lg flex items-center justify-center text-sm font-bold text-primary-700">
+                      {index + 1}
+                    </div>
+                  </td>
+                  <td>
+                    <div className="font-semibold text-primary-900 flex items-center gap-2">
+                      <File className="w-4 h-4 text-primary-600" />
+                      {piece.nom}
+                    </div>
+                  </td>
+                  <td>
+                    <div className="text-primary-700 text-sm max-w-xs truncate">
+                      {piece.description || "-"}
+                    </div>
+                  </td>
+                  <td>
+                    <span
+                      className={`badge badge-outline ${
+                        piece.aMetadonnees
+                          ? "bg-success-50 text-success-700 border-success-300"
+                          : "bg-warning-50 text-warning-700 border-warning-300"
+                      }`}
+                    >
+                      {piece.aMetadonnees
+                        ? "Avec métadonnées"
+                        : "Sans métadonnées"}
+                    </span>
+                  </td>
+                  <td>
+                    <span className="text-primary-600 text-sm">
+                      {new Date(piece.createdAt).toLocaleDateString("fr-FR")}
+                    </span>
+                  </td>
+                  <td>
+                    <div className="flex gap-2 justify-center">
+                      <button
+                        onClick={() => handleViewPieceDetails(piece)}
+                        className="btn btn-ghost btn-sm hover:bg-primary-100"
+                        title="Voir détails"
+                      >
+                        <Eye className="w-4 h-4 text-primary-600" />
+                      </button>
+                      <button
+                        onClick={() => handleEditPiece(piece)}
+                        className="btn btn-ghost btn-sm hover:bg-primary-100"
+                        title="Modifier"
+                      >
+                        <Edit className="w-4 h-4 text-primary-600" />
+                      </button>
+                      <button
+                        onClick={() => handleAddMetadata(piece)}
+                        className="btn btn-ghost btn-sm hover:bg-accent-purple-light"
+                        title="Gérer métadonnées"
+                      >
+                        <Database className="w-4 h-4 text-accent-purple" />
+                      </button>
+                      <button
+                        onClick={() => handleDeletePiece(piece)}
+                        className="btn btn-ghost btn-sm hover:bg-accent-red-light"
+                        title="Supprimer"
+                      >
+                        <Trash2 className="w-4 h-4 text-accent-red" />
+                      </button>
+                    </div>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
         </div>
       </div>
     );
@@ -1029,7 +935,7 @@ export default function RubriqueParametresPage() {
                     >
                       {/* Header du sous-dossier */}
                       <div
-                        className="p-4 hover:bg-primary-50 cursor-pointer"
+                        className="p-4 bg-primary-300 hover:bg-primary-600 transition-all duration-300 hover:text-white rounded-lg cursor-pointer"
                         onClick={() =>
                           toggleSousDossierExpansion(sousDossier.id)
                         }
@@ -1039,11 +945,11 @@ export default function RubriqueParametresPage() {
                             {/* Chevron compact */}
                             <div className="flex-shrink-0">
                               {expandedSousDossier === sousDossier.id ? (
-                                <div className="w-5 h-5 bg-accent-blue rounded flex items-center justify-center shadow-sm transform rotate-180">
+                                <div className="w-5 h-5 bg-primary-700 rounded flex items-center justify-center shadow-sm transform rotate-180">
                                   <ChevronDown className="w-3 h-3 text-white" />
                                 </div>
                               ) : (
-                                <div className="w-5 h-5 bg-primary-400 rounded flex items-center justify-center shadow-sm group-hover:bg-accent-blue">
+                                <div className="w-5 h-5 bg-primary-400 rounded flex items-center justify-center shadow-sm group-hover:bg-primary-600">
                                   <ChevronRight className="w-3 h-3 text-white" />
                                 </div>
                               )}
@@ -1109,7 +1015,7 @@ export default function RubriqueParametresPage() {
                                 className="p-1.5 bg-blue-50 text-blue-700 hover:bg-blue-100 rounded border border-blue-200"
                                 title="Modifier"
                               >
-                                <Settings className="w-4 h-4" />
+                                <SquarePen className="w-4 h-4" />
                               </button>
 
                               <button
@@ -1277,7 +1183,6 @@ export default function RubriqueParametresPage() {
               setSelectedSousDossierForMetadata(null);
             }}
             sousDossierId={selectedSousDossierForMetadata}
-            rubriqueId={rubriqueId}
           />
         )}
 
