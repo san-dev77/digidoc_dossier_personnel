@@ -14,24 +14,33 @@ import {
   Music,
   Table,
 } from "lucide-react";
-import type { PieceData } from "@/services/agent-data";
+import type { PieceData, FileData } from "@/services/agent-data";
 
 // Composant pour gérer l'affichage des images avec fallback
-const ImagePreview = ({ file, fileName }: { file: any; fileName: string }) => {
+const ImagePreview = ({
+  file,
+  fileName,
+}: {
+  file: FileData;
+  fileName: string;
+}) => {
   const [imageError, setImageError] = useState(false);
+  const [imageUrl, setImageUrl] = useState(file.file_path);
 
   return (
     <div className="w-16 h-16 rounded-lg overflow-hidden border border-gray-200 bg-gray-50 relative">
       {!imageError ? (
-        <img
-          src={`/api/files/${file.id}`}
+        <Image
+          src={imageUrl}
           alt={fileName}
           className="w-full h-full object-cover"
           onError={() => setImageError(true)}
+          width={100}
+          height={100}
         />
       ) : (
         <div className="w-full h-full bg-gradient-to-br from-green-100 to-green-200 flex items-center justify-center">
-          <Image className="w-6 h-6 text-green-600" />
+          <Image className="w-6 h-6 text-green-600" alt="Image" />
         </div>
       )}
     </div>

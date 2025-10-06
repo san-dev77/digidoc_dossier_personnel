@@ -17,6 +17,7 @@ import {
   Shield,
   Bell,
   BarChart3,
+  HardDrive,
 } from "lucide-react";
 import { useState } from "react";
 
@@ -103,6 +104,17 @@ export default function Sidebar({
       bgColor: "bg-orange-50",
       textColor: "text-orange-700",
       borderColor: "border-orange-200",
+    },
+    {
+      name: "Explorateur",
+      href: "/explorateur",
+      icon: HardDrive,
+      current: pathname.startsWith("/explorateur"),
+      description: "Explorateur de fichiers",
+      color: "from-blue-500 to-blue-600",
+      bgColor: "bg-slate-50",
+      textColor: "text-slate-700",
+      borderColor: "border-slate-200",
     },
     {
       name: "Pièces",

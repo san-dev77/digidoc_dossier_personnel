@@ -14,7 +14,10 @@ import {
   Trash2,
   Database,
 } from "lucide-react";
-import type { CreditDossierData, MetadataCredit } from "@/types/credit-dossier";
+import type {
+  CreditDossierData,
+  MetadataCredit,
+} from "../types/credit-dossier";
 
 interface CreditDossierViewerProps {
   sousDossierId: number;
