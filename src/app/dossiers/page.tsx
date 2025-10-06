@@ -31,9 +31,11 @@ import { agentsService } from "@/services/agents";
 import { type PieceData } from "@/services/agent-data";
 import { DossiersOptimizedService } from "@/services/dossiers-optimized";
 import { useDossiersStore } from "@/store/dossiersStore";
-import AgentDataViewer from "@/components/AgentDataViewer";
+import AgentDataViewerOptimized from "@/components/AgentDataViewerOptimized";
 import PieceViewerModal from "@/components/PieceViewerModal";
 import SuccessNotification from "@/components/SuccessNotification";
+import CreditDossierViewer from "@/components/CreditDossierViewer";
+import { isDossierCredit } from "@/utils/rubrique-utils";
 import type { Rubrique, MetaValue, Agent } from "@/types";
 import Image from "next/image";
 
@@ -857,6 +859,29 @@ function NouveauSousDossierModal({
                       )}
                     </div>
                   </div>
+
+                  {/* Bouton Terminer pour les dossiers de crédit */}
+                  {selectedRubrique && isDossierCredit(selectedRubrique) && (
+                    <div className="mt-6 flex justify-center">
+                      <button
+                        onClick={() => {
+                          // Afficher notification de succès
+                          setSuccessMessage(
+                            "✅ Dossier de crédit créé avec succès !"
+                          );
+
+                          // Rafraîchir la page après un délai
+                          setTimeout(() => {
+                            window.location.reload();
+                          }, 2000);
+                        }}
+                        className="group flex items-center gap-2 px-8 py-4 bg-gradient-to-r from-emerald-500 to-emerald-600 text-white rounded-xl hover:from-emerald-600 hover:to-emerald-700 transition-all duration-300 shadow-lg hover:shadow-xl transform hover:scale-105 font-semibold text-lg"
+                      >
+                        <CheckCircle className="w-5 h-5 group-hover:scale-110 transition-transform duration-300" />
+                        Terminer la création du dossier
+                      </button>
+                    </div>
+                  )}
                 </div>
               ) : /* Affichage normal pour les autres dossiers */
               loading ? (
@@ -1481,6 +1506,11 @@ export default function DossiersPage() {
   const [selectedPieceData, setSelectedPieceData] = useState<PieceData | null>(
     null
   );
+  const [showCreditViewer, setShowCreditViewer] = useState(false);
+  const [selectedCreditSousDossier, setSelectedCreditSousDossier] = useState<{
+    id: number;
+    rubriqueId: number;
+  } | null>(null);
 
   const loadDossiers = useCallback(
     async (forceRefresh: boolean = false) => {
@@ -1551,6 +1581,14 @@ export default function DossiersPage() {
   const handlePieceClick = (pieceData: PieceData) => {
     setSelectedPieceData(pieceData);
     setShowPieceViewer(true);
+  };
+
+  const handleCreditDossierClick = (
+    sousDossierId: number,
+    rubriqueId: number
+  ) => {
+    setSelectedCreditSousDossier({ id: sousDossierId, rubriqueId });
+    setShowCreditViewer(true);
   };
 
   // Utiliser le store pour obtenir l'état du cache
@@ -1712,7 +1750,10 @@ export default function DossiersPage() {
 
         {/* Liste des dossiers */}
         <div className="space-y-6">
-          <AgentDataViewer onPieceClick={handlePieceClick} />
+          <AgentDataViewerOptimized
+            onPieceClick={handlePieceClick}
+            onCreditDossierClick={handleCreditDossierClick}
+          />
         </div>
 
         {/* Modal Nouveau Sous-dossier */}
@@ -1733,6 +1774,40 @@ export default function DossiersPage() {
           onClose={() => setShowPieceViewer(false)}
           pieceData={selectedPieceData}
         />
+
+        {/* Modal de consultation des dossiers de crédit */}
+        {showCreditViewer && selectedCreditSousDossier && (
+          <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+            <div className="bg-white rounded-2xl shadow-2xl max-w-4xl w-full max-h-[90vh] overflow-hidden">
+              <div className="p-6 border-b border-slate-200">
+                <div className="flex items-center justify-between">
+                  <h2 className="text-2xl font-bold text-slate-800">
+                    Dossier de crédit
+                  </h2>
+                  <button
+                    onClick={() => {
+                      setShowCreditViewer(false);
+                      setSelectedCreditSousDossier(null);
+                    }}
+                    className="p-2 text-slate-600 hover:text-slate-800 hover:bg-slate-100 rounded-lg transition-colors"
+                  >
+                    <X className="w-6 h-6" />
+                  </button>
+                </div>
+              </div>
+              <div className="p-6 overflow-y-auto max-h-[calc(90vh-120px)]">
+                <CreditDossierViewer
+                  sousDossierId={selectedCreditSousDossier.id}
+                  rubriqueId={selectedCreditSousDossier.rubriqueId}
+                  onClose={() => {
+                    setShowCreditViewer(false);
+                    setSelectedCreditSousDossier(null);
+                  }}
+                />
+              </div>
+            </div>
+          </div>
+        )}
 
         {/* Popup de succès */}
         {showSuccessPopup && (

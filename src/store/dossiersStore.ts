@@ -140,7 +140,7 @@ export const useDossiersStore = create<CacheState>()(
       piecesCache: {},
       loading: false,
       lastFetch: 0,
-      cacheExpiry: 5 * 60 * 1000, // 5 minutes
+      cacheExpiry: 15 * 60 * 1000, // 15 minutes
 
       // Actions de base
       setDossiers: (dossiers) =>
