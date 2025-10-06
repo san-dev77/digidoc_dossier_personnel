@@ -33,6 +33,7 @@ import { DossiersOptimizedService } from "@/services/dossiers-optimized";
 import { useDossiersStore } from "@/store/dossiersStore";
 import AgentDataViewer from "@/components/AgentDataViewer";
 import PieceViewerModal from "@/components/PieceViewerModal";
+import SuccessNotification from "@/components/SuccessNotification";
 import type { Rubrique, MetaValue, Agent } from "@/types";
 import Image from "next/image";
 
@@ -211,6 +212,7 @@ function NouveauSousDossierModal({
   const [creditMetadata, setCreditMetadata] = useState<any[]>([]);
   const [creditValues, setCreditValues] = useState<Record<string, string>>({});
   const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
+  const [pieceFiles, setPieceFiles] = useState<Record<string, File[]>>({});
   // const [uploadedFiles, setUploadedFiles] = useState<
   //   Array<{ name: string; size: number; url: string }>
   // >([]);
@@ -225,6 +227,8 @@ function NouveauSousDossierModal({
   const [justUploaded, setJustUploaded] = useState(false);
   const [modalKey, setModalKey] = useState(0);
   const [ignoreExistingValues, setIgnoreExistingValues] = useState(false);
+  const [validationError, setValidationError] = useState<string | null>(null);
+  const [successMessage, setSuccessMessage] = useState<string | null>(null);
   // const [forceRerender, setForceRerender] = useState(0);
 
   // Fonction pour créer l'aperçu d'un fichier
@@ -250,6 +254,7 @@ function NouveauSousDossierModal({
     setSelectedSousDossier(null);
     setPieces([]);
     setSelectedFiles([]);
+    setPieceFiles({});
     // setUploadedFiles([]);
     setPreviewFile(null);
     setMetadataValues({}); // Reset des valeurs de métadonnées
@@ -260,6 +265,8 @@ function NouveauSousDossierModal({
     setJustUploaded(false); // Reset du flag d'upload
     setIgnoreExistingValues(true); // Ignorer les valeurs existantes
     setModalKey((prev) => prev + 1); // Incrémenter la clé pour forcer la recréation
+    setValidationError(null); // Reset de l'erreur de validation
+    setSuccessMessage(null); // Reset du message de succès
     // setForceRerender((prev) => prev + 1); // Forcer un rerender complet
   };
 
@@ -476,10 +483,10 @@ function NouveauSousDossierModal({
                   <div
                     key={agent.id}
                     onClick={() => setSelectedAgent(agent)}
-                    className={`group p-4 border-2 rounded-2xl cursor-pointer transition-all duration-300 transform hover:scale-[1.02] ${
+                    className={`group p-4 border-2 rounded-2xl cursor-pointer transition-all duration-300 transform ${
                       selectedAgent?.id === agent.id
-                        ? "border-slate-500 bg-gradient-to-r from-slate-50 to-slate-100 shadow-lg"
-                        : "border-slate-200 hover:border-slate-300 hover:shadow-md"
+                        ? "border-blue-700 bg-gradient-to-r from-slate-50 to-slate-100 shadow-lg"
+                        : "border-slate-200 hover:border-slate-500 hover:shadow-md"
                     }`}
                   >
                     <div className="flex items-center gap-4">
@@ -538,10 +545,10 @@ function NouveauSousDossierModal({
                   <div
                     key={rubrique.id}
                     onClick={() => setSelectedRubrique(rubrique)}
-                    className={`group p-4 border-2 rounded-2xl cursor-pointer transition-all duration-300 transform hover:scale-[1.02] ${
+                    className={`group p-4 border-2 rounded-2xl cursor-pointer transition-all duration-300 transform hover:scale-[1] ${
                       selectedRubrique?.id === rubrique.id
                         ? "border-slate-500 bg-gradient-to-r from-slate-50 to-slate-100 shadow-lg"
-                        : "border-slate-200 hover:border-slate-300 hover:shadow-md"
+                        : "border-slate-200 hover:border-slate-700 hover:shadow-md"
                     }`}
                   >
                     <div className="flex items-center gap-4">
@@ -594,15 +601,15 @@ function NouveauSousDossierModal({
                   className="w-full pl-10 pr-4 py-2 border border-slate-500 text-black rounded-lg focus:ring-2 focus:ring-slate-500 focus:border-slate-500"
                 />
               </div>
-              <div className="space-y-3 border-2 border-slate-500 text-black rounded-lg max-h-60 overflow-y-auto">
+              <div className="space-y-3 p-3 border-2 border-slate-500 text-black rounded-lg max-h-60 overflow-y-auto">
                 {filteredSousDossiers.map((sousDossier) => (
                   <div
                     key={sousDossier.id}
                     onClick={() => setSelectedSousDossier(sousDossier)}
-                    className={`group p-4 border-2 rounded-2xl cursor-pointer transition-all duration-300 transform hover:scale-[1.02] ${
+                    className={`group p-4 border-2  rounded-2xl cursor-pointer transition-all duration-300 transform hover:scale-[1] ${
                       selectedSousDossier?.id === sousDossier.id
                         ? "border-slate-500 bg-gradient-to-r from-slate-50 to-slate-100 shadow-lg"
-                        : "border-slate-200 hover:border-slate-300 hover:shadow-md"
+                        : "border-slate-200 hover:border-slate-700 hover:shadow-md"
                     }`}
                   >
                     <div className="flex items-center gap-4">
@@ -999,61 +1006,65 @@ function NouveauSousDossierModal({
                           </div>
                         )}
 
-                      {/* Upload de fichiers */}
+                      {/* Upload de fichiers individuel pour cette pièce */}
                       <div>
                         <h5 className="text-sm font-medium text-slate-700 mb-2">
-                          Fichiers:
+                          Fichiers pour cette pièce:
                         </h5>
 
-                        {/* Liste des fichiers sélectionnés */}
-                        {selectedFiles.length > 0 && (
-                          <div className="mb-3 p-3 bg-slate-50 rounded-lg border border-slate-200">
-                            <h6 className="text-xs font-semibold text-slate-600 mb-2">
-                              Fichiers sélectionnés ({selectedFiles.length}):
-                            </h6>
-                            <div className="space-y-2">
-                              {selectedFiles.map((file, index) => (
-                                <div
-                                  key={index}
-                                  className="flex items-center justify-between p-2 bg-white rounded border border-slate-200"
-                                >
-                                  <div className="flex items-center gap-2">
-                                    <File className="w-4 h-4 text-slate-500" />
-                                    <span className="text-sm text-slate-700">
-                                      {file.name}
-                                    </span>
-                                    <span className="text-xs text-slate-500">
-                                      ({(file.size / 1024 / 1024).toFixed(2)}{" "}
-                                      MB)
-                                    </span>
+                        {/* Liste des fichiers sélectionnés pour cette pièce */}
+                        {pieceFiles[piece.id] &&
+                          pieceFiles[piece.id].length > 0 && (
+                            <div className="mb-3 p-3 bg-slate-50 rounded-lg border border-slate-200">
+                              <h6 className="text-xs font-semibold text-slate-600 mb-2">
+                                Fichiers sélectionnés (
+                                {pieceFiles[piece.id].length}):
+                              </h6>
+                              <div className="space-y-2">
+                                {pieceFiles[piece.id].map((file, index) => (
+                                  <div
+                                    key={index}
+                                    className="flex items-center justify-between p-2 bg-white rounded border border-slate-200"
+                                  >
+                                    <div className="flex items-center gap-2">
+                                      <File className="w-4 h-4 text-slate-500" />
+                                      <span className="text-sm text-slate-700">
+                                        {file.name}
+                                      </span>
+                                      <span className="text-xs text-slate-500">
+                                        ({(file.size / 1024 / 1024).toFixed(2)}{" "}
+                                        MB)
+                                      </span>
+                                    </div>
+                                    <div className="flex items-center gap-1">
+                                      <button
+                                        onClick={() => createFilePreview(file)}
+                                        className="text-blue-500 hover:text-blue-700 p-1"
+                                        title="Aperçu"
+                                      >
+                                        <Eye className="w-4 h-4" />
+                                      </button>
+                                      <button
+                                        onClick={() => {
+                                          setPieceFiles((prev) => ({
+                                            ...prev,
+                                            [piece.id]:
+                                              prev[piece.id]?.filter(
+                                                (_, i) => i !== index
+                                              ) || [],
+                                          }));
+                                        }}
+                                        className="text-red-500 hover:text-red-700 p-1"
+                                        title="Supprimer"
+                                      >
+                                        <X className="w-4 h-4" />
+                                      </button>
+                                    </div>
                                   </div>
-                                  <div className="flex items-center gap-1">
-                                    <button
-                                      onClick={() => createFilePreview(file)}
-                                      className="text-blue-500 hover:text-blue-700 p-1"
-                                      title="Aperçu"
-                                    >
-                                      <Eye className="w-4 h-4" />
-                                    </button>
-                                    <button
-                                      onClick={() => {
-                                        setSelectedFiles(
-                                          selectedFiles.filter(
-                                            (_, i) => i !== index
-                                          )
-                                        );
-                                      }}
-                                      className="text-red-500 hover:text-red-700 p-1"
-                                      title="Supprimer"
-                                    >
-                                      <X className="w-4 h-4" />
-                                    </button>
-                                  </div>
-                                </div>
-                              ))}
+                                ))}
+                              </div>
                             </div>
-                          </div>
-                        )}
+                          )}
 
                         <div className="border-2 border-dashed border-slate-600 rounded-lg p-3 text-center">
                           <Upload className="w-8 h-8 text-slate-400 mx-auto mb-2" />
@@ -1069,12 +1080,20 @@ function NouveauSousDossierModal({
                             onChange={(e) => {
                               const files = e.target.files;
                               if (files && files.length > 0) {
-                                console.log("Fichiers sélectionnés:", files);
-                                // Ajouter les nouveaux fichiers aux fichiers déjà sélectionnés
-                                setSelectedFiles((prev) => [
+                                console.log(
+                                  "Fichiers sélectionnés pour",
+                                  piece.nom,
+                                  ":",
+                                  files
+                                );
+                                // Ajouter les nouveaux fichiers aux fichiers de cette pièce
+                                setPieceFiles((prev) => ({
                                   ...prev,
-                                  ...Array.from(files),
-                                ]);
+                                  [piece.id]: [
+                                    ...(prev[piece.id] || []),
+                                    ...Array.from(files),
+                                  ],
+                                }));
                               }
                             }}
                           />
@@ -1083,11 +1102,199 @@ function NouveauSousDossierModal({
                             className="inline-flex items-center gap-2 px-4 py-2 bg-slate-600 text-white rounded-lg hover:bg-slate-700 transition-colors cursor-pointer"
                           >
                             <Upload className="w-4 h-4" />
-                            {selectedFiles.length > 0
+                            {pieceFiles[piece.id] &&
+                            pieceFiles[piece.id].length > 0
                               ? "Ajouter des fichiers"
                               : "Sélectionner des fichiers"}
                           </label>
                         </div>
+
+                        {/* Bouton Charger pour cette pièce */}
+                        {pieceFiles[piece.id] &&
+                          pieceFiles[piece.id].length > 0 && (
+                            <div className="mt-3 flex justify-center">
+                              <button
+                                onClick={async () => {
+                                  if (
+                                    !selectedRubrique ||
+                                    !selectedSousDossier
+                                  ) {
+                                    setValidationError(
+                                      "❌ Erreur : Rubrique ou sous-dossier non sélectionné"
+                                    );
+                                    return;
+                                  }
+
+                                  try {
+                                    // Uploader le premier fichier de cette pièce
+                                    const file = pieceFiles[piece.id][0];
+                                    const formData = new FormData();
+                                    formData.append("file", file);
+                                    formData.append(
+                                      "rubriqueId",
+                                      selectedRubrique.id
+                                    );
+                                    formData.append(
+                                      "sousDossierId",
+                                      selectedSousDossier.id
+                                    );
+                                    formData.append(
+                                      "agentId",
+                                      selectedAgent?.id || ""
+                                    );
+                                    formData.append("nom", piece.nom);
+                                    formData.append("fileName", file.name);
+                                    formData.append(
+                                      "description",
+                                      `Fichier uploadé: ${file.name}`
+                                    );
+
+                                    const response = await fetch(
+                                      "/api/upload",
+                                      {
+                                        method: "POST",
+                                        body: formData,
+                                      }
+                                    );
+
+                                    if (!response.ok) {
+                                      const error = await response.json();
+                                      console.error("Erreur upload:", error);
+                                      setValidationError(
+                                        `❌ Erreur lors de l'upload de ${file.name}`
+                                      );
+                                      return;
+                                    }
+
+                                    const uploadResult = await response.json();
+                                    console.log(
+                                      "Fichier uploadé:",
+                                      uploadResult
+                                    );
+
+                                    // Lier le fichier à la pièce existante
+                                    try {
+                                      const fileResponse = await fetch(
+                                        `/api/pieces/${piece.id}/files`,
+                                        {
+                                          method: "POST",
+                                          headers: {
+                                            "Content-Type": "application/json",
+                                          },
+                                          body: JSON.stringify({
+                                            file_path:
+                                              uploadResult.data.filePath,
+                                          }),
+                                        }
+                                      );
+
+                                      if (!fileResponse.ok) {
+                                        console.error(
+                                          "Erreur liaison fichier à la pièce"
+                                        );
+                                        setValidationError(
+                                          "❌ Erreur lors de la liaison du fichier à la pièce"
+                                        );
+                                        return;
+                                      }
+
+                                      console.log(
+                                        "Fichier lié à la pièce avec succès"
+                                      );
+
+                                      // Supprimer le fichier de la liste après upload réussi
+                                      setPieceFiles((prev) => ({
+                                        ...prev,
+                                        [piece.id]:
+                                          prev[piece.id]?.filter(
+                                            (_, i) => i !== 0
+                                          ) || [],
+                                      }));
+
+                                      // Sauvegarder les métadonnées pour cette pièce si elles existent
+                                      if (
+                                        piece.metadataModels &&
+                                        piece.metadataModels.length > 0
+                                      ) {
+                                        for (const model of piece.metadataModels) {
+                                          const metadataKey = `${piece.id}_${model.id}`;
+                                          const metadataValue =
+                                            metadataValues[metadataKey];
+
+                                          if (
+                                            metadataValue &&
+                                            metadataValue.trim() !== ""
+                                          ) {
+                                            try {
+                                              const metadataResponse =
+                                                await fetch(
+                                                  `/api/pieces/${piece.id}/metadata`,
+                                                  {
+                                                    method: "POST",
+                                                    headers: {
+                                                      "Content-Type":
+                                                        "application/json",
+                                                    },
+                                                    body: JSON.stringify({
+                                                      meta_model_id: model.id,
+                                                      valeur: metadataValue,
+                                                    }),
+                                                  }
+                                                );
+
+                                              if (metadataResponse.ok) {
+                                                console.log(
+                                                  `Métadonnée ${model.libelle} sauvegardée`
+                                                );
+                                              } else {
+                                                console.error(
+                                                  `Erreur sauvegarde métadonnée ${model.libelle}`
+                                                );
+                                              }
+                                            } catch (error) {
+                                              console.error(
+                                                `Erreur métadonnée ${model.libelle}:`,
+                                                error
+                                              );
+                                            }
+                                          }
+                                        }
+                                      }
+
+                                      // Afficher un message de succès
+                                      setValidationError(null);
+                                      setSuccessMessage(
+                                        `✅ Fichier et métadonnées uploadés avec succès pour "${piece.nom}"`
+                                      );
+                                      console.log(
+                                        `✅ Fichier uploadé avec succès pour ${piece.nom}`
+                                      );
+                                    } catch (error) {
+                                      console.error(
+                                        "Erreur lors de la liaison du fichier:",
+                                        error
+                                      );
+                                      setValidationError(
+                                        "❌ Erreur lors de la liaison du fichier"
+                                      );
+                                    }
+                                  } catch (error) {
+                                    console.error(
+                                      "Erreur lors de l'upload:",
+                                      error
+                                    );
+                                    setValidationError(
+                                      "❌ Erreur lors de l'upload du fichier"
+                                    );
+                                  }
+                                }}
+                                className="inline-flex items-center gap-2 px-4 py-2 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 transition-colors"
+                              >
+                                <CheckCircle className="w-4 h-4" />
+                                Charger pour {piece.nom}
+                              </button>
+                            </div>
+                          )}
                       </div>
                     </div>
                   ))}
@@ -1096,6 +1303,18 @@ function NouveauSousDossierModal({
             </div>
           )}
         </div>
+
+        {/* Message d'erreur de validation */}
+        {validationError && (
+          <div className="mx-6 mb-4 p-4 bg-red-50 border border-red-200 rounded-lg">
+            <div className="flex items-center gap-3">
+              <div className="w-5 h-5 bg-red-500 rounded-full flex items-center justify-center">
+                <span className="text-white text-xs font-bold">!</span>
+              </div>
+              <p className="text-red-700 font-medium">{validationError}</p>
+            </div>
+          </div>
+        )}
 
         {/* Footer du modal */}
         <div className="flex items-center justify-between p-8 border-t border-slate-200 bg-gradient-to-r from-slate-50 to-white">
@@ -1134,171 +1353,23 @@ function NouveauSousDossierModal({
                 <ChevronRight className="w-4 h-4 group-hover:translate-x-1 transition-transform duration-300" />
               </button>
             ) : (
-              <button
-                type="button"
-                onClick={async () => {
-                  // Uploader les fichiers sélectionnés
-                  if (
-                    selectedFiles.length > 0 &&
-                    selectedRubrique &&
-                    selectedSousDossier
-                  ) {
-                    console.log("🔍 Debug upload:", {
-                      selectedRubrique: selectedRubrique,
-                      selectedSousDossier: selectedSousDossier,
-                      rubriqueId: selectedRubrique.id,
-                      sousDossierId: selectedSousDossier.id,
-                    });
-
-                    try {
-                      // Pour chaque pièce sélectionnée
-                      for (const piece of pieces) {
-                        // Si cette pièce a des fichiers sélectionnés
-                        if (selectedFiles.length > 0) {
-                          // Uploader le premier fichier (on peut adapter pour plusieurs)
-                          const file = selectedFiles[0];
-                          const formData = new FormData();
-                          formData.append("file", file);
-                          formData.append("rubriqueId", selectedRubrique.id);
-                          formData.append(
-                            "sousDossierId",
-                            selectedSousDossier.id
-                          );
-                          formData.append("agentId", selectedAgent?.id || "");
-                          formData.append("nom", piece.nom);
-                          formData.append("fileName", file.name);
-                          formData.append(
-                            "description",
-                            `Fichier uploadé: ${file.name}`
-                          );
-
-                          const response = await fetch("/api/upload", {
-                            method: "POST",
-                            body: formData,
-                          });
-
-                          if (!response.ok) {
-                            const error = await response.json();
-                            console.error("Erreur upload:", error);
-                            alert(`Erreur lors de l'upload de ${file.name}`);
-                            return;
-                          } else {
-                            const uploadResult = await response.json();
-                            console.log("Fichier uploadé:", uploadResult);
-
-                            // Lier le fichier à la pièce existante
-                            try {
-                              const fileResponse = await fetch(
-                                `/api/pieces/${piece.id}/files`,
-                                {
-                                  method: "POST",
-                                  headers: {
-                                    "Content-Type": "application/json",
-                                  },
-                                  body: JSON.stringify({
-                                    file_path: uploadResult.data.filePath,
-                                  }),
-                                }
-                              );
-
-                              if (!fileResponse.ok) {
-                                console.error(
-                                  "Erreur liaison fichier à la pièce"
-                                );
-                              } else {
-                                console.log(
-                                  "Fichier lié à la pièce avec succès"
-                                );
-                              }
-                            } catch (error) {
-                              console.error(
-                                "Erreur lors de la liaison du fichier:",
-                                error
-                              );
-                            }
-                          }
-                        }
-
-                        // Sauvegarder les métadonnées pour cette pièce
-                        if (
-                          piece.metadataModels &&
-                          piece.metadataModels.length > 0
-                        ) {
-                          for (const model of piece.metadataModels) {
-                            const metadataKey = `${piece.id}_${model.id}`;
-                            const metadataValue = metadataValues[metadataKey];
-
-                            if (metadataValue && metadataValue.trim() !== "") {
-                              try {
-                                const metadataResponse = await fetch(
-                                  `/api/pieces/${piece.id}/metadata`,
-                                  {
-                                    method: "POST",
-                                    headers: {
-                                      "Content-Type": "application/json",
-                                    },
-                                    body: JSON.stringify({
-                                      meta_model_id: model.id,
-                                      valeur: metadataValue,
-                                    }),
-                                  }
-                                );
-
-                                if (metadataResponse.ok) {
-                                  console.log(
-                                    `Métadonnée ${model.libelle} sauvegardée`
-                                  );
-                                } else {
-                                  console.error(
-                                    `Erreur sauvegarde métadonnée ${model.libelle}`
-                                  );
-                                }
-                              } catch (error) {
-                                console.error(
-                                  `Erreur métadonnée ${model.libelle}:`,
-                                  error
-                                );
-                              }
-                            }
-                          }
-                        }
-                      }
-                      console.log(
-                        `${selectedFiles.length} fichier(s) uploadé(s) avec succès !`
-                      );
-
-                      // Marquer qu'on vient de faire un upload
-                      setJustUploaded(true);
-
-                      // Afficher la popup de succès
-                      setShowSuccessPopup(true);
-
-                      // Fermer la modale après un délai
-                      setTimeout(() => {
-                        // Reset tous les champs avant de fermer
-                        resetForm();
-                        onClose();
-                        setShowSuccessPopup(false);
-                      }, 2000);
-                    } catch (error) {
-                      console.error("Erreur lors de l'upload:", error);
-                      alert("Erreur lors de l'upload des fichiers");
-                      return;
-                    }
-                  } else {
-                    // Si pas de fichiers à uploader, fermer directement
-                    onClose();
-                  }
-                }}
-                className="group flex items-center gap-2 px-6 py-3 bg-gradient-to-r from-emerald-500 to-emerald-600 text-white rounded-xl hover:from-emerald-600 hover:to-emerald-700 transition-all duration-300 shadow-lg hover:shadow-xl transform hover:scale-105"
-              >
-                <CheckCircle className="w-4 h-4 group-hover:scale-110 transition-transform duration-300" />
-                Sauvegarder
-              </button>
+              <div className="text-center">
+                <p className="text-sm text-slate-600">
+                  Utilisez les boutons &quot;Charger&quot; individuels pour
+                  chaque pièce
+                </p>
+              </div>
             )}
           </div>
         </div>
       </div>
+
+      {/* Notification de succès */}
+      <SuccessNotification
+        message={successMessage}
+        onClose={() => setSuccessMessage(null)}
+        duration={4000}
+      />
 
       {/* Modale d'aperçu de fichier */}
       {previewFile && (
