@@ -674,13 +674,16 @@ export default function RubriqueParametresPage() {
                       >
                         <Edit className="w-4 h-4 text-primary-600" />
                       </button>
-                      <button
-                        onClick={() => handleAddMetadata(piece)}
-                        className="btn btn-ghost btn-sm hover:bg-accent-purple-light"
-                        title="Gérer métadonnées"
-                      >
-                        <Database className="w-4 h-4 text-accent-purple" />
-                      </button>
+                      {/* Bouton métadonnées des pièces - caché pour les dossiers de crédit */}
+                      {rubrique && !isDossierCredit(rubrique) && (
+                        <button
+                          onClick={() => handleAddMetadata(piece)}
+                          className="btn btn-ghost btn-sm hover:bg-accent-purple-light"
+                          title="Gérer métadonnées"
+                        >
+                          <Database className="w-4 h-4 text-accent-purple" />
+                        </button>
+                      )}
                       <button
                         onClick={() => handleDeletePiece(piece)}
                         className="btn btn-ghost btn-sm hover:bg-accent-red-light"
