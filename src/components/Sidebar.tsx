@@ -84,17 +84,7 @@ export default function Sidebar({
       textColor: "text-indigo-700",
       borderColor: "border-indigo-200",
     },
-    {
-      name: "Notifications",
-      href: "/notifications",
-      icon: Bell,
-      current: pathname === "/notifications",
-      description: "Centre de notifications et alertes",
-      color: "from-orange-500 to-orange-600",
-      bgColor: "bg-orange-50",
-      textColor: "text-orange-600",
-      borderColor: "border-orange-200",
-    },
+
     {
       name: "Dossiers",
       href: "/dossiers",
@@ -116,28 +106,6 @@ export default function Sidebar({
       bgColor: "bg-slate-50",
       textColor: "text-slate-700",
       borderColor: "border-slate-200",
-    },
-    {
-      name: "Pièces",
-      href: "/pieces",
-      icon: FolderOpen,
-      current: pathname.startsWith("/pieces"),
-      description: "Documents individuels",
-      color: "from-blue-500 to-blue-600",
-      bgColor: "bg-cyan-50",
-      textColor: "text-cyan-700",
-      borderColor: "border-cyan-200",
-    },
-    {
-      name: "Paramètres",
-      href: "/settings",
-      icon: Settings,
-      current: pathname.startsWith("/settings"),
-      description: "Configuration",
-      color: "from-blue-500 to-blue-600",
-      bgColor: "bg-gray-50",
-      textColor: "text-gray-700",
-      borderColor: "border-gray-200",
     },
   ];
 

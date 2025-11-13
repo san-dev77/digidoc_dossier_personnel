@@ -52,29 +52,40 @@ export const agentsService = {
   },
 
   // Créer un nouvel agent
-  async createAgent(
-    agentData: Omit<Agent, "id" | "createdAt" | "updatedAt">
-  ): Promise<Agent> {
+  async createAgent(agentData: any): Promise<Agent> {
     try {
+      console.log("[Service] Create agent data:", agentData);
+
+      const payload = {
+        matricule: agentData.matricule,
+        nom_complet: agentData.nom_complet,
+        email: agentData.email,
+        fonction: agentData.fonction,
+        date_naissance: agentData.date_naissance,
+        lieu_naissance: agentData.lieu_naissance,
+        sexe: agentData.sexe,
+        situation_matrimoniale: agentData.situationMatrimoniale,
+        adresse: agentData.adresse,
+        telephone: agentData.telephone,
+        password: agentData.password || "password123", // Mot de passe par défaut
+      };
+
+      console.log("[Service] Payload to send:", payload);
+
       const res = await fetch("/api/agents", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          matricule: agentData.matricule,
-          nom: agentData.nom,
-          prenom: agentData.prenom,
-          email: agentData.email,
-          fonction: agentData.fonction,
-          date_naissance: agentData.date_naissance,
-          lieu_naissance: agentData.lieu_naissance,
-          sexe: agentData.sexe,
-          situation_matrimoniale: agentData.situationMatrimoniale,
-          adresse: agentData.adresse,
-          telephone: agentData.telephone,
-        }),
+        body: JSON.stringify(payload),
       });
-      if (!res.ok) throw new Error("Erreur création agent");
+
+      if (!res.ok) {
+        const errorData = await res.json();
+        console.error("[Service] Create API Error:", errorData);
+        throw new Error(errorData.message || "Erreur création agent");
+      }
+
       const data = await res.json();
+      console.log("[Service] Created agent:", data);
       return toAgent(data);
     } catch (error) {
       console.error("Erreur lors de la création de l'agent:", error);
@@ -83,20 +94,38 @@ export const agentsService = {
   },
 
   // Mettre à jour un agent
-  async updateAgent(
-    id: string,
-    agentData: Partial<Omit<Agent, "id" | "createdAt" | "updatedAt">>
-  ): Promise<Agent> {
+  async updateAgent(id: string, agentData: any): Promise<Agent> {
     try {
+      console.log("[Service] Update agent ID:", id);
+      console.log("[Service] Update data:", agentData);
+
+      const payload = {
+        matricule: agentData.matricule,
+        nom_complet: agentData.nom_complet,
+        email: agentData.email,
+        fonction: agentData.fonction,
+        date_naissance: agentData.date_naissance,
+        lieu_naissance: agentData.lieu_naissance,
+        sexe: agentData.sexe,
+        situation_matrimoniale: agentData.situationMatrimoniale,
+        adresse: agentData.adresse,
+        telephone: agentData.telephone,
+      };
+
+      console.log("[Service] Payload to send:", payload);
+
       const res = await fetch(`/api/agents/${encodeURIComponent(id)}`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          ...agentData,
-          situation_matrimoniale: agentData.situationMatrimoniale,
-        }),
+        body: JSON.stringify(payload),
       });
-      if (!res.ok) throw new Error("Erreur mise à jour agent");
+
+      if (!res.ok) {
+        const errorData = await res.json();
+        console.error("[Service] API Error:", errorData);
+        throw new Error(errorData.detail || "Erreur mise à jour agent");
+      }
+
       const data = await res.json();
       return toAgent(data);
     } catch (error) {

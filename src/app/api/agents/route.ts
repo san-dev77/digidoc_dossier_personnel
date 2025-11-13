@@ -9,21 +9,51 @@ export async function GET() {
 }
 
 export async function POST(req: NextRequest) {
-  const body = await req.json();
-  const created = await prisma.agents.create({
-    data: {
+  try {
+    const body = await req.json();
+    console.log("[CREATE AGENT] Body received:", body);
+
+    if (!body.matricule || !body.password) {
+      console.error("[CREATE AGENT] Missing required fields");
+      return NextResponse.json(
+        { message: "Matricule et mot de passe requis" },
+        { status: 400 }
+      );
+    }
+
+    // Préparer les données
+    const dataToCreate: any = {
       matricule: body.matricule,
       nom_complet: body.nom_complet,
       email: body.email ?? null,
       fonction: body.fonction ?? null,
-      date_naissance: body.date_naissance ?? null,
       lieu_naissance: body.lieu_naissance ?? null,
       sexe: body.sexe ?? null,
       situation_matrimoniale: body.situation_matrimoniale ?? null,
       adresse: body.adresse ?? null,
       telephone: body.telephone ?? null,
       password: body.password,
-    },
-  });
-  return NextResponse.json(created, { status: 201 });
+    };
+
+    // Convertir la date de naissance si elle existe
+    if (body.date_naissance) {
+      dataToCreate.date_naissance = new Date(body.date_naissance);
+    }
+
+    console.log("[CREATE AGENT] Data to create:", dataToCreate);
+
+    const created = await prisma.agents.create({
+      data: dataToCreate,
+    });
+
+    console.log("[CREATE AGENT] Success:", created.id);
+    return NextResponse.json(created, { status: 201 });
+  } catch (error: any) {
+    console.error("[CREATE AGENT] Erreur:", error);
+    console.error("[CREATE AGENT] Stack:", error.stack);
+    return NextResponse.json(
+      { message: "Erreur serveur", detail: error.message },
+      { status: 500 }
+    );
+  }
 }

@@ -27,10 +27,10 @@ export default function RegisterPage() {
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [showOptionalFields, setShowOptionalFields] = useState(false);
   const [formData, setFormData] = useState({
     matricule: "",
-    nom: "",
-    prenom: "",
+    nom_complet: "",
     fonction: "",
     date_naissance: "",
     lieu_naissance: "",
@@ -57,15 +57,13 @@ export default function RegisterPage() {
 
     try {
       setIsSubmitting(true);
-      const { password, confirmPassword, nom, prenom, ...restData } = formData;
-      // Combiner nom et prenom en nom_complet pour l'API
-      const nom_complet = `${prenom} ${nom}`.trim();
+      const { password, confirmPassword, ...restData } = formData;
       const registerData = {
         matricule: restData.matricule,
-        email: restData.email,
         password,
-        nom_complet,
+        nom_complet: restData.nom_complet,
         fonction: restData.fonction || undefined,
+        email: restData.email || undefined,
         date_naissance: restData.date_naissance || undefined,
         lieu_naissance: restData.lieu_naissance || undefined,
         sexe: restData.sexe || undefined,
@@ -151,12 +149,12 @@ export default function RegisterPage() {
             </div>
           )}
 
-          <form onSubmit={handleSubmit} className="space-y-8 relative z-10">
-            {/* Informations d'identification */}
+          <form onSubmit={handleSubmit} className="space-y-6 relative z-10">
+            {/* Informations essentielles */}
             <div className="bg-slate-50/80 rounded-2xl p-6 border border-slate-200/60">
               <h3 className="text-lg font-semibold text-slate-800 mb-4 flex items-center">
-                <Shield className="w-5 h-5 mr-3 text-slate-600" />
-                Informations d&apos;identification
+                <User className="w-5 h-5 mr-3 text-slate-600" />
+                Informations essentielles
               </h3>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div>
@@ -177,7 +175,7 @@ export default function RegisterPage() {
                       required
                       disabled={isSubmitting || loading}
                       className="w-full px-4 py-4 pl-12 border-2 border-slate-200 rounded-xl focus:ring-4 focus:ring-slate-500/20 focus:border-slate-500 transition-all duration-300 bg-white/90 backdrop-blur-sm hover:bg-white text-slate-900 placeholder-slate-500 font-medium disabled:opacity-50 disabled:cursor-not-allowed"
-                      placeholder="Votre matricule unique"
+                      placeholder="Ex: M001"
                     />
                     <User className="absolute left-4 top-1/2 transform -translate-y-1/2 w-5 h-5 text-slate-400" />
                   </div>
@@ -185,254 +183,246 @@ export default function RegisterPage() {
 
                 <div>
                   <label
-                    htmlFor="email"
-                    className="block text-sm font-semibold text-slate-700 mb-3 flex items-center"
-                  >
-                    <Mail className="w-4 h-4 mr-2 text-slate-600" />
-                    Email *
-                  </label>
-                  <div className="relative">
-                    <input
-                      type="email"
-                      id="email"
-                      name="email"
-                      value={formData.email}
-                      onChange={handleChange}
-                      required
-                      disabled={isSubmitting || loading}
-                      className="w-full px-4 py-4 pl-12 border-2 border-slate-200 rounded-xl focus:ring-4 focus:ring-slate-500/20 focus:border-slate-500 transition-all duration-300 bg-white/90 backdrop-blur-sm hover:bg-white text-slate-900 placeholder-slate-500 font-medium disabled:opacity-50 disabled:cursor-not-allowed"
-                      placeholder="votre.email@exemple.com"
-                    />
-                    <Mail className="absolute left-4 top-1/2 transform -translate-y-1/2 w-5 h-5 text-slate-400" />
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            {/* Informations personnelles */}
-            <div className="bg-slate-50/80 rounded-2xl p-6 border border-slate-200/60">
-              <h3 className="text-lg font-semibold text-slate-800 mb-4 flex items-center">
-                <User className="w-5 h-5 mr-3 text-slate-600" />
-                Informations personnelles
-              </h3>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <div>
-                  <label
-                    htmlFor="prenom"
-                    className="block text-sm font-semibold text-slate-700 mb-3"
-                  >
-                    Prénom *
-                  </label>
-                  <input
-                    type="text"
-                    id="prenom"
-                    name="prenom"
-                    value={formData.prenom}
-                    onChange={handleChange}
-                    required
-                    disabled={isSubmitting || loading}
-                    className="w-full px-4 py-4 border-2 border-slate-200 rounded-xl focus:ring-4 focus:ring-slate-500/20 focus:border-slate-500 transition-all duration-300 bg-white/90 backdrop-blur-sm hover:bg-white text-slate-900 placeholder-slate-500 font-medium disabled:opacity-50 disabled:cursor-not-allowed"
-                    placeholder="Votre prénom"
-                  />
-                </div>
-
-                <div>
-                  <label
-                    htmlFor="nom"
-                    className="block text-sm font-semibold text-slate-700 mb-3"
-                  >
-                    Nom *
-                  </label>
-                  <input
-                    type="text"
-                    id="nom"
-                    name="nom"
-                    value={formData.nom}
-                    onChange={handleChange}
-                    required
-                    disabled={isSubmitting || loading}
-                    className="w-full px-4 py-4 border-2 border-slate-200 rounded-xl focus:ring-4 focus:ring-slate-500/20 focus:border-slate-500 transition-all duration-300 bg-white/90 backdrop-blur-sm hover:bg-white text-slate-900 placeholder-slate-500 font-medium disabled:opacity-50 disabled:cursor-not-allowed"
-                    placeholder="Votre nom"
-                  />
-                </div>
-              </div>
-            </div>
-
-            {/* Informations professionnelles */}
-            <div className="bg-slate-50/80 rounded-2xl p-6 border border-slate-200/60">
-              <h3 className="text-lg font-semibold text-slate-800 mb-4 flex items-center">
-                <Briefcase className="w-5 h-5 mr-3 text-slate-600" />
-                Informations professionnelles
-              </h3>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <div>
-                  <label
                     htmlFor="fonction"
-                    className="block text-sm font-semibold text-slate-700 mb-3"
-                  >
-                    Fonction
-                  </label>
-                  <input
-                    type="text"
-                    id="fonction"
-                    name="fonction"
-                    value={formData.fonction}
-                    onChange={handleChange}
-                    disabled={isSubmitting || loading}
-                    className="w-full px-4 py-4 border-2 border-slate-200 rounded-xl focus:ring-4 focus:ring-slate-500/20 focus:border-slate-500 transition-all duration-300 bg-white/90 backdrop-blur-sm hover:bg-white text-slate-900 placeholder-slate-500 font-medium disabled:opacity-50 disabled:cursor-not-allowed"
-                    placeholder="Votre fonction"
-                  />
-                </div>
-
-                <div>
-                  <label
-                    htmlFor="date_naissance"
                     className="block text-sm font-semibold text-slate-700 mb-3 flex items-center"
                   >
-                    <Calendar className="w-4 h-4 mr-2 text-slate-600" />
-                    Date de naissance
-                  </label>
-                  <input
-                    type="date"
-                    id="date_naissance"
-                    name="date_naissance"
-                    value={formData.date_naissance}
-                    onChange={handleChange}
-                    disabled={isSubmitting || loading}
-                    className="w-full px-4 py-4 border-2 border-slate-200 rounded-xl focus:ring-4 focus:ring-slate-500/20 focus:border-slate-500 transition-all duration-300 bg-slate-800 text-white hover:bg-slate-700 cursor-pointer font-medium disabled:opacity-50 disabled:cursor-not-allowed"
-                  />
-                </div>
-              </div>
-            </div>
-
-            {/* Informations démographiques */}
-            <div className="bg-slate-50/80 rounded-2xl p-6 border border-slate-200/60">
-              <h3 className="text-lg font-semibold text-slate-800 mb-4 flex items-center">
-                <MapPin className="w-5 h-5 mr-3 text-slate-600" />
-                Informations démographiques
-              </h3>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <div>
-                  <label
-                    htmlFor="lieu_naissance"
-                    className="block text-sm font-semibold text-slate-700 mb-3 flex items-center"
-                  >
-                    <MapPin className="w-4 h-4 mr-2 text-slate-600" />
-                    Lieu de naissance
+                    <Briefcase className="w-4 h-4 mr-2 text-slate-600" />
+                    Fonction *
                   </label>
                   <div className="relative">
                     <input
                       type="text"
-                      id="lieu_naissance"
-                      name="lieu_naissance"
-                      value={formData.lieu_naissance}
+                      id="fonction"
+                      name="fonction"
+                      value={formData.fonction}
                       onChange={handleChange}
+                      required
                       disabled={isSubmitting || loading}
                       className="w-full px-4 py-4 pl-12 border-2 border-slate-200 rounded-xl focus:ring-4 focus:ring-slate-500/20 focus:border-slate-500 transition-all duration-300 bg-white/90 backdrop-blur-sm hover:bg-white text-slate-900 placeholder-slate-500 font-medium disabled:opacity-50 disabled:cursor-not-allowed"
-                      placeholder="Ville, Pays"
+                      placeholder="Ex: Directeur, Manager..."
                     />
-                    <MapPin className="absolute left-4 top-1/2 transform -translate-y-1/2 w-5 h-5 text-slate-400" />
+                    <Briefcase className="absolute left-4 top-1/2 transform -translate-y-1/2 w-5 h-5 text-slate-400" />
                   </div>
                 </div>
 
-                <div>
+                <div className="md:col-span-2">
                   <label
-                    htmlFor="sexe"
+                    htmlFor="nom_complet"
                     className="block text-sm font-semibold text-slate-700 mb-3 flex items-center"
                   >
-                    <Users className="w-4 h-4 mr-2 text-slate-600" />
-                    Sexe
+                    <User className="w-4 h-4 mr-2 text-slate-600" />
+                    Nom complet *
                   </label>
-                  <select
-                    id="sexe"
-                    name="sexe"
-                    value={formData.sexe}
+                  <input
+                    type="text"
+                    id="nom_complet"
+                    name="nom_complet"
+                    value={formData.nom_complet}
                     onChange={handleChange}
+                    required
                     disabled={isSubmitting || loading}
-                    className="w-full px-4 py-4 border-2 border-slate-200 rounded-xl focus:ring-4 focus:ring-slate-500/20 focus:border-slate-500 transition-all duration-300 bg-white/90 backdrop-blur-sm hover:bg-white text-slate-900 font-medium disabled:opacity-50 disabled:cursor-not-allowed"
-                  >
-                    <option value="">Sélectionnez</option>
-                    <option value="M">Masculin</option>
-                    <option value="F">Féminin</option>
-                  </select>
+                    className="w-full px-4 py-4 border-2 border-slate-200 rounded-xl focus:ring-4 focus:ring-slate-500/20 focus:border-slate-500 transition-all duration-300 bg-white/90 backdrop-blur-sm hover:bg-white text-slate-900 placeholder-slate-500 font-medium disabled:opacity-50 disabled:cursor-not-allowed"
+                    placeholder="Ex: Jean Dupont"
+                  />
                 </div>
               </div>
             </div>
 
-            {/* Informations personnelles supplémentaires */}
-            <div className="bg-slate-50/80 rounded-2xl p-6 border border-slate-200/60">
-              <h3 className="text-lg font-semibold text-slate-800 mb-4 flex items-center">
-                <Heart className="w-5 h-5 mr-3 text-slate-600" />
-                Informations personnelles
-              </h3>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <div>
-                  <label
-                    htmlFor="situation_matrimoniale"
-                    className="block text-sm font-semibold text-slate-700 mb-3"
-                  >
-                    Situation matrimoniale
-                  </label>
-                  <select
-                    id="situation_matrimoniale"
-                    name="situation_matrimoniale"
-                    value={formData.situation_matrimoniale}
-                    onChange={handleChange}
-                    disabled={isSubmitting || loading}
-                    className="w-full px-4 py-4 border-2 border-slate-200 rounded-xl focus:ring-4 focus:ring-slate-500/20 focus:border-slate-500 transition-all duration-300 bg-white/90 backdrop-blur-sm hover:bg-white text-slate-900 font-medium disabled:opacity-50 disabled:cursor-not-allowed"
-                  >
-                    <option value="">Sélectionnez</option>
-                    <option value="Célibataire">Célibataire</option>
-                    <option value="Marié(e)">Marié(e)</option>
-                    <option value="Divorcé(e)">Divorcé(e)</option>
-                    <option value="Veuf/Veuve">Veuf/Veuve</option>
-                  </select>
-                </div>
+            {/* Bouton pour afficher les champs optionnels */}
+            <div className="border-t border-gray-200 pt-4">
+              <button
+                type="button"
+                onClick={() => setShowOptionalFields(!showOptionalFields)}
+                className="w-full px-4 py-3 bg-gray-100 hover:bg-gray-200 text-gray-700 font-semibold rounded-lg transition-all duration-200 flex items-center justify-center gap-2 border border-gray-300"
+              >
+                <svg
+                  className={`w-5 h-5 transition-transform duration-200 ${
+                    showOptionalFields ? "rotate-180" : ""
+                  }`}
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M19 9l-7 7-7-7"
+                  />
+                </svg>
+                <span>
+                  {showOptionalFields ? "Masquer" : "Afficher"} les informations
+                  complémentaires (optionnelles)
+                </span>
+              </button>
+            </div>
 
-                <div>
-                  <label
-                    htmlFor="telephone"
-                    className="block text-sm font-semibold text-slate-700 mb-3 flex items-center"
-                  >
-                    <Phone className="w-4 h-4 mr-2 text-slate-600" />
-                    Téléphone
-                  </label>
-                  <div className="relative">
+            {/* Champs optionnels */}
+            {showOptionalFields && (
+              <div className="space-y-6 bg-gray-50 p-6 rounded-xl border-2 border-gray-200">
+                <h4 className="text-lg font-semibold text-slate-900 border-b border-gray-300 pb-2 flex items-center gap-2">
+                  <span className="text-gray-500">📋</span>
+                  Informations complémentaires
+                </h4>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  <div>
+                    <label
+                      htmlFor="email"
+                      className="block text-sm font-semibold text-slate-700 mb-3 flex items-center"
+                    >
+                      <Mail className="w-4 h-4 mr-2 text-slate-600" />
+                      Email
+                    </label>
+                    <div className="relative">
+                      <input
+                        type="email"
+                        id="email"
+                        name="email"
+                        value={formData.email}
+                        onChange={handleChange}
+                        disabled={isSubmitting || loading}
+                        className="w-full px-4 py-4 pl-12 border-2 border-slate-200 rounded-xl focus:ring-4 focus:ring-slate-500/20 focus:border-slate-500 transition-all duration-300 bg-white/90 backdrop-blur-sm hover:bg-white text-slate-900 placeholder-slate-500 font-medium disabled:opacity-50 disabled:cursor-not-allowed"
+                        placeholder="votre.email@exemple.com"
+                      />
+                      <Mail className="absolute left-4 top-1/2 transform -translate-y-1/2 w-5 h-5 text-slate-400" />
+                    </div>
+                  </div>
+
+                  <div>
+                    <label
+                      htmlFor="telephone"
+                      className="block text-sm font-semibold text-slate-700 mb-3 flex items-center"
+                    >
+                      <Phone className="w-4 h-4 mr-2 text-slate-600" />
+                      Téléphone
+                    </label>
+                    <div className="relative">
+                      <input
+                        type="tel"
+                        id="telephone"
+                        name="telephone"
+                        value={formData.telephone}
+                        onChange={handleChange}
+                        disabled={isSubmitting || loading}
+                        className="w-full px-4 py-4 pl-12 border-2 border-slate-200 rounded-xl focus:ring-4 focus:ring-slate-500/20 focus:border-slate-500 transition-all duration-300 bg-white/90 backdrop-blur-sm hover:bg-white text-slate-900 placeholder-slate-500 font-medium disabled:opacity-50 disabled:cursor-not-allowed"
+                        placeholder="+33 6 12 34 56 78"
+                      />
+                      <Phone className="absolute left-4 top-1/2 transform -translate-y-1/2 w-5 h-5 text-slate-400" />
+                    </div>
+                  </div>
+
+                  <div>
+                    <label
+                      htmlFor="date_naissance"
+                      className="block text-sm font-semibold text-slate-700 mb-3 flex items-center"
+                    >
+                      <Calendar className="w-4 h-4 mr-2 text-slate-600" />
+                      Date de naissance
+                    </label>
                     <input
-                      type="tel"
-                      id="telephone"
-                      name="telephone"
-                      value={formData.telephone}
+                      type="date"
+                      id="date_naissance"
+                      name="date_naissance"
+                      value={formData.date_naissance}
                       onChange={handleChange}
                       disabled={isSubmitting || loading}
-                      className="w-full px-4 py-4 pl-12 border-2 border-slate-200 rounded-xl focus:ring-4 focus:ring-slate-500/20 focus:border-slate-500 transition-all duration-300 bg-white/90 backdrop-blur-sm hover:bg-white text-slate-900 placeholder-slate-500 font-medium disabled:opacity-50 disabled:cursor-not-allowed"
-                      placeholder="+33 6 12 34 56 78"
+                      className="w-full px-4 py-4 border-2 border-slate-200 rounded-xl focus:ring-4 focus:ring-slate-500/20 focus:border-slate-500 transition-all duration-300 bg-slate-800 text-white hover:bg-slate-700 cursor-pointer font-medium disabled:opacity-50 disabled:cursor-not-allowed"
                     />
-                    <Phone className="absolute left-4 top-1/2 transform -translate-y-1/2 w-5 h-5 text-slate-400" />
+                  </div>
+
+                  <div>
+                    <label
+                      htmlFor="lieu_naissance"
+                      className="block text-sm font-semibold text-slate-700 mb-3 flex items-center"
+                    >
+                      <MapPin className="w-4 h-4 mr-2 text-slate-600" />
+                      Lieu de naissance
+                    </label>
+                    <div className="relative">
+                      <input
+                        type="text"
+                        id="lieu_naissance"
+                        name="lieu_naissance"
+                        value={formData.lieu_naissance}
+                        onChange={handleChange}
+                        disabled={isSubmitting || loading}
+                        className="w-full px-4 py-4 pl-12 border-2 border-slate-200 rounded-xl focus:ring-4 focus:ring-slate-500/20 focus:border-slate-500 transition-all duration-300 bg-white/90 backdrop-blur-sm hover:bg-white text-slate-900 placeholder-slate-500 font-medium disabled:opacity-50 disabled:cursor-not-allowed"
+                        placeholder="Ville, Pays"
+                      />
+                      <MapPin className="absolute left-4 top-1/2 transform -translate-y-1/2 w-5 h-5 text-slate-400" />
+                    </div>
+                  </div>
+
+                  <div>
+                    <label
+                      htmlFor="sexe"
+                      className="block text-sm font-semibold text-slate-700 mb-3 flex items-center"
+                    >
+                      <Users className="w-4 h-4 mr-2 text-slate-600" />
+                      Sexe
+                    </label>
+                    <select
+                      id="sexe"
+                      name="sexe"
+                      value={formData.sexe}
+                      onChange={handleChange}
+                      disabled={isSubmitting || loading}
+                      className="w-full px-4 py-4 border-2 border-slate-200 rounded-xl focus:ring-4 focus:ring-slate-500/20 focus:border-slate-500 transition-all duration-300 bg-white/90 backdrop-blur-sm hover:bg-white text-slate-900 font-medium disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                      <option value="">Sélectionnez</option>
+                      <option value="M">Masculin</option>
+                      <option value="F">Féminin</option>
+                    </select>
+                  </div>
+
+                  <div>
+                    <label
+                      htmlFor="situation_matrimoniale"
+                      className="block text-sm font-semibold text-slate-700 mb-3"
+                    >
+                      Situation matrimoniale
+                    </label>
+                    <select
+                      id="situation_matrimoniale"
+                      name="situation_matrimoniale"
+                      value={formData.situation_matrimoniale}
+                      onChange={handleChange}
+                      disabled={isSubmitting || loading}
+                      className="w-full px-4 py-4 border-2 border-slate-200 rounded-xl focus:ring-4 focus:ring-slate-500/20 focus:border-slate-500 transition-all duration-300 bg-white/90 backdrop-blur-sm hover:bg-white text-slate-900 font-medium disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                      <option value="">Sélectionnez</option>
+                      <option value="Célibataire">Célibataire</option>
+                      <option value="Marié(e)">Marié(e)</option>
+                      <option value="Divorcé(e)">Divorcé(e)</option>
+                      <option value="Veuf/Veuve">Veuf/Veuve</option>
+                    </select>
+                  </div>
+
+                  <div className="md:col-span-2">
+                    <label
+                      htmlFor="adresse"
+                      className="block text-sm font-semibold text-slate-700 mb-3 flex items-center"
+                    >
+                      <MapPin className="w-4 h-4 mr-2 text-slate-600" />
+                      Adresse
+                    </label>
+                    <textarea
+                      id="adresse"
+                      name="adresse"
+                      value={formData.adresse}
+                      onChange={(e) =>
+                        setFormData({ ...formData, adresse: e.target.value })
+                      }
+                      rows={3}
+                      disabled={isSubmitting || loading}
+                      className="w-full px-4 py-4 border-2 border-slate-200 rounded-xl focus:ring-4 focus:ring-slate-500/20 focus:border-slate-500 transition-all duration-300 bg-white/90 backdrop-blur-sm hover:bg-white text-slate-900 placeholder-slate-500 font-medium disabled:opacity-50 disabled:cursor-not-allowed"
+                      placeholder="Votre adresse complète"
+                    />
                   </div>
                 </div>
               </div>
-            </div>
-
-            {/* Adresse */}
-            <div className="bg-slate-50/80 rounded-2xl p-6 border border-slate-200/60">
-              <h3 className="text-lg font-semibold text-slate-800 mb-4 flex items-center">
-                <MapPin className="w-5 h-5 mr-3 text-slate-600" />
-                Adresse
-              </h3>
-              <textarea
-                id="adresse"
-                name="adresse"
-                value={formData.adresse}
-                onChange={(e) =>
-                  setFormData({ ...formData, adresse: e.target.value })
-                }
-                rows={3}
-                disabled={isSubmitting || loading}
-                className="w-full px-4 py-4 border-2 border-slate-200 rounded-xl focus:ring-4 focus:ring-slate-500/20 focus:border-slate-500 transition-all duration-300 bg-white/90 backdrop-blur-sm hover:bg-white text-slate-900 placeholder-slate-500 font-medium disabled:opacity-50 disabled:cursor-not-allowed"
-                placeholder="Votre adresse complète"
-              />
-            </div>
+            )}
 
             {/* Mots de passe */}
             <div className="bg-slate-50/80 rounded-2xl p-6 border border-slate-200/60">

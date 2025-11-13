@@ -31,6 +31,7 @@ import { agentsService } from "@/services/agents";
 import {
   agentRubriqueService,
   AgentWithRubrique,
+  AgentRubrique,
 } from "@/services/agent-rubrique";
 import {
   sousDossiersService,
@@ -523,8 +524,19 @@ export default function AgentsPage() {
   const [activeTab, setActiveTab] = useState<"details" | "sous-dossiers">(
     "sous-dossiers"
   );
-  const [sousDossiers, setSousDossiers] = useState<SousDossierWithPieces[]>([]);
   const [loadingSousDossiers, setLoadingSousDossiers] = useState(false);
+  const [assignedRubriques, setAssignedRubriques] = useState<
+    Map<string, string[]>
+  >(new Map());
+  const [rubriqueNames, setRubriqueNames] = useState<Map<string, string>>(
+    new Map()
+  );
+  const [expandedRubriqueId, setExpandedRubriqueId] = useState<string | null>(
+    null
+  );
+  const [sousDossiersByRubrique, setSousDossiersByRubrique] = useState<
+    Map<string, SousDossierWithPieces[]>
+  >(new Map());
 
   // Charger les agents depuis l'API locale
   useEffect(() => {
@@ -535,14 +547,52 @@ export default function AgentsPage() {
     try {
       setLoading(true);
       setError(null);
-      const data = await agentRubriqueService.getAgentsWithRubriques();
-      setAgents(data);
+
+      const [agentsData, allRelations] = await Promise.all([
+        agentRubriqueService.getAgentsWithRubriques(),
+        agentRubriqueService.getAllAgentRubriques(),
+      ]);
+
+      setAgents(agentsData);
+
+      // Créer un Map des rubriques assignées par agent
+      const assignedMap = new Map<string, string[]>();
+      const namesMap = new Map<string, string>();
+
+      allRelations.forEach(
+        (relation: AgentRubrique & { rubriques?: { nom: string } }) => {
+          const agentId = relation.agent_id.toString();
+          const rubriqueId = relation.rubrique_id.toString();
+
+          if (!assignedMap.has(agentId)) {
+            assignedMap.set(agentId, []);
+          }
+          assignedMap.get(agentId)?.push(rubriqueId);
+
+          // Stocker le nom de la rubrique si disponible
+          if (relation.rubriques?.nom) {
+            namesMap.set(rubriqueId, relation.rubriques.nom);
+          }
+        }
+      );
+
+      setAssignedRubriques(assignedMap);
+      setRubriqueNames(namesMap);
     } catch (err) {
       setError("Erreur lors du chargement des agents");
       console.error(err);
     } finally {
       setLoading(false);
     }
+  };
+
+  // Obtenir toutes les rubriques d'un agent
+  const getAgentRubriques = (agentId: string) => {
+    const rubriqueIds = assignedRubriques.get(agentId) || [];
+    return rubriqueIds.map((rubriqueId) => ({
+      id: rubriqueId,
+      nom: rubriqueNames.get(rubriqueId) || "Rubrique inconnue",
+    }));
   };
 
   // Filtrage des agents
@@ -553,12 +603,12 @@ export default function AgentsPage() {
       agent.matricule.toLowerCase().includes(searchLower) ||
       agent.fonction.toLowerCase().includes(searchLower);
 
-    // Filtre par affectation
+    // Filtre par affectation basé sur le Map
     let matchesAffectation = true;
     if (affectationFilter === "assigned") {
-      matchesAffectation = !!agent.rubrique_id;
+      matchesAffectation = getAgentRubriques(agent.id).length > 0;
     } else if (affectationFilter === "unassigned") {
-      matchesAffectation = !agent.rubrique_id;
+      matchesAffectation = getAgentRubriques(agent.id).length === 0;
     }
 
     return matchesSearch && matchesAffectation;
@@ -573,8 +623,16 @@ export default function AgentsPage() {
     setShowEditForm(true);
   };
 
-  const loadSousDossiers = async (rubriqueId: string, agentId: string) => {
+  const loadSousDossiersForRubrique = async (
+    rubriqueId: string,
+    agentId: string
+  ) => {
     if (!rubriqueId || !agentId) return;
+
+    // Vérifier si déjà chargé
+    if (sousDossiersByRubrique.has(rubriqueId)) {
+      return;
+    }
 
     setLoadingSousDossiers(true);
     try {
@@ -626,24 +684,35 @@ export default function AgentsPage() {
         })
       );
 
-      setSousDossiers(sousDossiersWithPieces);
+      // Stocker dans le Map
+      setSousDossiersByRubrique((prev) => {
+        const newMap = new Map(prev);
+        newMap.set(rubriqueId, sousDossiersWithPieces);
+        return newMap;
+      });
     } catch (err) {
       console.error("Erreur lors du chargement des sous-dossiers:", err);
-      setSousDossiers([]);
     } finally {
       setLoadingSousDossiers(false);
     }
   };
 
+  const handleRubriqueToggle = async (rubriqueId: string) => {
+    if (expandedRubriqueId === rubriqueId) {
+      setExpandedRubriqueId(null);
+    } else {
+      setExpandedRubriqueId(rubriqueId);
+      if (selectedAgent && !sousDossiersByRubrique.has(rubriqueId)) {
+        await loadSousDossiersForRubrique(rubriqueId, selectedAgent.id);
+      }
+    }
+  };
+
   const handleAgentSelect = (agent: AgentWithRubrique) => {
     setSelectedAgent(agent);
-    setActiveTab("sous-dossiers");
-    setSousDossiers([]);
-
-    // Charger les sous-dossiers si l'agent est affecté à une rubrique
-    if (agent.rubrique_id) {
-      loadSousDossiers(agent.rubrique_id, agent.id);
-    }
+    setActiveTab("details");
+    setSousDossiersByRubrique(new Map());
+    setExpandedRubriqueId(null);
   };
 
   const handleDeleteAgent = (agent: AgentWithRubrique) => {
@@ -721,14 +790,23 @@ export default function AgentsPage() {
                       <div className="flex items-center space-x-2 bg-white/20 backdrop-blur-sm rounded-lg px-3 py-2">
                         <div className="w-2 h-2 bg-accent-green rounded-full"></div>
                         <span className="text-white text-sm font-medium">
-                          {agents.filter((agent) => agent.rubrique_id).length}{" "}
+                          {
+                            agents.filter(
+                              (agent) => getAgentRubriques(agent.id).length > 0
+                            ).length
+                          }{" "}
                           agents affectés
                         </span>
                       </div>
                       <div className="flex items-center space-x-2 bg-white/20 backdrop-blur-sm rounded-lg px-3 py-2">
                         <div className="w-2 h-2 bg-warning-500 rounded-full"></div>
                         <span className="text-white text-sm font-medium">
-                          {agents.filter((agent) => !agent.rubrique_id).length}{" "}
+                          {
+                            agents.filter(
+                              (agent) =>
+                                getAgentRubriques(agent.id).length === 0
+                            ).length
+                          }{" "}
                           agents non affectés
                         </span>
                       </div>
@@ -783,7 +861,9 @@ export default function AgentsPage() {
                 style={{
                   width: `${
                     agents.length > 0
-                      ? (agents.filter((agent) => agent.rubrique_id).length /
+                      ? (agents.filter(
+                          (agent) => getAgentRubriques(agent.id).length > 0
+                        ).length /
                           agents.length) *
                         100
                       : 0
@@ -812,13 +892,22 @@ export default function AgentsPage() {
                   <div className="flex items-center gap-1">
                     <div className="w-2 h-2 bg-green-500 rounded-full"></div>
                     <span className="text-gray-600">
-                      {agents.filter((a) => a.rubrique_id).length} affectés
+                      {
+                        agents.filter((a) => getAgentRubriques(a.id).length > 0)
+                          .length
+                      }{" "}
+                      affectés
                     </span>
                   </div>
                   <div className="flex items-center gap-1">
                     <div className="w-2 h-2 bg-orange-500 rounded-full"></div>
                     <span className="text-gray-600">
-                      {agents.filter((a) => !a.rubrique_id).length} non affectés
+                      {
+                        agents.filter(
+                          (a) => getAgentRubriques(a.id).length === 0
+                        ).length
+                      }{" "}
+                      non affectés
                     </span>
                   </div>
                 </div>
@@ -956,108 +1045,109 @@ export default function AgentsPage() {
                     </td>
                   </tr>
                 ) : (
-                  filteredAgents.map((agent) => (
-                    <tr
-                      key={agent.id}
-                      className={`${
-                        agent.rubrique_id
-                          ? "bg-accent-green-light/10 hover:bg-accent-green-light/20 border-l-4 border-accent-green"
-                          : "bg-warning-50/30 hover:bg-warning-100/50 border-l-4 border-warning-500"
-                      } transition-all duration-200`}
-                    >
-                      <td className="px-6 py-4 whitespace-nowrap">
-                        <div className="flex items-center">
-                          <div
-                            className={`w-12 h-12 rounded-full flex items-center justify-center shadow-lg border-2 ${
-                              agent.rubrique_id
-                                ? "bg-accent-green text-white border-accent-green"
-                                : "bg-warning-600 text-white border-gray-600"
-                            }`}
-                          >
-                            <span
-                              className={`text-sm font-bold text-white 
-                              `}
+                  filteredAgents.map((agent) => {
+                    const hasRubriques = getAgentRubriques(agent.id).length > 0;
+                    return (
+                      <tr
+                        key={agent.id}
+                        className={`${
+                          hasRubriques
+                            ? "bg-accent-green-light/10 hover:bg-accent-green-light/20 border-l-4 border-accent-green"
+                            : "bg-warning-50/30 hover:bg-warning-100/50 border-l-4 border-warning-500"
+                        } transition-all duration-200`}
+                      >
+                        <td className="px-6 py-4 whitespace-nowrap">
+                          <div className="flex items-center">
+                            <div
+                              className={`w-12 h-12 rounded-full flex items-center justify-center shadow-lg border-2 ${
+                                hasRubriques
+                                  ? "bg-accent-green text-white border-accent-green"
+                                  : "bg-warning-600 text-white border-gray-600"
+                              }`}
                             >
-                              {agent.nom.charAt(0)}
-                              {agent.nom.charAt(1)}
-                            </span>
-                          </div>
-                          <div className="ml-4">
-                            <div className="text-base font-bold text-gray-900">
-                              {agent.nom}
+                              <span
+                                className={`text-sm font-bold text-white 
+                              `}
+                              >
+                                {agent.nom.charAt(0)}
+                                {agent.nom.charAt(1)}
+                              </span>
                             </div>
-                            <div className="text-sm text-gray-600 mt-1">
-                              {agent.date_naissance} • {agent.lieu_naissance}
+                            <div className="ml-4">
+                              <div className="text-base font-bold text-gray-900">
+                                {agent.nom}
+                              </div>
+                              <div className="text-sm text-gray-600 mt-1">
+                                {agent.date_naissance} • {agent.lieu_naissance}
+                              </div>
                             </div>
                           </div>
-                        </div>
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap">
-                        <span className="inline-flex items-center px-3 py-1.5 rounded-full text-sm font-bold bg-primary-600 text-white shadow-md border border-primary-700">
-                          <BadgeCheck className="w-4 h-4 mr-2" />
-                          {agent.matricule}
-                        </span>
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap">
-                        <span className="inline-flex items-center px-3 py-1 rounded-lg text-sm font-medium bg-gray-100 text-gray-800 border border-gray-200">
-                          {agent.fonction}
-                        </span>
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap">
-                        <div className="space-y-1">
-                          <div className="text-sm font-medium text-gray-900">
-                            {agent.telephone}
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap">
+                          <span className="inline-flex items-center px-3 py-1.5 rounded-full text-sm font-bold bg-primary-600 text-white shadow-md border border-primary-700">
+                            <BadgeCheck className="w-4 h-4 mr-2" />
+                            {agent.matricule}
+                          </span>
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap">
+                          <span className="inline-flex items-center px-3 py-1 rounded-lg text-sm font-medium bg-gray-100 text-gray-800 border border-gray-200">
+                            {agent.fonction}
+                          </span>
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap">
+                          <div className="space-y-1">
+                            <div className="text-sm font-medium text-gray-900">
+                              {agent.telephone}
+                            </div>
+                            <div className="text-xs text-gray-500 bg-gray-50 px-2 py-1 rounded-md border border-gray-200">
+                              {agent.adresse}
+                            </div>
                           </div>
-                          <div className="text-xs text-gray-500 bg-gray-50 px-2 py-1 rounded-md border border-gray-200">
-                            {agent.adresse}
-                          </div>
-                        </div>
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap">
-                        {agent.rubrique_id ? (
-                          <div className="space-y-2">
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap">
+                          {getAgentRubriques(agent.id).length > 0 ? (
                             <span className="inline-flex items-center px-3 py-1.5 rounded-full text-sm font-bold bg-accent-green text-white border border-accent-green shadow-md">
                               <Building2 className="w-4 h-4 mr-2" />
-                              Affecté
+                              {getAgentRubriques(agent.id).length} rubrique
+                              {getAgentRubriques(agent.id).length > 1
+                                ? "s"
+                                : ""}
                             </span>
-                            <span className="text-xs text-gray-600 bg-gray-100 px-2 py-1 rounded-md">
-                              {agent.rubrique_nom}
+                          ) : (
+                            <span className="inline-flex items-center px-3 py-1.5 rounded-full text-sm font-bold bg-warning-600 text-white border border-warning-700 shadow-md">
+                              <AlertCircle className="w-4 h-4 mr-2" />
+                              Non affecté
                             </span>
+                          )}
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
+                          <div className="flex items-center justify-end space-x-2">
+                            <button
+                              onClick={() => handleAgentSelect(agent)}
+                              className="p-2.5 text-primary-600 bg-primary-50 hover:text-primary-700 hover:bg-primary-100 rounded-lg transition-all duration-200 group border border-primary-200 hover:border-primary-300 shadow-sm hover:shadow-md"
+                              title="Voir les détails"
+                            >
+                              <Info className="w-4 h-4 group-hover:scale-110 transition-transform" />
+                            </button>
+                            <button
+                              onClick={() => handleEditAgent(agent)}
+                              className="p-2.5 text-blue-600 bg-blue-50 hover:text-blue-700 hover:bg-blue-100 rounded-lg transition-all duration-200 group border border-blue-200 hover:border-blue-300 shadow-sm hover:shadow-md"
+                              title="Modifier"
+                            >
+                              <Edit className="w-4 h-4 group-hover:scale-110 transition-transform" />
+                            </button>
+                            <button
+                              onClick={() => handleDeleteAgent(agent)}
+                              className="p-2.5 text-red-600 bg-red-50 hover:text-red-700 hover:bg-red-100 rounded-lg transition-all duration-200 group border border-red-200 hover:border-red-300 shadow-sm hover:shadow-md"
+                              title="Supprimer"
+                            >
+                              <Trash2 className="w-4 h-4 group-hover:scale-110 transition-transform" />
+                            </button>
                           </div>
-                        ) : (
-                          <span className="inline-flex items-center px-3 py-1.5 rounded-full text-sm font-bold bg-warning-600 text-white border border-warning-700 shadow-md">
-                            <AlertCircle className="w-4 h-4 mr-2" />
-                            Non affecté
-                          </span>
-                        )}
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                        <div className="flex items-center justify-end space-x-2">
-                          <button
-                            onClick={() => handleAgentSelect(agent)}
-                            className="p-2.5 text-primary-600 bg-primary-50 hover:text-primary-700 hover:bg-primary-100 rounded-lg transition-all duration-200 group border border-primary-200 hover:border-primary-300 shadow-sm hover:shadow-md"
-                            title="Voir les détails"
-                          >
-                            <Info className="w-4 h-4 group-hover:scale-110 transition-transform" />
-                          </button>
-                          <button
-                            onClick={() => handleEditAgent(agent)}
-                            className="p-2.5 text-blue-600 bg-blue-50 hover:text-blue-700 hover:bg-blue-100 rounded-lg transition-all duration-200 group border border-blue-200 hover:border-blue-300 shadow-sm hover:shadow-md"
-                            title="Modifier"
-                          >
-                            <Edit className="w-4 h-4 group-hover:scale-110 transition-transform" />
-                          </button>
-                          <button
-                            onClick={() => handleDeleteAgent(agent)}
-                            className="p-2.5 text-red-600 bg-red-50 hover:text-red-700 hover:bg-red-100 rounded-lg transition-all duration-200 group border border-red-200 hover:border-red-300 shadow-sm hover:shadow-md"
-                            title="Supprimer"
-                          >
-                            <Trash2 className="w-4 h-4 group-hover:scale-110 transition-transform" />
-                          </button>
-                        </div>
-                      </td>
-                    </tr>
-                  ))
+                        </td>
+                      </tr>
+                    );
+                  })
                 )}
               </tbody>
             </table>
@@ -1136,11 +1226,11 @@ export default function AgentsPage() {
                         ? "bg-white text-slate-800 shadow-sm border border-slate-200"
                         : "text-slate-600 hover:text-slate-800 hover:bg-slate-100"
                     }`}
-                    disabled={!selectedAgent.rubrique_id}
+                    disabled={getAgentRubriques(selectedAgent.id).length === 0}
                   >
                     <Folder className="w-4 h-4" />
-                    Sous-dossiers
-                    {!selectedAgent.rubrique_id && (
+                    Rubriques & Sous-dossiers
+                    {getAgentRubriques(selectedAgent.id).length === 0 && (
                       <span className="text-xs bg-slate-200 text-slate-500 px-2 py-1 rounded-full">
                         Non affecté
                       </span>
@@ -1229,6 +1319,14 @@ export default function AgentsPage() {
                                 {selectedAgent.situationMatrimoniale}
                               </p>
                             </div>
+                            <div>
+                              <label className="text-sm font-medium text-slate-600">
+                                Email
+                              </label>
+                              <p className="text-slate-900 font-semibold mt-1">
+                                {selectedAgent.email}
+                              </p>
+                            </div>
                           </div>
                         </div>
                       </div>
@@ -1262,18 +1360,42 @@ export default function AgentsPage() {
                         <div className="bg-slate-50 rounded-xl p-6">
                           <h4 className="text-lg font-semibold text-slate-800 mb-4 flex items-center gap-2">
                             <Building2 className="w-5 h-5 text-slate-600" />
-                            Affectation
+                            Affectations
                           </h4>
                           <div className="mt-4">
-                            {selectedAgent.rubrique_id ? (
-                              <div className="flex items-center gap-3">
-                                <span className="inline-flex items-center px-3 py-2 rounded-lg text-sm font-semibold bg-green-100 text-green-800 border border-green-200">
-                                  <BadgeCheck className="w-4 h-4 mr-2" />
-                                  Affecté
-                                </span>
-                                <span className="text-slate-900 font-semibold">
-                                  {selectedAgent.rubrique_nom}
-                                </span>
+                            {getAgentRubriques(selectedAgent.id).length > 0 ? (
+                              <div className="space-y-3">
+                                <div className="flex items-center gap-3 mb-3">
+                                  <span className="inline-flex items-center px-3 py-2 rounded-lg text-sm font-semibold bg-green-100 text-green-800 border border-green-200">
+                                    <BadgeCheck className="w-4 h-4 mr-2" />
+                                    {
+                                      getAgentRubriques(selectedAgent.id).length
+                                    }{" "}
+                                    rubrique
+                                    {getAgentRubriques(selectedAgent.id)
+                                      .length > 1
+                                      ? "s"
+                                      : ""}
+                                  </span>
+                                </div>
+                                <div className="space-y-2">
+                                  {getAgentRubriques(selectedAgent.id).map(
+                                    (rub, index) => (
+                                      <div
+                                        key={rub.id}
+                                        className="flex items-center gap-3 p-3 bg-white rounded-lg border-2 border-green-200"
+                                      >
+                                        <span className="w-6 h-6 bg-green-100 text-green-700 rounded-full flex items-center justify-center text-xs font-bold">
+                                          {index + 1}
+                                        </span>
+                                        <span className="text-slate-900 font-semibold flex-1">
+                                          {rub.nom}
+                                        </span>
+                                        <BadgeCheck className="w-5 h-5 text-green-600" />
+                                      </div>
+                                    )
+                                  )}
+                                </div>
                               </div>
                             ) : (
                               <span className="inline-flex items-center px-3 py-2 rounded-lg text-sm font-semibold bg-orange-100 text-orange-800 border border-orange-200">
@@ -1290,7 +1412,7 @@ export default function AgentsPage() {
 
                 {activeTab === "sous-dossiers" && (
                   <div className="space-y-6">
-                    {!selectedAgent.rubrique_id ? (
+                    {getAgentRubriques(selectedAgent.id).length === 0 ? (
                       <div className="text-center py-16">
                         <div className="w-20 h-20 bg-gradient-to-br from-orange-100 to-orange-200 rounded-2xl flex items-center justify-center mx-auto mb-6 shadow-lg">
                           <AlertCircle className="w-10 h-10 text-orange-600" />
@@ -1306,96 +1428,153 @@ export default function AgentsPage() {
                       </div>
                     ) : (
                       <div>
-                        {/* Header avec statistiques */}
-                        <div className="bg-gradient-to-r from-slate-50 to-slate-100 rounded-2xl p-6 mb-8 border border-slate-200">
-                          <div className="flex items-center justify-between">
-                            <div>
-                              <h3 className="text-2xl font-bold text-slate-800 mb-2">
-                                Sous-dossiers de la rubrique
-                              </h3>
-                              <p className="text-slate-600 font-medium">
-                                {selectedAgent.rubrique_nom}
-                              </p>
-                            </div>
-                            <div className="flex items-center gap-6">
-                              <div className="text-center">
-                                <div className="text-3xl font-bold text-slate-800">
-                                  {sousDossiers.length}
-                                </div>
-                                <div className="text-sm text-slate-600">
-                                  Sous-dossier
-                                  {sousDossiers.length !== 1 ? "s" : ""}
-                                </div>
-                              </div>
-                              <div className="w-px h-12 bg-slate-300"></div>
-                              <div className="text-center">
-                                <div className="text-3xl font-bold text-slate-800">
-                                  {sousDossiers.reduce(
-                                    (total, sd) =>
-                                      total + (sd.documentsCount || 0),
-                                    0
-                                  )}
-                                </div>
-                                <div className="text-sm text-slate-600">
-                                  Pièces totales
-                                </div>
-                              </div>
-                              <div className="w-px h-12 bg-slate-300"></div>
-                              <div className="text-center">
-                                <div className="text-3xl font-bold text-green-600">
-                                  Disponibles
-                                </div>
-                                <div className="text-sm text-slate-600">
-                                  Statut de disponibilité
-                                </div>
-                              </div>
-                            </div>
-                          </div>
+                        {/* Header */}
+                        <div className="bg-gradient-to-r from-primary-50 to-primary-100 rounded-2xl p-6 mb-6 border-2 border-primary-200">
+                          <h3 className="text-2xl font-bold text-slate-800 mb-2">
+                            Rubriques affectées
+                          </h3>
+                          <p className="text-slate-600 font-medium">
+                            Cliquez sur une rubrique pour voir ses sous-dossiers
+                            et vérifier la disponibilité des pièces
+                          </p>
                         </div>
 
-                        {loadingSousDossiers ? (
-                          <div className="flex items-center justify-center py-16">
-                            <div className="text-center">
-                              <Loader2 className="w-12 h-12 text-slate-400 animate-spin mx-auto mb-4" />
-                              <p className="text-slate-600 font-medium">
-                                Chargement des sous-dossiers...
-                              </p>
-                            </div>
-                          </div>
-                        ) : sousDossiers.length === 0 ? (
-                          <div className="text-center py-16">
-                            <div className="w-20 h-20 bg-gradient-to-br from-slate-100 to-slate-200 rounded-2xl flex items-center justify-center mx-auto mb-6 shadow-lg">
-                              <Folder className="w-10 h-10 text-slate-400" />
-                            </div>
-                            <h3 className="text-xl font-bold text-slate-800 mb-3">
-                              Aucun sous-dossier
-                            </h3>
-                            <p className="text-slate-600 max-w-md mx-auto leading-relaxed">
-                              Cette rubrique ne contient pas encore de
-                              sous-dossiers. Créez des sous-dossiers pour
-                              organiser les documents.
-                            </p>
-                          </div>
-                        ) : (
-                          <div className="space-y-4">
-                            {sousDossiers.map((sousDossier) => (
-                              <SousDossierCard
-                                key={sousDossier.id}
-                                sousDossier={sousDossier}
-                                agentId={selectedAgent.id}
-                                onAvailabilityChange={(pieceId, disponible) => {
-                                  console.log(
-                                    `Pièce ${pieceId} marquée comme ${
-                                      disponible
-                                        ? "disponible"
-                                        : "non disponible"
-                                    } par l'agent ${selectedAgent.id}`
-                                  );
-                                }}
-                              />
-                            ))}
-                          </div>
-                        )}
+                        {/* Accordion des rubriques */}
+                        <div className="space-y-4">
+                          {getAgentRubriques(selectedAgent.id).map(
+                            (rubrique, index) => {
+                              const isExpanded =
+                                expandedRubriqueId === rubrique.id;
+                              const rubDossiers =
+                                sousDossiersByRubrique.get(rubrique.id) || [];
+
+                              return (
+                                <div
+                                  key={rubrique.id}
+                                  className="bg-white rounded-xl border-2 border-gray-200 shadow-md overflow-hidden"
+                                >
+                                  {/* Header de la rubrique */}
+                                  <button
+                                    onClick={() =>
+                                      handleRubriqueToggle(rubrique.id)
+                                    }
+                                    className="w-full p-6 bg-gradient-to-r from-primary-50 to-primary-100 hover:from-primary-100 hover:to-primary-200 transition-all duration-200 text-left"
+                                  >
+                                    <div className="flex items-center justify-between">
+                                      <div className="flex items-center gap-4 flex-1">
+                                        <div className="w-12 h-12 bg-primary-300 rounded-xl flex items-center justify-center shadow-lg">
+                                          <span className="text-primary-600 font-bold text-lg">
+                                            {index + 1}
+                                          </span>
+                                        </div>
+                                        <div className="flex-1">
+                                          <h4 className="text-xl font-bold text-gray-900">
+                                            {rubrique.nom}
+                                          </h4>
+                                          {isExpanded &&
+                                            rubDossiers.length > 0 && (
+                                              <p className="text-sm text-gray-600 mt-1">
+                                                {rubDossiers.length}{" "}
+                                                sous-dossier
+                                                {rubDossiers.length > 1
+                                                  ? "s"
+                                                  : ""}
+                                              </p>
+                                            )}
+                                        </div>
+                                      </div>
+                                      <div className="flex items-center gap-3">
+                                        {isExpanded &&
+                                          rubDossiers.length > 0 && (
+                                            <span className="px-3 py-1.5 bg-primary-600 text-white text-xs font-bold rounded-full">
+                                              {rubDossiers.length} sous-dossier
+                                              {rubDossiers.length > 1
+                                                ? "s"
+                                                : ""}
+                                            </span>
+                                          )}
+                                        <div
+                                          className={`w-8 h-8 rounded-lg flex items-center justify-center transition-all duration-200 ${
+                                            isExpanded
+                                              ? "bg-primary-600 text-white rotate-180"
+                                              : "bg-gray-200 text-gray-600"
+                                          }`}
+                                        >
+                                          <svg
+                                            className="w-5 h-5"
+                                            fill="none"
+                                            stroke="currentColor"
+                                            viewBox="0 0 24 24"
+                                          >
+                                            <path
+                                              strokeLinecap="round"
+                                              strokeLinejoin="round"
+                                              strokeWidth={2}
+                                              d="M19 9l-7 7-7-7"
+                                            />
+                                          </svg>
+                                        </div>
+                                      </div>
+                                    </div>
+                                  </button>
+
+                                  {/* Contenu de la rubrique (sous-dossiers) */}
+                                  {isExpanded && (
+                                    <div className="border-t-2 border-gray-200 bg-gray-50">
+                                      {loadingSousDossiers ? (
+                                        <div className="flex items-center justify-center py-16">
+                                          <div className="text-center">
+                                            <Loader2 className="w-12 h-12 text-slate-400 animate-spin mx-auto mb-4" />
+                                            <p className="text-slate-600 font-medium">
+                                              Chargement des sous-dossiers...
+                                            </p>
+                                          </div>
+                                        </div>
+                                      ) : rubDossiers.length === 0 ? (
+                                        <div className="text-center py-12">
+                                          <div className="w-16 h-16 bg-slate-200 rounded-xl flex items-center justify-center mx-auto mb-4">
+                                            <Folder className="w-8 h-8 text-slate-400" />
+                                          </div>
+                                          <h4 className="text-lg font-semibold text-slate-700 mb-2">
+                                            Aucun sous-dossier
+                                          </h4>
+                                          <p className="text-slate-500 text-sm">
+                                            Cette rubrique ne contient pas
+                                            encore de sous-dossiers.
+                                          </p>
+                                        </div>
+                                      ) : (
+                                        <div className="p-6 space-y-4">
+                                          {rubDossiers.map((sousDossier) => (
+                                            <SousDossierCard
+                                              key={sousDossier.id}
+                                              sousDossier={sousDossier}
+                                              agentId={selectedAgent.id}
+                                              onAvailabilityChange={(
+                                                pieceId,
+                                                disponible
+                                              ) => {
+                                                console.log(
+                                                  `Pièce ${pieceId} marquée comme ${
+                                                    disponible
+                                                      ? "disponible"
+                                                      : "non disponible"
+                                                  } par l'agent ${
+                                                    selectedAgent.id
+                                                  }`
+                                                );
+                                              }}
+                                            />
+                                          ))}
+                                        </div>
+                                      )}
+                                    </div>
+                                  )}
+                                </div>
+                              );
+                            }
+                          )}
+                        </div>
                       </div>
                     )}
                   </div>

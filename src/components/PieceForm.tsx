@@ -138,10 +138,10 @@ export default function PieceForm({
     <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
       <div className="bg-white rounded-2xl shadow-2xl w-full max-w-2xl max-h-[90vh] overflow-y-auto transform transition-all duration-300 ease-out">
         {/* Header */}
-        <div className="flex items-center justify-between p-6 border-b border-gray-200 bg-gradient-to-r from-accent-green/5 to-accent-green/10">
+        <div className="flex items-center justify-between p-6 border-b border-gray-400 bg-gradient-to-r from-accent-green/5 to-accent-green/10">
           <div className="flex items-center gap-4">
-            <div className="w-12 h-12 bg-gradient-to-br from-accent-green to-accent-green rounded-xl flex items-center justify-center shadow-lg">
-              <FileText className="w-6 h-6 text-white" />
+            <div className="w-12 h-12 bg-primary-300 rounded-xl flex items-center justify-center shadow-lg">
+              <FileText className="w-6 h-6 text-black" />
             </div>
             <div>
               <h2 className="text-2xl font-bold text-gray-900">
@@ -284,8 +284,8 @@ export default function PieceForm({
                     Aucun champ de métadonnée défini
                   </p>
                   <p className="text-sm text-gray-500 max-w-sm mx-auto">
-                    Cliquez sur "Ajouter un champ" pour créer votre premier
-                    champ de métadonnée personnalisé
+                    Cliquez sur &quot;Ajouter un champ&quot; pour créer votre
+                    premier champ de métadonnée personnalisé
                   </p>
                 </div>
               ) : (

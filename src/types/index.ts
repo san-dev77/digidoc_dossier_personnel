@@ -90,8 +90,7 @@ export interface PieceWithMetadata extends Piece {
 // Types pour les formulaires
 export interface AgentFormData {
   matricule: string;
-  nom: string; // Nom complet
-  prenom: string; // Gardé pour compatibilité
+  nom_complet: string; // Nom complet (nom et prénom)
   email: string;
   fonction: string;
   date_naissance: string;
@@ -104,6 +103,7 @@ export interface AgentFormData {
     | "Veuf/Veuve";
   adresse: string;
   telephone: string;
+  password?: string; // Optionnel, uniquement pour la création
 }
 
 export interface RubriqueFormData {
