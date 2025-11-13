@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import Image from "next/image";
 import { usePathname } from "next/navigation";
 import {
   LayoutDashboard,
@@ -8,7 +9,6 @@ import {
   FileText,
   FolderOpen,
   Settings,
-  Building2,
   ChevronLeft,
   ChevronRight,
   Layers3,
@@ -20,6 +20,7 @@ import {
   HardDrive,
 } from "lucide-react";
 import { useState } from "react";
+import logo from "@/app/assets/logo.png";
 
 interface SidebarProps {
   isCollapsed?: boolean;
@@ -142,125 +143,147 @@ export default function Sidebar({
 
   return (
     <div
-      className={`bg-primary-800 border-r border-primary-600 transition-all duration-500 ${
+      className={`bg-primary-800 border-r border-primary-700/60 transition-all duration-300 ease-in-out ${
         collapsed ? "w-20" : "w-64"
-      } flex flex-col h-full shadow-2xl relative overflow-hidden sidebar-scrollbar`}
+      } flex flex-col h-full shadow-xl relative overflow-hidden`}
     >
-      {/* Effet de brillance */}
-      <div className="absolute inset-0 bg-gradient-to-br from-white/5 via-transparent to-transparent pointer-events-none"></div>
+      {/* Effet de brillance subtil */}
+      <div className="absolute inset-0 bg-gradient-to-br from-white/3 via-transparent to-transparent pointer-events-none"></div>
 
       {/* Header avec logo */}
-      <div className="relative p-6 border-b border-primary-600/50">
-        <div className="flex items-center justify-between">
+      <div className="relative p-5 border-b border-primary-700/70 bg-primary-800/50">
+        <div className="flex items-center justify-between gap-3">
           {!collapsed && (
-            <div className="flex items-center space-x-4">
-              <div className="relative">
-                <div className="w-12 h-12 bg-gradient-to-br from-primary-500 to-primary-600 rounded-2xl flex items-center justify-center shadow-lg border border-primary-400/20">
-                  <Building2 className="w-7 h-7 text-white" />
-                </div>
-                <div className="absolute -top-1 -right-1 w-4 h-4 bg-gradient-to-br from-accent-green to-accent-green rounded-full flex items-center justify-center">
-                  <Sparkles className="w-2.5 h-2.5 text-white" />
+            <div className="flex items-center space-x-3 flex-1 min-w-0">
+              <div className="relative flex-shrink-0">
+                <div className="w-11 h-11 bg-white rounded-xl flex items-center justify-center shadow-lg ring-2 ring-primary-600/30 p-1.5 overflow-hidden">
+                  <Image
+                    src={logo}
+                    alt="DigiDoc Logo"
+                    className="w-full h-full object-contain"
+                    priority
+                  />
                 </div>
               </div>
-              <div>
-                <h1 className="text-xl font-bold text-white">DigiDoc</h1>
-                <p className="text-xs text-primary-200 font-medium">
+              <div className="flex-1 min-w-0">
+                <h1 className="text-lg font-bold text-white tracking-tight">
+                  DigiDoc
+                </h1>
+                <p className="text-xs text-primary-300 font-medium truncate">
                   Personnel Management
                 </p>
               </div>
             </div>
           )}
           {collapsed && (
-            <div className="flex justify-center">
+            <div className="flex justify-center w-full">
               <div className="relative">
-                <div className="w-12 h-12 bg-gradient-to-br from-primary-500 to-primary-600 rounded-2xl flex items-center justify-center shadow-lg border border-primary-400/20">
-                  <Building2 className="w-7 h-7 text-white" />
+                <div className="w-11 h-11 bg-white rounded-xl flex items-center justify-center shadow-lg ring-2 ring-primary-600/30 p-1.5 overflow-hidden">
+                  <Image
+                    src={logo}
+                    alt="DigiDoc Logo"
+                    className="w-full h-full object-contain"
+                    priority
+                  />
                 </div>
-                <div className="absolute -top-1 -right-1 w-4 h-4 bg-gradient-to-br from-accent-green to-accent-green rounded-full flex items-center justify-center">
-                  <Sparkles className="w-2.5 h-2.5 text-white" />
+                <div className="absolute -top-1 -right-1 w-3.5 h-3.5 bg-accent-green rounded-full flex items-center justify-center shadow-sm ring-2 ring-primary-800">
+                  <Sparkles className="w-2 h-2 text-white" />
                 </div>
               </div>
             </div>
           )}
-          <button
-            onClick={toggleCollapsed}
-            className="p-2 rounded-xl bg-primary-600/50 hover:bg-primary-500/50 transition-all duration-300 border border-primary-500/50 hover:border-primary-400/50 group"
-          >
-            {collapsed ? (
-              <ChevronRight className="w-5 h-5 text-primary-200 group-hover:text-white transition-colors" />
-            ) : (
-              <ChevronLeft className="w-5 h-5 text-primary-200 group-hover:text-white transition-colors" />
-            )}
-          </button>
+          {!collapsed && (
+            <button
+              onClick={toggleCollapsed}
+              className="p-2 rounded-lg bg-primary-100 hover:bg-primary-600/70 transition-all duration-200 border border-primary-600/40 hover:border-primary-500/60 group flex-shrink-0"
+              aria-label="Réduire la sidebar"
+            >
+              <ChevronLeft className="w-4 h-4 text-primary-900 group-hover:text-white transition-colors" />
+            </button>
+          )}
+          {collapsed && (
+            <button
+              onClick={toggleCollapsed}
+              className="absolute top-5 right-2 p-2 rounded-lg bg-primary-500 hover:bg-primary-600/70 transition-all duration-200 border border-primary-600/40 hover:border-primary-500/60 group"
+              aria-label="Ouvrir la sidebar"
+            >
+              <ChevronRight className="w-4 h-4 text-primary-100 group-hover:text-white transition-colors" />
+            </button>
+          )}
         </div>
       </div>
 
       {/* Navigation */}
-      <nav className="flex-1 p-4 space-y-3 overflow-y-auto sidebar-scrollbar">
+      <nav className="flex-1 px-3 py-4 space-y-1.5 overflow-y-auto sidebar-scrollbar">
         {navigationItems.map((item) => {
           const Icon = item.icon;
           return (
             <Link
               key={item.name}
               href={item.href}
-              className={`group relative flex items-center space-x-4 px-4 py-4 rounded-2xl transition-all duration-300 ${
+              className={`group relative flex items-center px-3 py-3 rounded-xl transition-all duration-200 ${
+                collapsed ? "justify-center" : "space-x-3"
+              } ${
                 item.current
-                  ? `bg-gradient-to-r ${item.color} text-white shadow-lg border border-white/20`
-                  : "text-primary-200 hover:text-white hover:bg-primary-600/50 hover:shadow-lg border border-transparent hover:border-primary-500/50"
+                  ? `bg-gradient-to-r ${item.color} text-white shadow-md ring-1 ring-white/10`
+                  : "text-primary-200 hover:text-white hover:bg-primary-700/60 active:bg-primary-700/80 border border-transparent hover:border-primary-600/30"
               }`}
             >
-              {/* Indicateur actif */}
+              {/* Indicateur actif avec meilleur contraste */}
               {item.current && (
-                <div className="absolute left-0 top-1/2 transform -translate-y-1/2 w-1 h-8 bg-white rounded-r-full"></div>
+                <div className="absolute left-0 top-1/2 transform -translate-y-1/2 w-1 h-10 bg-white rounded-r-full shadow-sm"></div>
               )}
 
+              {/* Icône avec meilleur contraste */}
               <div
-                className={`p-2 rounded-xl transition-all duration-300 ${
+                className={`flex-shrink-0 p-2 rounded-lg transition-all duration-200 ${
                   item.current
-                    ? "bg-white/20"
-                    : "bg-primary-600/50 group-hover:bg-primary-500/50"
+                    ? "bg-white/15 shadow-sm"
+                    : "bg-primary-700/40 group-hover:bg-primary-600/60 group-active:bg-primary-600/80"
                 }`}
               >
                 <Icon
-                  className={`w-5 h-5 ${collapsed ? "mx-auto" : ""} ${
+                  className={`w-5 h-5 ${
                     item.current
-                      ? "text-white"
-                      : "text-primary-300 group-hover:text-white"
-                  } transition-colors`}
+                      ? "text-white drop-shadow-sm"
+                      : "text-primary-200 group-hover:text-white"
+                  } transition-colors duration-200`}
                 />
               </div>
 
+              {/* Labels avec meilleur contraste */}
               {!collapsed && (
-                <div className="flex-1 min-w-0">
+                <div className="flex-1 min-w-0 hover:scale-105  transition-all duration-100">
                   <div
-                    className={`font-semibold text-sm ${
+                    className={`font-semibold text-sm leading-tight  ${
                       item.current
-                        ? "text-white"
-                        : "text-primary-100 group-hover:text-white"
-                    } transition-colors`}
+                        ? "text-white drop-shadow-sm"
+                        : "text-primary-100 group-hover:text-white "
+                    } transition-colors duration-200`}
                   >
                     {item.name}
                   </div>
                   <div
-                    className={`text-xs ${
+                    className={`text-xs mt-0.5 leading-tight ${
                       item.current
-                        ? "text-white/80"
-                        : "text-primary-300 group-hover:text-primary-200"
-                    } transition-colors`}
+                        ? "text-white/90"
+                        : "text-primary-300 group-hover:text-primary-100"
+                    } transition-colors duration-200`}
                   >
                     {item.description}
                   </div>
                 </div>
               )}
 
-              {/* Tooltip pour mode collapsed */}
+              {/* Tooltip amélioré pour mode collapsed */}
               {collapsed && (
-                <div className="absolute left-20 ml-3 px-4 py-3 bg-primary-800 text-white text-sm rounded-xl opacity-0 group-hover:opacity-100 transition-all duration-300 pointer-events-none whitespace-nowrap z-50 shadow-2xl border border-primary-600/50">
-                  <div className="font-semibold">{item.name}</div>
-                  <div className="text-xs text-primary-300 mt-1">
+                <div className="absolute left-full ml-4 px-3 py-2.5 bg-primary-800 text-white text-sm rounded-lg opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 pointer-events-none whitespace-nowrap z-50 shadow-xl border border-primary-700/70 backdrop-blur-sm">
+                  <div className="font-semibold text-white">{item.name}</div>
+                  <div className="text-xs text-primary-300 mt-0.5">
                     {item.description}
                   </div>
-                  <div className="absolute left-0 top-1/2 transform -translate-y-1/2 -translate-x-1 w-2 h-2 bg-primary-800 rotate-45 border-l border-b border-primary-600/50"></div>
+                  {/* Flèche du tooltip */}
+                  <div className="absolute left-0 top-1/2 transform -translate-y-1/2 -translate-x-1.5 w-3 h-3 bg-primary-800 rotate-45 border-l border-b border-primary-700/70"></div>
                 </div>
               )}
             </Link>
@@ -269,52 +292,33 @@ export default function Sidebar({
       </nav>
 
       {/* Footer avec stats et version */}
-      <div className="relative p-4 border-t border-slate-700/50">
+      <div className="relative px-3 py-4 border-t border-primary-700/70 bg-primary-800/50">
         {!collapsed ? (
-          <div className="space-y-4">
-            {/* Stats rapides */}
-            <div className="grid grid-cols-2 gap-3">
-              <div className="bg-primary-600/30 rounded-xl p-3 border border-primary-500/30">
-                <div className="flex items-center space-x-2">
-                  <div className="w-2 h-2 bg-accent-green rounded-full"></div>
-                  <span className="text-xs text-primary-100 font-medium">
-                    Actifs
-                  </span>
-                </div>
-                <div className="text-lg font-bold text-white mt-1">24</div>
-              </div>
-              <div className="bg-primary-600/30 rounded-xl p-3 border border-primary-500/30">
-                <div className="flex items-center space-x-2">
-                  <div className="w-2 h-2 bg-primary-400 rounded-full"></div>
-                  <span className="text-xs text-primary-100 font-medium">
-                    Docs
-                  </span>
-                </div>
-                <div className="text-lg font-bold text-white mt-1">156</div>
-              </div>
-            </div>
+          <div className="space-y-3">
+            {/* Stats rapides avec meilleur contraste */}
 
-            {/* Version */}
-            <div className="flex items-center justify-between">
-              <div className="flex items-center space-x-2">
-                <Shield className="w-4 h-4 text-primary-300" />
-                <span className="text-xs text-primary-300 font-medium">
+            {/* Version et statut avec meilleur contraste */}
+            <div className="flex items-center justify-between pt-2 ">
+              <div className="flex items-center gap-1.5">
+                <Shield className="w-3.5 h-3.5 text-primary-300" />
+                <span className="text-xs text-primary-300 font-semibold">
                   v1.0.0
                 </span>
               </div>
-              <div className="flex items-center space-x-1">
-                <Zap className="w-3 h-3 text-accent-green" />
-                <span className="text-xs text-accent-green font-medium">
+              <div className="flex items-center gap-1.5 px-2 py-0.5 bg-accent-green/10 rounded-md border border-accent-green/20">
+                <div className="w-1.5 h-1.5 bg-accent-green rounded-full animate-pulse"></div>
+                <span className="text-xs text-accent-green font-semibold">
                   Online
                 </span>
               </div>
             </div>
           </div>
         ) : (
-          <div className="flex justify-center">
-            <div className="flex items-center space-x-1">
+          <div className="flex flex-col items-center gap-2">
+            <div className="p-2 bg-accent-green/10 rounded-lg border border-accent-green/20">
               <Zap className="w-4 h-4 text-accent-green" />
             </div>
+            <div className="w-1.5 h-1.5 bg-accent-green rounded-full animate-pulse"></div>
           </div>
         )}
       </div>

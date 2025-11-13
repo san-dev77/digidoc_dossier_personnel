@@ -38,6 +38,30 @@ export default function AgentConfigurationPage() {
   const [viewMode, setViewMode] = useState<"all" | "assigned" | "unassigned">(
     "all"
   );
+  const [showRemoveConfirmModal, setShowRemoveConfirmModal] = useState(false);
+  const [agentToRemove, setAgentToRemove] = useState<{
+    agentId: string;
+    rubriqueId: string;
+    agentName: string;
+    rubriqueName: string;
+  } | null>(null);
+  const [showAssignModal, setShowAssignModal] = useState(false);
+  const [selectedAgentForAssign, setSelectedAgentForAssign] =
+    useState<AgentWithRubrique | null>(null);
+  const [selectedRubriquesForAssign, setSelectedRubriquesForAssign] = useState<
+    string[]
+  >([]);
+  const [isAssigning, setIsAssigning] = useState(false);
+  const [showDetailsModal, setShowDetailsModal] = useState(false);
+  const [selectedAgentForDetails, setSelectedAgentForDetails] =
+    useState<AgentWithRubrique | null>(null);
+  const [showMultiRemoveModal, setShowMultiRemoveModal] = useState(false);
+  const [selectedAgentForRemove, setSelectedAgentForRemove] =
+    useState<AgentWithRubrique | null>(null);
+  const [rubriquesToRemove, setRubriquesToRemove] = useState<string[]>([]);
+  const [assignedRubriques, setAssignedRubriques] = useState<
+    Map<string, string[]>
+  >(new Map());
 
   useEffect(() => {
     loadData();
@@ -48,13 +72,26 @@ export default function AgentConfigurationPage() {
       setLoading(true);
       setError(null);
 
-      const [agentsData, rubriquesData] = await Promise.all([
+      const [agentsData, rubriquesData, allRelations] = await Promise.all([
         agentRubriqueService.getAgentsWithRubriques(),
         rubriquesService.getAllRubriques(),
+        agentRubriqueService.getAllAgentRubriques(),
       ]);
 
       setAgents(agentsData);
       setRubriques(rubriquesData);
+
+      // Créer un Map des rubriques assignées par agent
+      const assignedMap = new Map<string, string[]>();
+      allRelations.forEach((relation) => {
+        const agentId = relation.agent_id.toString();
+        const rubriqueId = relation.rubrique_id.toString();
+        if (!assignedMap.has(agentId)) {
+          assignedMap.set(agentId, []);
+        }
+        assignedMap.get(agentId)?.push(rubriqueId);
+      });
+      setAssignedRubriques(assignedMap);
     } catch (err) {
       setError("Erreur lors du chargement des données");
       console.error(err);
@@ -63,24 +100,175 @@ export default function AgentConfigurationPage() {
     }
   };
 
-  const handleAssignAgent = async (agentId: string, rubriqueId: string) => {
-    try {
-      await agentRubriqueService.assignAgentToRubrique(agentId, rubriqueId);
-      await loadData(); // Recharger les données
-    } catch (err) {
-      setError("Erreur lors de l&apos;affectation de l&apos;agent");
-      console.error(err);
-    }
+  const handleRemoveAgentClick = (
+    agentId: string,
+    rubriqueId: string,
+    agentName: string,
+    rubriqueName: string
+  ) => {
+    setAgentToRemove({ agentId, rubriqueId, agentName, rubriqueName });
+    setShowRemoveConfirmModal(true);
   };
 
-  const handleRemoveAgent = async (agentId: string, rubriqueId: string) => {
+  const confirmRemoveAgent = async () => {
+    if (!agentToRemove) return;
+
     try {
-      await agentRubriqueService.removeAgentFromRubrique(agentId, rubriqueId);
+      await agentRubriqueService.removeAgentFromRubrique(
+        agentToRemove.agentId,
+        agentToRemove.rubriqueId
+      );
       await loadData(); // Recharger les données
+      setShowRemoveConfirmModal(false);
+      setAgentToRemove(null);
     } catch (err) {
       setError("Erreur lors de la suppression de l&apos;affectation");
       console.error(err);
     }
+  };
+
+  const cancelRemoveAgent = () => {
+    setShowRemoveConfirmModal(false);
+    setAgentToRemove(null);
+  };
+
+  // Vérifier si une rubrique est déjà assignée à un agent
+  const isRubriqueAssigned = (agentId: string, rubriqueId: string): boolean => {
+    const agentRubriques = assignedRubriques.get(agentId) || [];
+    return agentRubriques.includes(rubriqueId);
+  };
+
+  // Ouvrir la modale d'affectation pour un agent
+  const handleOpenAssignModal = (agent: AgentWithRubrique) => {
+    setSelectedAgentForAssign(agent);
+    setSelectedRubriquesForAssign([]);
+    setShowAssignModal(true);
+  };
+
+  // Toggle la sélection d'une rubrique pour l'affectation
+  const toggleRubriqueForAssign = (rubriqueId: string) => {
+    setSelectedRubriquesForAssign((prev) =>
+      prev.includes(rubriqueId)
+        ? prev.filter((id) => id !== rubriqueId)
+        : [...prev, rubriqueId]
+    );
+  };
+
+  // Assigner les rubriques sélectionnées à l'agent
+  const handleAssignToSelectedAgent = async () => {
+    if (!selectedAgentForAssign || selectedRubriquesForAssign.length === 0)
+      return;
+
+    try {
+      setIsAssigning(true);
+      setError(null);
+
+      let successCount = 0;
+      let skipCount = 0;
+      const errorMessages: string[] = [];
+
+      // Assigner chaque rubrique sélectionnée
+      for (const rubriqueId of selectedRubriquesForAssign) {
+        try {
+          await agentRubriqueService.assignAgentToRubrique(
+            selectedAgentForAssign.id,
+            rubriqueId
+          );
+          successCount++;
+        } catch (err) {
+          const errorMessage =
+            err instanceof Error ? err.message : "Erreur inconnue";
+          // Si l'affectation existe déjà, on l'ignore
+          if (errorMessage.includes("existe déjà")) {
+            skipCount++;
+          } else {
+            errorMessages.push(errorMessage);
+          }
+        }
+      }
+
+      await loadData();
+
+      // Afficher un message de résultat
+      if (errorMessages.length > 0) {
+        setError(
+          `${successCount} rubrique(s) assignée(s), ${errorMessages.length} erreur(s)`
+        );
+      } else if (skipCount > 0) {
+        // Message d'information si certaines étaient déjà assignées
+        console.log(
+          `${successCount} nouvelle(s) rubrique(s) assignée(s), ${skipCount} déjà assignée(s)`
+        );
+      }
+
+      setShowAssignModal(false);
+      setSelectedAgentForAssign(null);
+      setSelectedRubriquesForAssign([]);
+    } catch (err) {
+      setError("Erreur lors de l'affectation");
+      console.error(err);
+    } finally {
+      setIsAssigning(false);
+    }
+  };
+
+  // Ouvrir la modale de détails
+  const handleOpenDetailsModal = (agent: AgentWithRubrique) => {
+    setSelectedAgentForDetails(agent);
+    setShowDetailsModal(true);
+  };
+
+  // Ouvrir la modale de retrait multiple
+  const handleOpenMultiRemoveModal = (agent: AgentWithRubrique) => {
+    setSelectedAgentForRemove(agent);
+    setRubriquesToRemove([]);
+    setShowMultiRemoveModal(true);
+  };
+
+  // Gérer la sélection des rubriques à retirer
+  const toggleRubriqueToRemove = (rubriqueId: string) => {
+    setRubriquesToRemove((prev) =>
+      prev.includes(rubriqueId)
+        ? prev.filter((id) => id !== rubriqueId)
+        : [...prev, rubriqueId]
+    );
+  };
+
+  // Confirmer le retrait multiple
+  const confirmMultiRemove = async () => {
+    if (!selectedAgentForRemove || rubriquesToRemove.length === 0) return;
+
+    try {
+      for (const rubriqueId of rubriquesToRemove) {
+        await agentRubriqueService.removeAgentFromRubrique(
+          selectedAgentForRemove.id,
+          rubriqueId
+        );
+      }
+      await loadData();
+      setShowMultiRemoveModal(false);
+      setSelectedAgentForRemove(null);
+      setRubriquesToRemove([]);
+    } catch (err) {
+      setError("Erreur lors du retrait des rubriques");
+      console.error(err);
+    }
+  };
+
+  // Obtenir toutes les rubriques d'un agent
+  const getAgentRubriques = (agentId: string) => {
+    const rubriqueIds = assignedRubriques.get(agentId) || [];
+    return rubriqueIds
+      .map((rubriqueId) => {
+        const rubrique = rubriques.find((r) => r.id === rubriqueId);
+        return rubrique
+          ? {
+              id: rubrique.id,
+              nom: rubrique.nom,
+            }
+          : null;
+      })
+      .filter((r) => r !== null) as { id: string; nom: string }[];
   };
 
   const handleBulkAssign = async () => {
@@ -132,20 +320,6 @@ export default function AgentConfigurationPage() {
       };
     }
     return null;
-  };
-
-  const getRubriqueName = (rubriqueId: string, agentId?: string) => {
-    // Si on a l&apos;ID de l&apos;agent, chercher directement dans les données de l&apos;agent
-    if (agentId) {
-      const agent = agents.find((a) => a.id === agentId);
-      if (agent && agent.rubrique_nom) {
-        return agent.rubrique_nom;
-      }
-    }
-
-    // Sinon, chercher dans le tableau des rubriques
-    const rubrique = rubriques.find((r) => r.id === rubriqueId);
-    return rubrique?.nom || "Rubrique inconnue";
   };
 
   const filteredAgents = agents.filter((agent) => {
@@ -248,7 +422,7 @@ export default function AgentConfigurationPage() {
                       title="Affectation en masse"
                     >
                       <Plus className="w-6 h-6" />
-                      <span>Affectation en masse</span>
+                      <span>Affectation</span>
                     </button>
                   </div>
                   <div className="text-center">
@@ -484,39 +658,105 @@ export default function AgentConfigurationPage() {
                           </div>
                         </div>
 
-                        <div className="flex items-center space-x-4">
-                          <div className="flex items-center space-x-3">
-                            <span
-                              className="inline-flex items-center px-4 py-2 rounded-full text-sm font-bold bg-accent-green text-white shadow-md"
-                              title="Cet agent est actuellement affecté à une rubrique"
-                            >
-                              <CheckCircle className="w-4 h-4 mr-2" />
-                              Affecté
-                            </span>
-                            <div className="flex flex-col">
-                              <span className="text-sm font-semibold text-gray-800 bg-gray-100 px-4 py-2 rounded-lg border border-gray-200">
-                                {currentRubriqueId
-                                  ? getRubriqueName(currentRubriqueId, agent.id)
-                                  : "Rubrique inconnue"}
-                              </span>
-                              <span className="text-xs text-gray-500 mt-1 text-center">
-                                Rubrique assignée
-                              </span>
-                            </div>
-                          </div>
+                        <div className="flex items-center space-x-3">
+                          {currentRubriqueId ? (
+                            <>
+                              {/* Agent avec rubrique(s) affectée(s) */}
+                              <div className="flex items-center space-x-3">
+                                <span
+                                  className="inline-flex items-center px-4 py-2 rounded-full text-sm font-bold bg-accent-green text-white shadow-md"
+                                  title="Cet agent est actuellement affecté à une ou plusieurs rubriques"
+                                >
+                                  <CheckCircle className="w-4 h-4 mr-2" />
+                                  Affecté
+                                </span>
+                                <div className="flex flex-wrap gap-2">
+                                  {getAgentRubriques(agent.id).map((rub) => (
+                                    <span
+                                      key={rub.id}
+                                      className="text-sm font-semibold text-gray-800 bg-gray-100 px-3 py-1.5 rounded-lg border border-gray-200"
+                                    >
+                                      {rub.nom}
+                                    </span>
+                                  ))}
+                                  <span className="text-xs text-gray-500 bg-accent-green-light px-2 py-1.5 rounded-md border border-accent-green/20 flex items-center gap-1">
+                                    <CheckCircle className="w-3 h-3" />
+                                    {getAgentRubriques(agent.id).length}{" "}
+                                    rubrique
+                                    {getAgentRubriques(agent.id).length > 1
+                                      ? "s"
+                                      : ""}
+                                  </span>
+                                </div>
+                              </div>
 
-                          <div className="flex items-center space-x-2">
-                            <button
-                              onClick={() =>
-                                currentRubriqueId &&
-                                handleRemoveAgent(agent.id, currentRubriqueId)
-                              }
-                              className="p-3 text-red-600 hover:text-red-700 hover:bg-red-50 rounded-xl transition-all duration-200 border border-red-200 hover:border-red-300 hover:shadow-md"
-                              title="Retirer cet agent de la rubrique (il ne pourra plus gérer les dossiers de cette rubrique)"
-                            >
-                              <X className="w-5 h-5" />
-                            </button>
-                          </div>
+                              {/* Boutons d'action */}
+                              <div className="flex items-center space-x-2">
+                                <button
+                                  onClick={() => handleOpenAssignModal(agent)}
+                                  className="px-4 py-2.5 bg-primary-600 hover:bg-primary-700 text-white font-bold rounded-xl transition-all duration-200 shadow-md hover:shadow-lg flex items-center space-x-2"
+                                  title="Assigner une nouvelle rubrique"
+                                >
+                                  <Plus className="w-4 h-4" />
+                                  <span>Assigner</span>
+                                </button>
+
+                                <button
+                                  onClick={() => handleOpenDetailsModal(agent)}
+                                  className="px-4 py-2.5 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-xl transition-all duration-200 shadow-md hover:shadow-lg flex items-center space-x-2"
+                                  title="Voir les détails"
+                                >
+                                  <UserCheck className="w-4 h-4" />
+                                  <span>Détails</span>
+                                </button>
+
+                                <button
+                                  onClick={() => {
+                                    const agentRubriques = getAgentRubriques(
+                                      agent.id
+                                    );
+                                    if (agentRubriques.length === 1) {
+                                      // Retrait direct avec confirmation
+                                      handleRemoveAgentClick(
+                                        agent.id,
+                                        agentRubriques[0].id,
+                                        `${agent.prenom} ${agent.nom}`,
+                                        agentRubriques[0].nom
+                                      );
+                                    } else {
+                                      // Modale de retrait multiple
+                                      handleOpenMultiRemoveModal(agent);
+                                    }
+                                  }}
+                                  className="px-4 py-2.5 bg-red-600 hover:bg-red-700 text-white font-bold rounded-xl transition-all duration-200 shadow-md hover:shadow-lg flex items-center space-x-2"
+                                  title="Retirer de la/des rubrique(s)"
+                                >
+                                  <X className="w-4 h-4" />
+                                  <span>Retirer</span>
+                                </button>
+                              </div>
+                            </>
+                          ) : (
+                            <>
+                              {/* Agent sans rubrique affectée */}
+                              <span
+                                className="inline-flex items-center px-4 py-2 rounded-full text-sm font-bold bg-warning-600 text-white shadow-md"
+                                title="Cet agent n'est pas encore affecté"
+                              >
+                                <AlertCircle className="w-4 h-4 mr-2" />
+                                Non affecté
+                              </span>
+
+                              <button
+                                onClick={() => handleOpenAssignModal(agent)}
+                                className="px-4 py-2.5 bg-primary-600 hover:bg-primary-700 text-white font-bold rounded-xl transition-all duration-200 shadow-md hover:shadow-lg flex items-center space-x-2"
+                                title="Assigner à une rubrique"
+                              >
+                                <Plus className="w-4 h-4" />
+                                <span>Assigner</span>
+                              </button>
+                            </>
+                          )}
                         </div>
                       </div>
                     </div>
@@ -536,7 +776,8 @@ export default function AgentConfigurationPage() {
                 Agents non affectés
               </h3>
               <p className="text-sm text-gray-600 mt-1">
-                Cliquez sur une rubrique pour affecter un agent
+                Cliquez sur le bouton &quot;Assigner&quot; pour affecter un
+                agent à une rubrique
               </p>
               <div className="mt-3 p-3 bg-white/70 rounded-lg border border-warning-200">
                 <div className="flex items-start gap-2">
@@ -611,33 +852,15 @@ export default function AgentConfigurationPage() {
                             </div>
                           </div>
 
-                          {/* Actions d'affectation */}
-                          <div className="flex items-center space-x-2">
-                            <div className="flex flex-col space-y-2">
-                              <span className="text-xs text-gray-700 font-semibold">
-                                Affecter à :
-                              </span>
-                              <div className="flex items-center space-x-2">
-                                {rubriques.slice(0, 3).map((rubrique) => (
-                                  <button
-                                    key={rubrique.id}
-                                    onClick={() =>
-                                      handleAssignAgent(agent.id, rubrique.id)
-                                    }
-                                    className="px-4 py-2 text-sm font-semibold text-primary-700 bg-primary-100 hover:bg-primary-200 rounded-lg transition-all duration-200 border border-primary-200 hover:border-primary-300 hover:shadow-md"
-                                    title={`Affecter ${agent.prenom} ${agent.nom} à la rubrique "${rubrique.nom}" - Il pourra gérer les dossiers de cette rubrique`}
-                                  >
-                                    {rubrique.nom}
-                                  </button>
-                                ))}
-                                {rubriques.length > 3 && (
-                                  <span className="text-xs text-gray-500 bg-gray-100 px-2 py-1 rounded-md">
-                                    +{rubriques.length - 3} autres
-                                  </span>
-                                )}
-                              </div>
-                            </div>
-                          </div>
+                          {/* Bouton d'affectation */}
+                          <button
+                            onClick={() => handleOpenAssignModal(agent)}
+                            className="px-4 py-2.5 bg-primary-600 hover:bg-primary-700 text-white font-bold rounded-xl transition-all duration-200 shadow-md hover:shadow-lg flex items-center space-x-2"
+                            title="Assigner à une rubrique"
+                          >
+                            <Plus className="w-4 h-4" />
+                            <span>Assigner</span>
+                          </button>
                         </div>
                       </div>
                     </div>
@@ -693,9 +916,8 @@ export default function AgentConfigurationPage() {
                 </div>
               ) : (
                 filteredAgents.map((agent) => {
-                  const agentRubrique = getAgentRubrique(agent.id);
-                  const currentRubriqueId = agentRubrique?.rubrique_id;
-                  const isAssigned = !!agentRubrique;
+                  const agentRubriques = getAgentRubriques(agent.id);
+                  const isAssigned = agentRubriques.length > 0;
 
                   return (
                     <div
@@ -740,72 +962,87 @@ export default function AgentConfigurationPage() {
                         <div className="flex items-center space-x-4">
                           {/* Statut d'affectation */}
                           <div className="flex items-center space-x-3">
-                            {currentRubriqueId ? (
-                              <div className="flex flex-col space-y-2">
-                                <div className="flex items-center space-x-3">
-                                  <span className="inline-flex items-center px-4 py-2 rounded-full text-sm font-bold bg-accent-green text-white shadow-md">
-                                    <CheckCircle className="w-4 h-4 mr-2" />
-                                    Affecté
+                            {isAssigned ? (
+                              <div className="flex items-center gap-3">
+                                <span className="inline-flex items-center px-4 py-2 rounded-full text-sm font-bold bg-accent-green text-white shadow-md">
+                                  <CheckCircle className="w-4 h-4 mr-2" />
+                                  Affecté
+                                </span>
+                                <div className="flex flex-wrap gap-2">
+                                  {agentRubriques.map((rub) => (
+                                    <span
+                                      key={rub.id}
+                                      className="text-sm font-semibold text-gray-800 bg-gray-100 px-3 py-1.5 rounded-lg border border-gray-200"
+                                    >
+                                      {rub.nom}
+                                    </span>
+                                  ))}
+                                  <span className="text-xs text-gray-500 bg-accent-green-light px-2 py-1.5 rounded-md border border-accent-green/20 flex items-center gap-1">
+                                    <CheckCircle className="w-3 h-3" />
+                                    {agentRubriques.length} rubrique
+                                    {agentRubriques.length > 1 ? "s" : ""}
                                   </span>
-                                  <span className="text-sm font-semibold text-gray-800 bg-gray-100 px-4 py-2 rounded-lg border border-gray-200">
-                                    {getRubriqueName(
-                                      currentRubriqueId,
-                                      agent.id
-                                    )}
-                                  </span>
-                                </div>
-                                <div className="text-xs text-gray-500 bg-accent-green-light px-3 py-1 rounded-md border border-accent-green/20">
-                                  Rubrique affectée :{" "}
-                                  {getRubriqueName(currentRubriqueId, agent.id)}
                                 </div>
                               </div>
                             ) : (
-                              <div className="flex flex-col space-y-2">
+                              <div className="flex items-center space-y-2">
                                 <span className="inline-flex items-center px-4 py-2 rounded-full text-sm font-bold bg-warning-600 text-white border border-warning-700 shadow-sm">
                                   <AlertCircle className="w-4 h-4 mr-2" />
                                   Non affecté
                                 </span>
-                                <div className="text-xs text-gray-700 bg-gray-100 px-3 py-1 rounded-md border border-gray-300">
+                                <div className="text-xs text-gray-700 bg-gray-100 px-3 py-1 rounded-md border border-gray-300 ml-2">
                                   Aucune rubrique assignée
                                 </div>
                               </div>
                             )}
                           </div>
 
-                          {/* Actions d'affectation
+                          {/* Actions d'affectation */}
                           <div className="flex items-center space-x-2">
-                            {currentRubriqueId ? (
-                              <button
-                                onClick={() =>
-                                  handleRemoveAgent(agent.id, currentRubriqueId)
-                                }
-                                className="p-3 text-red-600 hover:text-red-700 hover:bg-red-50 rounded-xl transition-all duration-200 border border-red-200 hover:border-red-300 hover:shadow-md"
-                                title="Retirer de la rubrique"
-                              >
-                                <X className="w-5 h-5" />
-                              </button>
-                            ) : (
-                              <div className="flex items-center space-x-2">
-                                {rubriques.slice(0, 3).map((rubrique) => (
-                                  <button
-                                    key={rubrique.id}
-                                    onClick={() =>
-                                      handleAssignAgent(agent.id, rubrique.id)
+                            <button
+                              onClick={() => handleOpenAssignModal(agent)}
+                              className="px-4 py-2.5 bg-primary-600 hover:bg-primary-700 text-white font-bold rounded-xl transition-all duration-200 shadow-md hover:shadow-lg flex items-center space-x-2"
+                              title="Assigner une nouvelle rubrique"
+                            >
+                              <Plus className="w-4 h-4" />
+                              <span>Assigner</span>
+                            </button>
+
+                            {isAssigned && (
+                              <>
+                                <button
+                                  onClick={() => handleOpenDetailsModal(agent)}
+                                  className="px-4 py-2.5 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-xl transition-all duration-200 shadow-md hover:shadow-lg flex items-center space-x-2"
+                                  title="Voir les détails"
+                                >
+                                  <UserCheck className="w-4 h-4" />
+                                  <span>Détails</span>
+                                </button>
+
+                                <button
+                                  onClick={() => {
+                                    if (agentRubriques.length === 1) {
+                                      // Retrait direct avec confirmation
+                                      handleRemoveAgentClick(
+                                        agent.id,
+                                        agentRubriques[0].id,
+                                        `${agent.prenom} ${agent.nom}`,
+                                        agentRubriques[0].nom
+                                      );
+                                    } else {
+                                      // Modale de retrait multiple
+                                      handleOpenMultiRemoveModal(agent);
                                     }
-                                    className="px-4 py-2 text-sm font-semibold text-primary-700 bg-primary-100 hover:bg-primary-200 rounded-lg transition-all duration-200 border border-primary-200 hover:border-primary-300 hover:shadow-md"
-                                    title={`Affecter à ${rubrique.nom}`}
-                                  >
-                                    {rubrique.nom}
-                                  </button>
-                                ))}
-                                {rubriques.length > 3 && (
-                                  <span className="text-xs text-gray-500 bg-gray-100 px-2 py-1 rounded-md">
-                                    +{rubriques.length - 3} autres
-                                  </span>
-                                )}
-                              </div>
+                                  }}
+                                  className="px-4 py-2.5 bg-red-600 hover:bg-red-700 text-white font-bold rounded-xl transition-all duration-200 shadow-md hover:shadow-lg flex items-center space-x-2"
+                                  title="Retirer de la/des rubrique(s)"
+                                >
+                                  <X className="w-4 h-4" />
+                                  <span>Retirer</span>
+                                </button>
+                              </>
                             )}
-                          </div> */}
+                          </div>
                         </div>
                       </div>
                     </div>
@@ -828,7 +1065,7 @@ export default function AgentConfigurationPage() {
                     </div>
                     <div>
                       <h3 className="text-xl font-bold text-gray-900">
-                        Affectation en masse
+                        Affectation
                       </h3>
                       <p className="text-sm text-gray-600">
                         Sélectionnez les agents et les rubriques pour
@@ -1014,6 +1251,504 @@ export default function AgentConfigurationPage() {
                     )
                   </button>
                 </div>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Modale de confirmation de retrait */}
+        {showRemoveConfirmModal && agentToRemove && (
+          <div
+            className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50 backdrop-blur-sm"
+            onClick={cancelRemoveAgent}
+          >
+            <div
+              className="bg-white rounded-2xl shadow-2xl max-w-md w-full overflow-hidden border-2 border-gray-200 animate-in fade-in zoom-in duration-200"
+              onClick={(e) => e.stopPropagation()}
+            >
+              {/* Header avec icône d'alerte */}
+              <div className="bg-gradient-to-r from-red-50 to-orange-50 p-6 border-b-2 border-red-200">
+                <div className="flex items-center space-x-4">
+                  <div className="flex-shrink-0">
+                    <div className="w-14 h-14 bg-red-500 rounded-full flex items-center justify-center shadow-lg animate-pulse">
+                      <AlertCircle className="w-8 h-8 text-white" />
+                    </div>
+                  </div>
+                  <div className="flex-1">
+                    <h3 className="text-2xl font-bold text-gray-900">
+                      Confirmer le retrait
+                    </h3>
+                    <p className="text-sm text-red-700 font-semibold mt-1">
+                      Cette action nécessite une confirmation
+                    </p>
+                  </div>
+                </div>
+              </div>
+
+              {/* Contenu */}
+              <div className="p-6 space-y-4">
+                <p className="text-gray-700 text-base leading-relaxed">
+                  Êtes-vous sûr de vouloir retirer{" "}
+                  <span className="font-bold text-gray-900 bg-blue-100 px-2 py-1 rounded">
+                    {agentToRemove.agentName}
+                  </span>{" "}
+                  de la rubrique{" "}
+                  <span className="font-bold text-gray-900 bg-purple-100 px-2 py-1 rounded">
+                    {agentToRemove.rubriqueName}
+                  </span>{" "}
+                  ?
+                </p>
+
+                <div className="bg-red-50 border-l-4 border-red-500 p-4 rounded-lg">
+                  <div className="flex items-start space-x-3">
+                    <AlertCircle className="w-5 h-5 text-red-600 flex-shrink-0 mt-0.5" />
+                    <div>
+                      <p className="text-sm font-bold text-red-900 mb-1">
+                        Conséquences du retrait :
+                      </p>
+                      <ul className="text-sm text-red-800 space-y-1 list-disc list-inside">
+                        <li>
+                          L&apos;agent ne pourra plus gérer les dossiers de
+                          cette rubrique
+                        </li>
+                        <li>
+                          Les accès aux documents associés seront révoqués
+                        </li>
+                        <li>Cette action peut être inversée ultérieurement</li>
+                      </ul>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Footer avec boutons */}
+              <div className="bg-gray-50 px-6 py-4 border-t-2 border-gray-200 flex justify-end space-x-3">
+                <button
+                  onClick={cancelRemoveAgent}
+                  className="px-5 py-2.5 border-2 border-gray-300 rounded-xl text-gray-700 font-bold hover:bg-gray-100 hover:border-gray-400 transition-all duration-200 hover:shadow-md"
+                >
+                  Annuler
+                </button>
+                <button
+                  onClick={confirmRemoveAgent}
+                  className="px-5 py-2.5 bg-gradient-to-r from-red-500 to-red-600 text-white font-bold rounded-xl hover:from-red-600 hover:to-red-700 transition-all duration-200 shadow-lg hover:shadow-xl hover:scale-105 flex items-center space-x-2"
+                >
+                  <X className="w-5 h-5" />
+                  <span>Confirmer le retrait</span>
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Modale d'affectation d'une rubrique */}
+        {showAssignModal && selectedAgentForAssign && (
+          <div
+            className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50 backdrop-blur-sm"
+            onClick={() => {
+              setShowAssignModal(false);
+              setSelectedAgentForAssign(null);
+            }}
+          >
+            <div
+              className="bg-white rounded-2xl shadow-2xl max-w-2xl w-full overflow-hidden border-2 border-gray-200"
+              onClick={(e) => e.stopPropagation()}
+            >
+              {/* Header */}
+              <div className="bg-gradient-to-r from-primary-600 to-primary-700 p-6">
+                <div className="flex items-center space-x-4">
+                  <div className="w-14 h-14 bg-white rounded-xl flex items-center justify-center">
+                    <Plus className="w-8 h-8 text-primary-600" />
+                  </div>
+                  <div>
+                    <h3 className="text-2xl font-bold text-primary-600">
+                      Assigner des rubriques
+                    </h3>
+                    <p className="text-primary-500 font-semibold">
+                      Pour {selectedAgentForAssign.prenom}{" "}
+                      {selectedAgentForAssign.nom}
+                    </p>
+                  </div>
+                </div>
+              </div>
+
+              {/* Contenu */}
+              <div className="p-6">
+                <p className="text-gray-700 mb-2 font-medium">
+                  Sélectionnez une ou plusieurs rubriques à assigner à cet agent
+                  :
+                </p>
+
+                {/* Info sur les rubriques déjà assignées */}
+                {getAgentRubriques(selectedAgentForAssign.id).length > 0 && (
+                  <div className="mb-4 p-3 bg-blue-50 border-l-4 border-blue-500 rounded-lg">
+                    <div className="flex items-start gap-2">
+                      <CheckCircle className="w-4 h-4 text-blue-600 mt-0.5 flex-shrink-0" />
+                      <div className="text-xs text-blue-800">
+                        <p className="font-bold mb-1">
+                          {getAgentRubriques(selectedAgentForAssign.id).length}{" "}
+                          rubrique(s) déjà assignée(s) (grisée
+                          {getAgentRubriques(selectedAgentForAssign.id).length >
+                          1
+                            ? "s"
+                            : ""}
+                          )
+                        </p>
+                        <p>
+                          Les rubriques déjà assignées sont désactivées pour
+                          éviter les doublons.
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                <div className="space-y-3 max-h-96 overflow-y-auto">
+                  {rubriques.map((rubrique) => {
+                    const isAlreadyAssigned = isRubriqueAssigned(
+                      selectedAgentForAssign.id,
+                      rubrique.id
+                    );
+                    const isSelected = selectedRubriquesForAssign.includes(
+                      rubrique.id
+                    );
+
+                    return (
+                      <label
+                        key={rubrique.id}
+                        className={`flex items-center p-4 rounded-xl border-2 transition-all duration-200 ${
+                          isAlreadyAssigned
+                            ? "bg-gray-200 border-gray-300 cursor-not-allowed opacity-60"
+                            : isSelected
+                            ? "bg-gradient-to-r from-primary-100 to-primary-200 border-primary-500 shadow-md cursor-pointer"
+                            : "bg-gray-50 hover:bg-gray-100 border-gray-200 hover:border-gray-300 cursor-pointer"
+                        }`}
+                      >
+                        <input
+                          type="checkbox"
+                          checked={isSelected}
+                          disabled={isAlreadyAssigned}
+                          onChange={() => toggleRubriqueForAssign(rubrique.id)}
+                          className="w-5 h-5 text-primary-600 border-2 border-gray-300 rounded focus:ring-2 focus:ring-primary-500 disabled:cursor-not-allowed"
+                        />
+                        <div className="ml-4 flex-1">
+                          <div className="flex items-center justify-between">
+                            <div className="flex-1">
+                              <h4
+                                className={`font-bold text-lg ${
+                                  isAlreadyAssigned
+                                    ? "text-gray-500"
+                                    : "text-gray-900"
+                                }`}
+                              >
+                                {rubrique.nom}
+                              </h4>
+                              <p
+                                className={`text-sm mt-1 ${
+                                  isAlreadyAssigned
+                                    ? "text-gray-400"
+                                    : "text-gray-600"
+                                }`}
+                              >
+                                {rubrique.description}
+                              </p>
+                            </div>
+                            {isAlreadyAssigned ? (
+                              <span className="ml-3 px-3 py-1 bg-gray-400 text-white text-xs font-bold rounded-full">
+                                Déjà assigné
+                              </span>
+                            ) : (
+                              isSelected && (
+                                <span className="ml-3 px-3 py-1 bg-primary-600 text-white text-xs font-bold rounded-full">
+                                  Sélectionné
+                                </span>
+                              )
+                            )}
+                          </div>
+                        </div>
+                      </label>
+                    );
+                  })}
+                </div>
+
+                {selectedRubriquesForAssign.length > 0 && (
+                  <div className="mt-4 p-4 bg-primary-50 border-l-4 border-primary-500 rounded-lg">
+                    <p className="text-sm font-bold text-primary-900">
+                      {selectedRubriquesForAssign.length} rubrique
+                      {selectedRubriquesForAssign.length > 1 ? "s" : ""}{" "}
+                      sélectionnée
+                      {selectedRubriquesForAssign.length > 1 ? "s" : ""}
+                    </p>
+                  </div>
+                )}
+              </div>
+
+              {/* Footer */}
+              <div className="bg-gray-50 px-6 py-4 border-t-2 border-gray-200 flex justify-end space-x-3">
+                <button
+                  onClick={() => {
+                    setShowAssignModal(false);
+                    setSelectedAgentForAssign(null);
+                    setSelectedRubriquesForAssign([]);
+                  }}
+                  className="px-5 py-2.5 border-2 border-gray-300 rounded-xl text-gray-700 font-bold hover:bg-gray-100 hover:border-gray-400 transition-all duration-200"
+                >
+                  Annuler
+                </button>
+                <button
+                  onClick={handleAssignToSelectedAgent}
+                  disabled={
+                    selectedRubriquesForAssign.length === 0 || isAssigning
+                  }
+                  className={`px-5 py-2.5 border-2 border-primary-600 rounded-xl font-bold transition-all duration-200 flex items-center space-x-2 ${
+                    selectedRubriquesForAssign.length > 0 && !isAssigning
+                      ? "bg-gradient-to-r from-primary-600 to-primary-700 text-white hover:from-primary-700 hover:to-primary-800 shadow-lg hover:shadow-xl"
+                      : "bg-gray-300 text-gray-500 cursor-not-allowed"
+                  }`}
+                >
+                  {isAssigning ? (
+                    <>
+                      <Loader2 className="w-5 h-5 animate-spin" />
+                      <span className="font-bold text-primary-600">
+                        Affectation en cours...
+                      </span>
+                    </>
+                  ) : (
+                    <>
+                      <Plus className="w-5 h-5" />
+                      <span className="font-bold text-primary-600">
+                        Assigner ({selectedRubriquesForAssign.length})
+                      </span>
+                    </>
+                  )}
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Modale de détails de l'agent */}
+        {showDetailsModal && selectedAgentForDetails && (
+          <div
+            className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50 backdrop-blur-sm"
+            onClick={() => {
+              setShowDetailsModal(false);
+              setSelectedAgentForDetails(null);
+            }}
+          >
+            <div
+              className="bg-white rounded-2xl shadow-2xl max-w-3xl w-full overflow-hidden border-2 border-gray-200"
+              onClick={(e) => e.stopPropagation()}
+            >
+              {/* Header */}
+              <div className="bg-gradient-to-r from-blue-600 to-blue-700 p-6">
+                <div className="flex items-center space-x-4">
+                  <div className="w-16 h-16 bg-white/20 rounded-xl flex items-center justify-center">
+                    <span className="text-2xl font-bold text-white">
+                      {selectedAgentForDetails.prenom.charAt(0)}
+                      {selectedAgentForDetails.nom.charAt(0)}
+                    </span>
+                  </div>
+                  <div>
+                    <h3 className="text-2xl font-bold text-white">
+                      {selectedAgentForDetails.prenom}{" "}
+                      {selectedAgentForDetails.nom}
+                    </h3>
+                    <p className="text-blue-100 font-semibold">
+                      {selectedAgentForDetails.matricule} •{" "}
+                      {selectedAgentForDetails.fonction}
+                    </p>
+                  </div>
+                </div>
+              </div>
+
+              {/* Contenu */}
+              <div className="p-6 space-y-6">
+                {/* Informations générales */}
+                <div>
+                  <h4 className="text-lg font-bold text-gray-900 mb-3 flex items-center gap-2">
+                    <Users className="w-5 h-5 text-primary-600" />
+                    Informations générales
+                  </h4>
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="bg-gray-50 p-4 rounded-xl border border-gray-200">
+                      <p className="text-xs font-bold text-gray-600 uppercase mb-1">
+                        Matricule
+                      </p>
+                      <p className="font-bold text-gray-900">
+                        {selectedAgentForDetails.matricule}
+                      </p>
+                    </div>
+                    <div className="bg-gray-50 p-4 rounded-xl border border-gray-200">
+                      <p className="text-xs font-bold text-gray-600 uppercase mb-1">
+                        Fonction
+                      </p>
+                      <p className="font-bold text-gray-900">
+                        {selectedAgentForDetails.fonction}
+                      </p>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Rubriques affectées */}
+                <div>
+                  <h4 className="text-lg font-bold text-gray-900 mb-3 flex items-center gap-2">
+                    <Building2 className="w-5 h-5 text-primary-600" />
+                    Rubriques affectées
+                  </h4>
+                  <div className="space-y-2">
+                    {getAgentRubriques(selectedAgentForDetails.id).length >
+                    0 ? (
+                      getAgentRubriques(selectedAgentForDetails.id).map(
+                        (rubrique) => (
+                          <div
+                            key={rubrique.id}
+                            className="p-4 bg-gradient-to-r from-accent-green-light/30 to-accent-green-light/50 rounded-xl border-2 border-green-500"
+                          >
+                            <div className="flex items-center justify-between">
+                              <div className="flex items-center space-x-3">
+                                <CheckCircle className="w-5 h-5 text-accent-green" />
+                                <span className="font-bold text-gray-900">
+                                  {rubrique.nom}
+                                </span>
+                              </div>
+                              <span className="px-3 py-1 bg-accent-green text-white text-xs font-bold rounded-full">
+                                Actif
+                              </span>
+                            </div>
+                          </div>
+                        )
+                      )
+                    ) : (
+                      <div className="p-4 bg-warning-50 rounded-xl border-2 border-warning-200">
+                        <p className="text-warning-700 font-semibold flex items-center gap-2">
+                          <AlertCircle className="w-5 h-5" />
+                          Aucune rubrique affectée
+                        </p>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </div>
+
+              {/* Footer */}
+              <div className="bg-gray-50 px-6 py-4 border-t-2 border-gray-200 flex justify-end">
+                <button
+                  onClick={() => {
+                    setShowDetailsModal(false);
+                    setSelectedAgentForDetails(null);
+                  }}
+                  className="px-5 py-2.5 bg-primary-600 hover:bg-primary-700 text-white font-bold rounded-xl transition-all duration-200"
+                >
+                  Fermer
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Modale de retrait multiple de rubriques */}
+        {showMultiRemoveModal && selectedAgentForRemove && (
+          <div
+            className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50 backdrop-blur-sm"
+            onClick={() => {
+              setShowMultiRemoveModal(false);
+              setSelectedAgentForRemove(null);
+              setRubriquesToRemove([]);
+            }}
+          >
+            <div
+              className="bg-white rounded-2xl shadow-2xl max-w-2xl w-full overflow-hidden border-2 border-gray-200"
+              onClick={(e) => e.stopPropagation()}
+            >
+              {/* Header */}
+              <div className="bg-gradient-to-r from-red-50 to-orange-50 p-6 border-b-2 border-red-200">
+                <div className="flex items-center space-x-4">
+                  <div className="w-14 h-14 bg-red-500 rounded-xl flex items-center justify-center">
+                    <X className="w-8 h-8 text-white" />
+                  </div>
+                  <div>
+                    <h3 className="text-2xl font-bold text-gray-900">
+                      Retirer des rubriques
+                    </h3>
+                    <p className="text-red-700 font-semibold">
+                      Pour {selectedAgentForRemove.prenom}{" "}
+                      {selectedAgentForRemove.nom}
+                    </p>
+                  </div>
+                </div>
+              </div>
+
+              {/* Contenu */}
+              <div className="p-6">
+                <p className="text-gray-700 mb-4 font-medium">
+                  Sélectionnez les rubriques à retirer :
+                </p>
+                <div className="space-y-3 max-h-96 overflow-y-auto">
+                  {getAgentRubriques(selectedAgentForRemove.id).map(
+                    (rubrique) => (
+                      <label
+                        key={rubrique.id}
+                        className="flex items-center p-4 bg-gray-50 hover:bg-gray-100 rounded-xl border-2 border-gray-200 cursor-pointer transition-all duration-200"
+                      >
+                        <input
+                          type="checkbox"
+                          checked={rubriquesToRemove.includes(rubrique.id)}
+                          onChange={() => toggleRubriqueToRemove(rubrique.id)}
+                          className="w-5 h-5 text-red-600 border-2 border-gray-300 rounded focus:ring-2 focus:ring-red-500"
+                        />
+                        <div className="ml-4 flex-1">
+                          <div className="flex items-center justify-between">
+                            <span className="font-bold text-gray-900">
+                              {rubrique.nom}
+                            </span>
+                            {rubriquesToRemove.includes(rubrique.id) && (
+                              <span className="px-3 py-1 bg-red-100 text-red-700 text-xs font-bold rounded-full">
+                                À retirer
+                              </span>
+                            )}
+                          </div>
+                        </div>
+                      </label>
+                    )
+                  )}
+                </div>
+
+                {rubriquesToRemove.length > 0 && (
+                  <div className="mt-4 p-4 bg-red-50 border-l-4 border-red-500 rounded-lg">
+                    <p className="text-sm font-bold text-red-900">
+                      {rubriquesToRemove.length} rubrique
+                      {rubriquesToRemove.length > 1 ? "s" : ""} sélectionnée
+                      {rubriquesToRemove.length > 1 ? "s" : ""} pour le retrait
+                    </p>
+                  </div>
+                )}
+              </div>
+
+              {/* Footer */}
+              <div className="bg-gray-50 px-6 py-4 border-t-2 border-gray-200 flex justify-end space-x-3">
+                <button
+                  onClick={() => {
+                    setShowMultiRemoveModal(false);
+                    setSelectedAgentForRemove(null);
+                    setRubriquesToRemove([]);
+                  }}
+                  className="px-5 py-2.5 border-2 border-gray-300 rounded-xl text-gray-700 font-bold hover:bg-gray-100 transition-all duration-200"
+                >
+                  Annuler
+                </button>
+                <button
+                  onClick={confirmMultiRemove}
+                  disabled={rubriquesToRemove.length === 0}
+                  className={`px-5 py-2.5 rounded-xl font-bold transition-all duration-200 flex items-center space-x-2 ${
+                    rubriquesToRemove.length > 0
+                      ? "bg-gradient-to-r from-red-500 to-red-600 text-white hover:from-red-600 hover:to-red-700 shadow-lg hover:shadow-xl"
+                      : "bg-gray-300 text-gray-500 cursor-not-allowed"
+                  }`}
+                >
+                  <X className="w-5 h-5" />
+                  <span>Retirer ({rubriquesToRemove.length})</span>
+                </button>
               </div>
             </div>
           </div>

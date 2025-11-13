@@ -19,6 +19,34 @@ export default function TopBar() {
   const [isProfileOpen, setIsProfileOpen] = useState(false);
   const [isNotificationsOpen, setIsNotificationsOpen] = useState(false);
 
+  // Débogage: afficher les infos utilisateur dans la console
+  // Décommentez ce code pour déboguer les problèmes de session utilisateur
+  /*
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      console.log("=== DÉBOGAGE SESSION UTILISATEUR ===");
+      const sessionData = sessionStorage.getItem("auth-session");
+      console.log("📦 SessionStorage 'auth-session' (raw):", sessionData);
+      if (sessionData) {
+        try {
+          const parsed = JSON.parse(sessionData);
+          console.log("✅ Données parsées complètes:", parsed);
+          console.log("👤 AppUser dans session:", parsed.state?.appUser);
+          console.log("🔐 IsAuthenticated:", parsed.state?.isAuthenticated);
+        } catch (error) {
+          console.error("❌ Erreur de parsing:", error);
+        }
+      } else {
+        console.warn("⚠️ Aucune donnée dans sessionStorage 'auth-session'");
+      }
+      console.log("👤 User depuis hook useUser():", user);
+      console.log("📝 Nom complet:", fullName);
+      console.log("💼 Fonction:", fonction);
+      console.log("===================================");
+    }
+  }, [user, fullName, fonction]);
+  */
+
   const handleLogout = async () => {
     try {
       await logout();
@@ -76,84 +104,24 @@ export default function TopBar() {
           <ThemeSwitcher />
 
           {/* Notifications */}
-          <div className="relative">
-            <button
-              onClick={() => setIsNotificationsOpen(!isNotificationsOpen)}
-              className="relative p-2.5 rounded-lg hover:bg-gray-100 transition-colors"
-            >
-              <Bell className="w-5 h-5 text-gray-700" />
-              {unreadCount > 0 && (
-                <span className="absolute -top-1 -right-1 w-5 h-5 bg-red-500 text-white text-xs rounded-full flex items-center justify-center font-bold">
-                  {unreadCount}
-                </span>
-              )}
-            </button>
-
-            {/* Dropdown notifications */}
-            {isNotificationsOpen && (
-              <div className="absolute right-0 mt-2 w-80 bg-white rounded-lg shadow-lg border border-gray-200 z-50">
-                <div className="p-4 border-b border-gray-200">
-                  <h3 className="text-lg font-semibold text-gray-900">
-                    Notifications
-                  </h3>
-                </div>
-                <div className="max-h-96 overflow-y-auto">
-                  {notifications.map((notification) => (
-                    <div
-                      key={notification.id}
-                      className={`p-4 border-b border-gray-100 hover:bg-gray-50 cursor-pointer ${
-                        notification.unread ? "bg-primary-50" : ""
-                      }`}
-                    >
-                      <div className="flex items-start space-x-3">
-                        <div
-                          className={`w-2 h-2 rounded-full mt-2 ${
-                            notification.unread
-                              ? "bg-primary-500"
-                              : "bg-primary-300"
-                          }`}
-                        />
-                        <div className="flex-1">
-                          <p className="text-sm font-medium text-gray-900">
-                            {notification.title}
-                          </p>
-                          <p className="text-sm text-gray-600 mt-1">
-                            {notification.message}
-                          </p>
-                          <p className="text-xs text-gray-400 mt-1">
-                            {notification.time}
-                          </p>
-                        </div>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-                <div className="p-4 border-t border-gray-200">
-                  <button className="text-sm text-primary-600 hover:text-primary-700 font-medium">
-                    Voir toutes les notifications
-                  </button>
-                </div>
-              </div>
-            )}
-          </div>
+          <div className="relative"></div>
 
           {/* Profil utilisateur */}
           <div className="relative">
             <button
               onClick={() => setIsProfileOpen(!isProfileOpen)}
-              className="flex items-center space-x-3 p-2.5 rounded-lg hover:bg-gray-100 transition-colors"
+              className="flex items-center bg-primary-300 space-x-3 p-2.5 rounded-lg hover:bg-gray-300 transition-colors"
             >
               <div className="w-8 h-8 bg-gradient-primary rounded-full flex items-center justify-center shadow-primary">
-                <span className="text-sm font-bold text-white">
-                  {user?.nom?.[0]}
-                  {user?.nom?.[1]}
+                <span className="text-sm font-bold text-white uppercase">
+                  {fullName?.substring(0, 2) || "U"}
                 </span>
               </div>
               <div className="hidden md:block text-left">
                 <p className="text-sm font-semibold text-gray-900">
-                  {fullName}
+                  {fullName || "Utilisateur"}
                 </p>
-                <p className="text-xs text-gray-600">
+                <p className="text-xs font-bold text-gray-600">
                   {fonction || "Utilisateur"}
                 </p>
               </div>
@@ -166,14 +134,13 @@ export default function TopBar() {
                 <div className="p-4 border-b border-gray-200">
                   <div className="flex items-center space-x-3">
                     <div className="w-10 h-10 bg-gradient-primary rounded-full flex items-center justify-center shadow-primary">
-                      <span className="text-sm font-bold text-white">
-                        {user?.nom?.[0]}
-                        {user?.nom?.[1]}
+                      <span className="text-sm font-bold text-white uppercase">
+                        {fullName?.substring(0, 2) || "U"}
                       </span>
                     </div>
                     <div>
                       <p className="text-sm font-medium text-gray-900">
-                        {fullName}
+                        {fullName || "Utilisateur"}
                       </p>
                       <p className="text-xs text-gray-500">{user?.email}</p>
                     </div>

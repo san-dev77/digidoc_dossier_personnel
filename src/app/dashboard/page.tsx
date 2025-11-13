@@ -1,6 +1,7 @@
 "use client";
 
 import { useAuth } from "@/hooks/useAuth";
+import { useUser } from "@/hooks/useUser";
 import AuthGuard from "@/components/AuthGuard";
 import DashboardLayout from "@/components/DashboardLayout";
 import {
@@ -18,6 +19,31 @@ import {
 
 export default function DashboardPage() {
   const { appUser } = useAuth();
+  const { fullName, fonction, matricule, email } = useUser();
+
+  // Fonction pour formater la date correctement (évite les problèmes de timezone)
+  const formatDate = (dateString: string) => {
+    if (!dateString) return "Non renseigné";
+    try {
+      // Parse la date en UTC pour éviter les décalages de timezone
+      const date = new Date(dateString);
+      const year = date.getFullYear();
+      const month = date.getMonth();
+      const day = date.getDate();
+
+      // Créer une nouvelle date locale avec les valeurs extraites
+      const localDate = new Date(year, month, day);
+
+      return localDate.toLocaleDateString("fr-FR", {
+        year: "numeric",
+        month: "long",
+        day: "numeric",
+      });
+    } catch (error) {
+      console.error("Erreur de formatage de date:", error);
+      return dateString;
+    }
+  };
 
   // Données de démonstration pour les statistiques
   const stats = [
@@ -93,28 +119,34 @@ export default function DashboardPage() {
 
             <div className="relative flex items-center justify-between">
               <div className="flex-1">
-                <div className="flex items-center space-x-3 mb-4">
-                  <div className="w-12 h-12 bg-white/20 rounded-2xl flex items-center justify-center backdrop-blur-sm border border-white/30">
-                    <User className="w-6 h-6 text-white" />
+                <div className="flex items-center space-x-4 mb-4">
+                  <div className="w-14 h-14 bg-white/20 rounded-2xl flex items-center justify-center backdrop-blur-sm border border-white/30 shadow-lg">
+                    <User className="w-7 h-7 text-white drop-shadow-sm" />
                   </div>
                   <div>
-                    <h1 className="text-4xl font-bold mb-1">
-                      Bienvenue, {appUser?.nom} ! 👋
+                    <h1 className="text-4xl font-bold mb-1 drop-shadow-md">
+                      Bienvenue, {fullName || "Utilisateur"} ! 👋
                     </h1>
-                    <p className="text-primary-100 text-lg font-medium">
+                    <p className="text-primary-100 text-lg font-semibold drop-shadow-sm">
                       Tableau de bord personnel
                     </p>
                   </div>
                 </div>
 
-                <div className="flex items-center space-x-6 text-sm">
-                  <div className="flex items-center space-x-2 bg-white/10 px-4 py-2 rounded-full backdrop-blur-sm border border-white/20">
-                    <div className="w-2 h-2 bg-accent-green rounded-full animate-pulse"></div>
-                    <span className="text-white font-medium">Connecté</span>
+                <div className="flex flex-wrap items-center gap-3 text-sm">
+                  <div className="flex items-center space-x-2 bg-white/15 px-4 py-2.5 rounded-xl backdrop-blur-sm border border-white/30 shadow-md">
+                    <div className="w-2.5 h-2.5 bg-accent-green rounded-full animate-pulse shadow-sm"></div>
+                    <span className="text-white font-bold">Connecté</span>
                   </div>
-                  <div className="flex items-center space-x-2 bg-white/10 px-4 py-2 rounded-full backdrop-blur-sm border border-white/20">
+                  {fonction && (
+                    <div className="flex items-center space-x-2 bg-white/15 px-4 py-2.5 rounded-xl backdrop-blur-sm border border-white/30 shadow-md">
+                      <Building2 className="w-4 h-4 text-white" />
+                      <span className="text-white font-bold">{fonction}</span>
+                    </div>
+                  )}
+                  <div className="flex items-center space-x-2 bg-white/15 px-4 py-2.5 rounded-xl backdrop-blur-sm border border-white/30 shadow-md">
                     <Clock className="w-4 h-4 text-white" />
-                    <span className="text-white font-medium">
+                    <span className="text-white font-bold">
                       Dernière connexion: Aujourd&apos;hui
                     </span>
                   </div>
@@ -123,17 +155,16 @@ export default function DashboardPage() {
 
               <div className="hidden md:block">
                 <div className="relative">
-                  <div className="w-28 h-28 bg-white/10 rounded-3xl flex items-center justify-center backdrop-blur-sm border border-white/30 shadow-xl">
-                    <div className="w-20 h-20 bg-white/20 rounded-2xl flex items-center justify-center border border-white/30">
-                      <span className="text-3xl font-bold text-white">
-                        {appUser?.nom?.[0]}
-                        {appUser?.nom?.[1]}
+                  <div className="w-32 h-32 bg-white/15 rounded-3xl flex items-center justify-center backdrop-blur-sm border-2 border-white/40 shadow-2xl">
+                    <div className="w-24 h-24 bg-gradient-to-br from-white/25 to-white/10 rounded-2xl flex items-center justify-center border-2 border-white/50 shadow-inner">
+                      <span className="text-4xl font-black text-white uppercase drop-shadow-lg">
+                        {fullName?.substring(0, 2) || "U"}
                       </span>
                     </div>
                   </div>
                   {/* Badge de statut */}
-                  <div className="absolute -top-2 -right-2 w-6 h-6 bg-accent-green rounded-full flex items-center justify-center border-2 border-white">
-                    <div className="w-2 h-2 bg-white rounded-full"></div>
+                  <div className="absolute -top-2 -right-2 w-8 h-8 bg-accent-green rounded-full flex items-center justify-center border-4 border-white shadow-lg">
+                    <div className="w-2.5 h-2.5 bg-white rounded-full animate-pulse"></div>
                   </div>
                 </div>
               </div>
@@ -214,62 +245,62 @@ export default function DashboardPage() {
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
           {/* Informations personnelles */}
           <div className="lg:col-span-2">
-            <div className="relative bg-white rounded-2xl p-8 border border-gray-200 shadow-xl overflow-hidden">
+            <div className="relative bg-white rounded-2xl p-8 border-2 border-gray-200 shadow-xl overflow-hidden hover:shadow-2xl transition-shadow duration-300">
               {/* Header avec gradient */}
               <div className="relative mb-8">
-                <div className="absolute inset-0 bg-gradient-to-r from-primary-50 to-primary-100 rounded-xl"></div>
+                <div className="absolute inset-0 bg-gradient-to-r from-primary-100 to-primary-200 rounded-xl opacity-50"></div>
                 <div className="relative flex items-center space-x-4 p-6">
-                  <div className="w-12 h-12 bg-gradient-to-br from-primary-500 to-primary-600 rounded-2xl flex items-center justify-center shadow-lg">
-                    <User className="w-6 h-6 text-primary-500" />
+                  <div className="w-14 h-14 bg-gradient-to-br from-primary-600 to-primary-700 rounded-xl flex items-center justify-center shadow-lg">
+                    <User className="w-7 h-7 text-white" />
                   </div>
                   <div>
-                    <h2 className="text-2xl font-bold text-gray-900">
+                    <h2 className="text-3xl font-bold text-gray-900">
                       Mes informations personnelles
                     </h2>
-                    <p className="text-primary-600 font-medium">
+                    <p className="text-primary-700 font-bold">
                       Profil complet et détails de compte
                     </p>
                   </div>
                 </div>
               </div>
 
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 {/* Informations personnelles */}
-                <div className="bg-gradient-to-br from-blue-50 to-blue-100 rounded-2xl p-6 border border-blue-200">
+                <div className="bg-gradient-to-br from-blue-50 to-blue-100 rounded-2xl p-6 border-2 border-blue-200 shadow-md hover:shadow-lg transition-shadow duration-300">
                   <div className="flex items-center space-x-3 mb-6">
-                    <div className="w-12 h-12 bg-gradient-to-br from-blue-500 to-blue-600 rounded-2xl flex items-center justify-center shadow-lg">
+                    <div className="w-12 h-12 bg-gradient-to-br from-blue-500 to-blue-600 rounded-xl flex items-center justify-center shadow-lg">
                       <User className="w-6 h-6 text-white" />
                     </div>
-                    <h3 className="text-lg font-bold text-gray-900">
+                    <h3 className="text-xl font-bold text-gray-900">
                       Informations personnelles
                     </h3>
                   </div>
-                  <div className="space-y-4">
-                    <div className="bg-white/70 rounded-xl p-4 border border-blue-200/50">
-                      <p className="text-sm font-semibold text-blue-600 mb-1">
+                  <div className="space-y-3">
+                    <div className="bg-white rounded-xl p-4 border-2 border-blue-200 shadow-sm hover:shadow-md transition-shadow">
+                      <p className="text-xs font-bold text-blue-600 mb-2 uppercase tracking-wide">
                         Nom complet
                       </p>
                       <p className="font-bold text-gray-900 text-lg">
-                        {appUser?.nom}
+                        {fullName || "Non renseigné"}
                       </p>
                     </div>
                     {appUser?.date_naissance && (
-                      <div className="bg-white/70 rounded-xl p-4 border border-blue-200/50">
-                        <p className="text-sm font-semibold text-blue-600 mb-1">
+                      <div className="bg-white rounded-xl p-4 border-2 border-blue-200 shadow-sm hover:shadow-md transition-shadow">
+                        <p className="text-xs font-bold text-blue-600 mb-2 uppercase tracking-wide">
                           Date de naissance
                         </p>
                         <p className="font-bold text-gray-900">
-                          {appUser.date_naissance}
+                          {formatDate(appUser.date_naissance)}
                         </p>
                       </div>
                     )}
                     {appUser?.sexe && (
-                      <div className="bg-white/70 rounded-xl p-4 border border-blue-200/50">
-                        <p className="text-sm font-semibold text-blue-600 mb-1">
+                      <div className="bg-white rounded-xl p-4 border-2 border-blue-200 shadow-sm hover:shadow-md transition-shadow">
+                        <p className="text-xs font-bold text-blue-600 mb-2 uppercase tracking-wide">
                           Sexe
                         </p>
                         <p className="font-bold text-gray-900">
-                          {appUser.sexe}
+                          {appUser.sexe === "M" ? "Masculin" : "Féminin"}
                         </p>
                       </div>
                     )}
@@ -277,31 +308,31 @@ export default function DashboardPage() {
                 </div>
 
                 {/* Informations professionnelles */}
-                <div className="bg-gradient-to-br from-emerald-50 to-emerald-100 rounded-2xl p-6 border border-emerald-200">
+                <div className="bg-gradient-to-br from-emerald-50 to-emerald-100 rounded-2xl p-6 border-2 border-emerald-200 shadow-md hover:shadow-lg transition-shadow duration-300">
                   <div className="flex items-center space-x-3 mb-6">
-                    <div className="w-12 h-12 bg-gradient-to-br from-emerald-500 to-emerald-600 rounded-2xl flex items-center justify-center shadow-lg">
+                    <div className="w-12 h-12 bg-gradient-to-br from-emerald-500 to-emerald-600 rounded-xl flex items-center justify-center shadow-lg">
                       <Building2 className="w-6 h-6 text-white" />
                     </div>
-                    <h3 className="text-lg font-bold text-gray-900">
+                    <h3 className="text-xl font-bold text-gray-900">
                       Informations professionnelles
                     </h3>
                   </div>
-                  <div className="space-y-4">
-                    <div className="bg-white/70 rounded-xl p-4 border border-emerald-200/50">
-                      <p className="text-sm font-semibold text-emerald-600 mb-1">
+                  <div className="space-y-3">
+                    <div className="bg-white rounded-xl p-4 border-2 border-emerald-200 shadow-sm hover:shadow-md transition-shadow">
+                      <p className="text-xs font-bold text-emerald-600 mb-2 uppercase tracking-wide">
                         Matricule
                       </p>
                       <p className="font-bold text-gray-900 text-lg">
-                        {appUser?.matricule}
+                        {matricule || "Non renseigné"}
                       </p>
                     </div>
-                    {appUser?.fonction && (
-                      <div className="bg-white/70 rounded-xl p-4 border border-emerald-200/50">
-                        <p className="text-sm font-semibold text-emerald-600 mb-1">
+                    {fonction && (
+                      <div className="bg-white rounded-xl p-4 border-2 border-emerald-200 shadow-sm hover:shadow-md transition-shadow">
+                        <p className="text-xs font-bold text-emerald-600 mb-2 uppercase tracking-wide">
                           Fonction
                         </p>
-                        <p className="font-bold text-gray-900">
-                          {appUser.fonction}
+                        <p className="font-bold text-gray-900 text-lg">
+                          {fonction}
                         </p>
                       </div>
                     )}
@@ -309,28 +340,28 @@ export default function DashboardPage() {
                 </div>
 
                 {/* Contact */}
-                <div className="bg-gradient-to-br from-purple-50 to-purple-100 rounded-2xl p-6 border border-purple-200">
+                <div className="bg-gradient-to-br from-purple-50 to-purple-100 rounded-2xl p-6 border-2 border-purple-200 shadow-md hover:shadow-lg transition-shadow duration-300">
                   <div className="flex items-center space-x-3 mb-6">
-                    <div className="w-12 h-12 bg-gradient-to-br from-purple-500 to-purple-600 rounded-2xl flex items-center justify-center shadow-lg">
+                    <div className="w-12 h-12 bg-gradient-to-br from-purple-500 to-purple-600 rounded-xl flex items-center justify-center shadow-lg">
                       <Mail className="w-6 h-6 text-white" />
                     </div>
-                    <h3 className="text-lg font-bold text-gray-900">Contact</h3>
+                    <h3 className="text-xl font-bold text-gray-900">Contact</h3>
                   </div>
-                  <div className="space-y-4">
-                    <div className="bg-white/70 rounded-xl p-4 border border-purple-200/50">
-                      <p className="text-sm font-semibold text-purple-600 mb-1">
+                  <div className="space-y-3">
+                    <div className="bg-white rounded-xl p-4 border-2 border-purple-200 shadow-sm hover:shadow-md transition-shadow">
+                      <p className="text-xs font-bold text-purple-600 mb-2 uppercase tracking-wide">
                         Email
                       </p>
-                      <p className="font-bold text-gray-900 text-lg">
-                        {appUser?.email}
+                      <p className="font-bold text-gray-900 text-base break-all">
+                        {email || "Non renseigné"}
                       </p>
                     </div>
                     {appUser?.telephone && (
-                      <div className="bg-white/70 rounded-xl p-4 border border-purple-200/50">
-                        <p className="text-sm font-semibold text-purple-600 mb-1">
+                      <div className="bg-white rounded-xl p-4 border-2 border-purple-200 shadow-sm hover:shadow-md transition-shadow">
+                        <p className="text-xs font-bold text-purple-600 mb-2 uppercase tracking-wide">
                           Téléphone
                         </p>
-                        <p className="font-bold text-gray-900">
+                        <p className="font-bold text-gray-900 text-lg">
                           {appUser.telephone}
                         </p>
                       </div>
@@ -339,28 +370,30 @@ export default function DashboardPage() {
                 </div>
 
                 {/* Localisation */}
-                {appUser?.lieu_naissance && (
-                  <div className="bg-gradient-to-br from-orange-50 to-orange-100 rounded-2xl p-6 border border-orange-200">
+                {(appUser?.lieu_naissance || appUser?.adresse) && (
+                  <div className="bg-gradient-to-br from-orange-50 to-orange-100 rounded-2xl p-6 border-2 border-orange-200 shadow-md hover:shadow-lg transition-shadow duration-300">
                     <div className="flex items-center space-x-3 mb-6">
-                      <div className="w-12 h-12 bg-gradient-to-br from-orange-500 to-orange-600 rounded-2xl flex items-center justify-center shadow-lg">
+                      <div className="w-12 h-12 bg-gradient-to-br from-orange-500 to-orange-600 rounded-xl flex items-center justify-center shadow-lg">
                         <MapPin className="w-6 h-6 text-white" />
                       </div>
-                      <h3 className="text-lg font-bold text-gray-900">
+                      <h3 className="text-xl font-bold text-gray-900">
                         Localisation
                       </h3>
                     </div>
-                    <div className="space-y-4">
-                      <div className="bg-white/70 rounded-xl p-4 border border-orange-200/50">
-                        <p className="text-sm font-semibold text-orange-600 mb-1">
-                          Lieu de naissance
-                        </p>
-                        <p className="font-bold text-gray-900">
-                          {appUser.lieu_naissance}
-                        </p>
-                      </div>
+                    <div className="space-y-3">
+                      {appUser?.lieu_naissance && (
+                        <div className="bg-white rounded-xl p-4 border-2 border-orange-200 shadow-sm hover:shadow-md transition-shadow">
+                          <p className="text-xs font-bold text-orange-600 mb-2 uppercase tracking-wide">
+                            Lieu de naissance
+                          </p>
+                          <p className="font-bold text-gray-900 text-lg">
+                            {appUser.lieu_naissance}
+                          </p>
+                        </div>
+                      )}
                       {appUser?.adresse && (
-                        <div className="bg-white/70 rounded-xl p-4 border border-orange-200/50">
-                          <p className="text-sm font-semibold text-orange-600 mb-1">
+                        <div className="bg-white rounded-xl p-4 border-2 border-orange-200 shadow-sm hover:shadow-md transition-shadow">
+                          <p className="text-xs font-bold text-orange-600 mb-2 uppercase tracking-wide">
                             Adresse
                           </p>
                           <p className="font-bold text-gray-900">
@@ -377,19 +410,19 @@ export default function DashboardPage() {
 
           {/* Activités récentes */}
           <div className="lg:col-span-1">
-            <div className="relative bg-white rounded-2xl p-8 border border-gray-200 shadow-xl overflow-hidden">
+            <div className="relative bg-white rounded-2xl p-8 border-2 border-gray-200 shadow-xl overflow-hidden hover:shadow-2xl transition-shadow duration-300">
               {/* Header avec gradient */}
               <div className="relative mb-8">
-                <div className="absolute inset-0 bg-gradient-to-r from-indigo-50 to-indigo-100 rounded-xl"></div>
+                <div className="absolute inset-0 bg-gradient-to-r from-indigo-100 to-indigo-200 rounded-xl opacity-50"></div>
                 <div className="relative flex items-center space-x-4 p-6">
-                  <div className="w-12 h-12 bg-gradient-to-br from-indigo-500 to-indigo-600 rounded-2xl flex items-center justify-center shadow-lg">
-                    <Clock className="w-6 h-6 text-white" />
+                  <div className="w-14 h-14 bg-gradient-to-br from-indigo-500 to-indigo-600 rounded-xl flex items-center justify-center shadow-lg">
+                    <Clock className="w-7 h-7 text-white" />
                   </div>
                   <div>
                     <h2 className="text-2xl font-bold text-gray-900">
                       Activités récentes
                     </h2>
-                    <p className="text-indigo-600 font-medium">
+                    <p className="text-indigo-700 font-bold">
                       Dernières actions du système
                     </p>
                   </div>
@@ -413,24 +446,24 @@ export default function DashboardPage() {
                   return (
                     <div
                       key={activity.id}
-                      className={`group relative bg-gradient-to-r ${activityBgColors[index]} rounded-2xl p-4 border border-gray-200 hover:shadow-lg transition-all duration-300 hover:-translate-y-1`}
+                      className={`group relative bg-gradient-to-r ${activityBgColors[index]} rounded-xl p-5 border-2 border-gray-200 hover:shadow-xl transition-all duration-300 hover:-translate-y-1`}
                     >
                       <div className="flex items-start space-x-4">
                         <div
-                          className={`w-12 h-12 bg-gradient-to-br ${activityColors[index]} rounded-2xl flex items-center justify-center shadow-lg group-hover:scale-110 transition-transform duration-300`}
+                          className={`w-12 h-12 bg-gradient-to-br ${activityColors[index]} rounded-xl flex items-center justify-center shadow-lg group-hover:scale-110 transition-transform duration-300`}
                         >
                           <Icon className="w-6 h-6 text-white" />
                         </div>
                         <div className="flex-1 min-w-0">
-                          <p className="text-sm font-bold text-gray-900 mb-1">
+                          <p className="text-base font-bold text-gray-900 mb-1">
                             {activity.title}
                           </p>
-                          <p className="text-sm text-gray-700 mb-2">
+                          <p className="text-sm text-gray-700 font-medium mb-2">
                             {activity.description}
                           </p>
                           <div className="flex items-center space-x-2">
-                            <Clock className="w-3 h-3 text-gray-500" />
-                            <span className="text-xs text-gray-500 font-medium">
+                            <Clock className="w-3.5 h-3.5 text-gray-600" />
+                            <span className="text-xs text-gray-600 font-bold">
                               {activity.time}
                             </span>
                           </div>
@@ -441,8 +474,8 @@ export default function DashboardPage() {
                 })}
               </div>
 
-              <div className="mt-8 pt-6 border-t border-gray-200">
-                <button className="w-full bg-gradient-to-r from-indigo-500 to-indigo-600 text-white font-semibold py-3 px-6 rounded-xl hover:from-indigo-600 hover:to-indigo-700 transition-all duration-300 shadow-lg hover:shadow-xl">
+              <div className="mt-8 pt-6 border-t-2 border-gray-200">
+                <button className="w-full bg-gradient-to-r from-indigo-500 to-indigo-600 text-white font-bold py-3.5 px-6 rounded-xl hover:from-indigo-600 hover:to-indigo-700 transition-all duration-300 shadow-lg hover:shadow-xl hover:scale-105">
                   Voir toutes les activités
                 </button>
               </div>

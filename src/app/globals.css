@@ -30,37 +30,39 @@ body {
   -webkit-line-clamp: 3;
 }
 
-/* Scrollbar personnalisée pour la sidebar */
+/* Scrollbar personnalisée pour la sidebar avec meilleur contraste */
 .sidebar-scrollbar {
   scrollbar-width: thin;
-  scrollbar-color: transparent transparent;
+  scrollbar-color: var(--color-primary-600) transparent;
 }
 
 .sidebar-scrollbar::-webkit-scrollbar {
-  width: 6px;
+  width: 8px;
 }
 
 .sidebar-scrollbar::-webkit-scrollbar-track {
   background: transparent;
   border-radius: 10px;
+  margin: 4px 0;
 }
 
 .sidebar-scrollbar::-webkit-scrollbar-thumb {
-  background: var(--color-primary-300);
+  background: var(--color-primary-600);
   border-radius: 10px;
-  border: 2px solid transparent;
-  background-clip: content-box;
-  transition: all 0.3s ease;
+  border: 2px solid var(--color-primary-800);
+  background-clip: padding-box;
+  transition: all 0.2s ease;
 }
 
 .sidebar-scrollbar::-webkit-scrollbar-thumb:hover {
   background: var(--color-primary-500);
-  border: 1px solid transparent;
-  background-clip: content-box;
+  border: 2px solid var(--color-primary-800);
+  background-clip: padding-box;
 }
 
 .sidebar-scrollbar::-webkit-scrollbar-thumb:active {
-  background: var(--color-primary-600);
+  background: var(--color-primary-400);
+  border: 2px solid var(--color-primary-800);
 }
 
 /* Scrollbar ultra-discrète pour les éléments de contenu */

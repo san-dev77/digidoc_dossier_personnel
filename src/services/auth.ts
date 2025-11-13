@@ -43,17 +43,10 @@ export const authService = {
 
   // Inscription d'un nouvel utilisateur
   async register(userData: RegisterData) {
-    // Transformer nom_complet en nom pour le backend
-    const backendData = {
-      ...userData,
-      nom: userData.nom_complet, // Backend attend "nom"
-    };
-    delete (backendData as any).nom_complet; // Supprimer nom_complet
-
     const res = await fetch("/api/auth/register", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(backendData),
+      body: JSON.stringify(userData),
     });
     if (!res.ok) {
       let detail = "Erreur serveur";

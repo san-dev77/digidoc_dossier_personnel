@@ -57,8 +57,24 @@ export default function RegisterPage() {
 
     try {
       setIsSubmitting(true);
-      const { password, confirmPassword, ...userData } = formData;
-      await register({ ...userData, password });
+      const { password, confirmPassword, nom, prenom, ...restData } = formData;
+      // Combiner nom et prenom en nom_complet pour l'API
+      const nom_complet = `${prenom} ${nom}`.trim();
+      const registerData = {
+        matricule: restData.matricule,
+        email: restData.email,
+        password,
+        nom_complet,
+        fonction: restData.fonction || undefined,
+        date_naissance: restData.date_naissance || undefined,
+        lieu_naissance: restData.lieu_naissance || undefined,
+        sexe: restData.sexe || undefined,
+        situation_matrimoniale: restData.situation_matrimoniale || undefined,
+        adresse: restData.adresse || undefined,
+        telephone: restData.telephone || undefined,
+      };
+      console.log("📝 Données d'inscription envoyées:", { ...registerData, password: "***" });
+      await register(registerData);
       router.push("/dashboard"); // Redirection vers le tableau de bord
     } catch (error) {
       console.error("Erreur d'inscription:", error);
