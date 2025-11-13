@@ -16,11 +16,18 @@ export async function GET(
       );
     }
 
-    // Récupérer les fichiers de la pièce
+    const { searchParams } = new URL(request.url);
+    const agentDossierId = searchParams.get("agentDossierId");
+
+    // Récupérer les fichiers de la pièce avec filtre optionnel par agent_dossier_id
+    const whereClause: any = { id_piece: pieceId };
+    
+    if (agentDossierId) {
+      whereClause.agent_dossier_id = parseInt(agentDossierId);
+    }
+
     const files = await prisma.piece_file.findMany({
-      where: {
-        id_piece: pieceId,
-      },
+      where: whereClause,
       orderBy: {
         created_at: "desc",
       },
@@ -52,7 +59,7 @@ export async function POST(
     }
 
     const body = await request.json();
-    const { file_path } = body;
+    const { file_path, agent_dossier_id } = body;
 
     if (!file_path) {
       return NextResponse.json(
@@ -62,7 +69,7 @@ export async function POST(
     }
 
     console.log("📁 Liaison d'un fichier à la pièce ID:", pieceId);
-    console.log("📋 Données du fichier:", { file_path });
+    console.log("📋 Données du fichier:", { file_path, agent_dossier_id });
 
     // Vérifier que la pièce existe
     const piece = await prisma.pieces.findUnique({
@@ -76,12 +83,18 @@ export async function POST(
       );
     }
 
-    // Créer l'enregistrement de fichier (seulement file_path selon le schéma)
+    // Créer l'enregistrement de fichier avec agent_dossier_id
+    const dataToCreate: any = {
+      id_piece: pieceId,
+      file_path: file_path,
+    };
+
+    if (agent_dossier_id) {
+      dataToCreate.agent_dossier_id = parseInt(agent_dossier_id);
+    }
+
     const pieceFile = await prisma.piece_file.create({
-      data: {
-        id_piece: pieceId,
-        file_path: file_path,
-      },
+      data: dataToCreate,
     });
 
     console.log("✅ Fichier lié à la pièce avec succès:", pieceFile);

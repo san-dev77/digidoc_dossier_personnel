@@ -97,25 +97,30 @@ const cleanForPath = (str: string): string => {
     .replace(/^_|_$/g, ""); // Enlever les _ au début et fin
 };
 
-// Nouvelle fonction avec noms lisibles
+// Nouvelle fonction avec noms lisibles mais raccourcis
 export const getReadableStoragePath = (
   rubriqueNom: string,
   sousDossierTitre: string,
   pieceNom: string,
   agentNom: string
 ) => {
-  // Nettoyer les noms pour les utiliser dans les chemins de fichiers
-  const cleanRubrique = cleanForPath(rubriqueNom);
-  const cleanSousDossier = cleanForPath(sousDossierTitre);
-  const cleanPiece = cleanForPath(pieceNom);
-  const cleanAgent = cleanForPath(agentNom);
+  // Nettoyer et tronquer les noms (max 20 caractères chacun)
+  const truncate = (str: string, maxLen: number = 20) => {
+    const cleaned = cleanForPath(str);
+    return cleaned.length > maxLen ? cleaned.substring(0, maxLen) : cleaned;
+  };
+
+  const shortRubrique = truncate(rubriqueNom, 15);
+  const shortSousDossier = truncate(sousDossierTitre, 15);
+  const shortPiece = truncate(pieceNom, 15);
+  const shortAgent = truncate(agentNom, 15);
 
   return path.join(
     storageConfig.baseDir,
-    cleanRubrique,
-    cleanSousDossier,
-    cleanPiece,
-    cleanAgent
+    shortRubrique,
+    shortSousDossier,
+    shortPiece,
+    shortAgent
   );
 };
 
@@ -123,17 +128,20 @@ export const getTempPath = (sessionId: string) => {
   return path.join(storageConfig.tempDir, sessionId);
 };
 
-// Fonction pour générer un nom de fichier avec le nom de l'agent
+// Fonction pour générer un nom de fichier avec le nom de l'agent (raccourci)
 export const generateAgentFileName = (
   originalName: string,
   agentNom: string
 ): string => {
-  const cleanAgent = cleanForPath(agentNom);
+  const cleanAgent = cleanForPath(agentNom).substring(0, 10); // Max 10 chars
   const extension = path.extname(originalName);
   const baseName = path.basename(originalName, extension);
 
-  // Nettoyer le nom de base pour éviter les caractères problématiques
-  const cleanBaseName = cleanForPath(baseName);
+  // Nettoyer et limiter le nom de base (max 30 caractères)
+  const cleanBaseName = cleanForPath(baseName).substring(0, 30);
 
-  return `${cleanAgent}_${cleanBaseName}${extension}`;
+  // Timestamp pour unicité
+  const timestamp = Date.now().toString().slice(-6);
+
+  return `${cleanAgent}_${timestamp}_${cleanBaseName}${extension}`;
 };

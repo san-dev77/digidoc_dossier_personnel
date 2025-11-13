@@ -26,7 +26,7 @@ export default function AgentDataViewerOptimized({
   onPieceClick,
   onCreditDossierClick,
 }: AgentDataViewerOptimizedProps) {
-  const { dossiers, agents, loading } = useDossiersStore();
+  const { agentsWithDossiers, loading } = useDossiersStore();
   const [expandedAgents, setExpandedAgents] = useState<Set<string>>(new Set());
   const [expandedRubriques, setExpandedRubriques] = useState<Set<string>>(
     new Set()
@@ -69,13 +69,6 @@ export default function AgentDataViewerOptimized({
     }
   };
 
-  // Grouper les dossiers par agent (pour l'instant, on affiche tous les dossiers)
-  // Dans une vraie implémentation, on aurait besoin de lier les dossiers aux agents
-  const agentsWithData = agents.map((agent) => ({
-    agent,
-    dossiers: dossiers, // Pour l'instant, tous les dossiers pour tous les agents
-  }));
-
   if (loading) {
     return (
       <div className="flex items-center justify-center py-12">
@@ -88,7 +81,7 @@ export default function AgentDataViewerOptimized({
   return (
     <div className="space-y-6">
       {/* Liste des agents */}
-      {agentsWithData.map((agentData) => (
+      {agentsWithDossiers.map((agentData) => (
         <div
           key={agentData.agent.id}
           className="bg-white rounded-xl shadow-md border-2 border-slate-200"
@@ -421,7 +414,7 @@ export default function AgentDataViewerOptimized({
         </div>
       ))}
 
-      {agentsWithData.length === 0 && !loading && (
+      {agentsWithDossiers.length === 0 && !loading && (
         <div className="text-center py-12">
           <div className="w-24 h-24 bg-slate-100 rounded-2xl flex items-center justify-center mx-auto mb-4">
             <User className="w-12 h-12 text-slate-400" />

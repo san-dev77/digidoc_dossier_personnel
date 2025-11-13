@@ -14,15 +14,25 @@ export async function GET(
       return NextResponse.json({ message: "ID invalide" }, { status: 400 });
     }
 
+    const { searchParams } = new URL(request.url);
+    const agentDossierId = searchParams.get("agentDossierId");
+
     console.log("📋 Récupération des métadonnées pour la pièce ID:", pieceId);
+
+    // Construire le where clause avec filtre optionnel par agent_dossier_id
+    const whereClause: any = {
+      metadata_model: {
+        piece_id: pieceId,
+      },
+    };
+
+    if (agentDossierId) {
+      whereClause.agent_dossier_id = parseInt(agentDossierId);
+    }
 
     // Récupérer les métadonnées de la pièce avec les modèles de métadonnées
     const metaValues = await (prisma as any).meta_values.findMany({
-      where: {
-        metadata_model: {
-          piece_id: pieceId,
-        },
-      },
+      where: whereClause,
       include: {
         metadata_model: {
           select: {
@@ -75,7 +85,7 @@ export async function POST(
     }
 
     const body = await request.json();
-    const { meta_model_id, valeur } = body;
+    const { meta_model_id, valeur, agent_dossier_id } = body;
 
     if (!meta_model_id || !valeur) {
       return NextResponse.json(
@@ -85,7 +95,7 @@ export async function POST(
     }
 
     console.log("📝 Création d'une métadonnée pour la pièce ID:", pieceId);
-    console.log("📋 Données:", { meta_model_id, valeur });
+    console.log("📋 Données:", { meta_model_id, valeur, agent_dossier_id });
     console.log("🔍 meta_model_id parsé:", parseInt(meta_model_id));
 
     // Vérifier que la pièce existe
@@ -133,17 +143,20 @@ export async function POST(
     console.log("✅ Modèle de métadonnée trouvé:", metadataModel);
 
     // Créer la métadonnée
-    console.log("🔍 Données pour création meta_value:", {
+    const dataToCreate: any = {
       meta_model_id: parseInt(meta_model_id),
       valeur: valeur,
-    });
-    console.log(meta_model_id);
+    };
+
+    // Ajouter agent_dossier_id si fourni
+    if (agent_dossier_id) {
+      dataToCreate.agent_dossier_id = parseInt(agent_dossier_id);
+    }
+
+    console.log("🔍 Données pour création meta_value:", dataToCreate);
 
     const metaValue = await prisma.meta_values.create({
-      data: {
-        meta_model_id: parseInt(meta_model_id),
-        valeur: valeur,
-      },
+      data: dataToCreate,
       include: {
         metadata_model: {
           select: {

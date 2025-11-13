@@ -7,7 +7,6 @@ import {
   Folder,
   Search,
   FileText,
-  Calendar,
   Building2,
   ChevronRight,
   Plus,
@@ -21,13 +20,11 @@ import {
   File,
   CheckCircle,
 } from "lucide-react";
-import { rubriquesService } from "@/services/rubriques";
 import {
   sousDossiersService,
   type SousDossier,
 } from "@/services/sous-dossiers";
 import { piecesService } from "@/services/pieces";
-import { agentsService } from "@/services/agents";
 import { type PieceData } from "@/services/agent-data";
 import { DossiersOptimizedService } from "@/services/dossiers-optimized";
 import { useDossiersStore } from "@/store/dossiersStore";
@@ -35,26 +32,19 @@ import AgentDataViewerOptimized from "@/components/AgentDataViewerOptimized";
 import PieceViewerModal from "@/components/PieceViewerModal";
 import SuccessNotification from "@/components/SuccessNotification";
 import CreditDossierViewer from "@/components/CreditDossierViewer";
+import FullScreenLoader from "@/components/FullScreenLoader";
 import { isDossierCredit } from "@/utils/rubrique-utils";
 import type { Rubrique, MetaValue, Agent } from "@/types";
 import Image from "next/image";
 
 // Types pour les dossiers
-interface DossierData {
-  rubrique: Rubrique;
-  sousDossiers: SousDossierWithStats[];
-  totalPieces: number;
-  totalSousDossiers: number;
-  totalMetadata: number;
-}
-
-interface SousDossierWithStats extends SousDossier {
-  pieces: PieceWithMetadata[];
-  piecesCount: number;
-  piecesWithMetadataCount: number;
-  totalMetadataCount: number;
-  lastActivity: string;
-}
+// interface SousDossierWithStats extends SousDossier {
+//   pieces: PieceWithMetadata[];
+//   piecesCount: number;
+//   piecesWithMetadataCount: number;
+//   totalMetadataCount: number;
+//   lastActivity: string;
+// }
 
 interface PieceWithMetadata {
   id: string;
@@ -88,94 +78,12 @@ interface PieceFile {
   created_at: string;
 }
 
-// Composant pour afficher les métadonnées d'une pièce
-function PieceMetadata({ piece }: { piece: PieceWithMetadata }) {
-  if (!piece.metadata || piece.metadata.length === 0) {
-    return (
-      <div className="text-sm text-slate-500 italic">
-        Aucune métadonnée renseignée
-      </div>
-    );
-  }
-
-  return (
-    <div className="space-y-2">
-      {piece.metadata.map((meta) => (
-        <div key={meta.id} className="flex items-center gap-2 text-sm">
-          <span className="font-medium text-slate-700">
-            {meta.metadataModel?.libelle || "Métadonnée"}:
-          </span>
-          <span className="text-slate-600">{meta.valeur}</span>
-          {meta.metadataModel?.obligatoire && (
-            <span className="text-red-500 text-xs">*</span>
-          )}
-        </div>
-      ))}
-    </div>
-  );
+interface CreditMetadata {
+  id: string;
+  nom_meta: string;
+  type_meta: string;
+  [key: string]: unknown;
 }
-
-// Composant pour une pièce
-function PieceCard({ piece }: { piece: PieceWithMetadata }) {
-  return (
-    <div className="bg-slate-50 border border-slate-200 rounded-lg p-4">
-      <div className="flex items-start justify-between mb-3">
-        <div className="flex items-start gap-3">
-          <div className="w-8 h-8 bg-gradient-to-br from-slate-400 to-slate-500 rounded-lg flex items-center justify-center">
-            <FileText className="w-4 h-4 text-white" />
-          </div>
-          <div className="flex-1">
-            <h5 className="font-semibold text-slate-800 mb-1">{piece.nom}</h5>
-            {piece.description && (
-              <p className="text-sm text-slate-600 mb-2">{piece.description}</p>
-            )}
-            <div className="flex items-center gap-4 text-xs text-slate-500">
-              <div className="flex items-center gap-1">
-                <Calendar className="w-3 h-3" />
-                <span>
-                  Ajouté le {new Date(piece.createdAt).toLocaleDateString()}
-                </span>
-              </div>
-              {piece.aMetadonnees && (
-                <div className="flex items-center gap-1">
-                  <Database className="w-3 h-3" />
-                  <span>{piece.metadata.length} métadonnée(s)</span>
-                </div>
-              )}
-              {piece.filePath && (
-                <div className="flex items-center gap-1">
-                  <Upload className="w-3 h-3" />
-                  <span>Fichier uploadé</span>
-                </div>
-              )}
-            </div>
-          </div>
-        </div>
-        <div className="flex items-center gap-1">
-          {piece.filePath && (
-            <button
-              className="p-1 text-slate-600 hover:text-slate-800 hover:bg-slate-200 rounded transition-colors"
-              title="Télécharger le fichier"
-            >
-              <Download className="w-4 h-4" />
-            </button>
-          )}
-        </div>
-      </div>
-
-      {piece.aMetadonnees && (
-        <div className="border-t border-slate-200 pt-3">
-          <h6 className="text-sm font-medium text-slate-700 mb-2">
-            Métadonnées:
-          </h6>
-          <PieceMetadata piece={piece} />
-        </div>
-      )}
-    </div>
-  );
-}
-
-// Composant pour un sous-dossier
 
 // Composant Modal pour créer/éditer un sous-dossier
 interface ModalData {
@@ -188,7 +96,6 @@ interface ModalData {
 function NouveauSousDossierModal({
   isOpen,
   onClose,
-  setShowSuccessPopup,
   onReset,
 }: {
   isOpen: boolean;
@@ -211,9 +118,8 @@ function NouveauSousDossierModal({
     useState<SousDossier | null>(null);
   const [sousDossiers, setSousDossiers] = useState<SousDossier[]>([]);
   const [pieces, setPieces] = useState<PieceWithMetadata[]>([]);
-  const [creditMetadata, setCreditMetadata] = useState<any[]>([]);
+  const [creditMetadata, setCreditMetadata] = useState<CreditMetadata[]>([]);
   const [creditValues, setCreditValues] = useState<Record<string, string>>({});
-  const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
   const [pieceFiles, setPieceFiles] = useState<Record<string, File[]>>({});
   // const [uploadedFiles, setUploadedFiles] = useState<
   //   Array<{ name: string; size: number; url: string }>
@@ -222,7 +128,6 @@ function NouveauSousDossierModal({
   const [metadataValues, setMetadataValues] = useState<Record<string, string>>(
     {}
   );
-  const [loading, setLoading] = useState(false);
   const [searchAgent, setSearchAgent] = useState("");
   const [searchRubrique, setSearchRubrique] = useState("");
   const [searchSousDossier, setSearchSousDossier] = useState("");
@@ -231,6 +136,8 @@ function NouveauSousDossierModal({
   const [ignoreExistingValues, setIgnoreExistingValues] = useState(false);
   const [validationError, setValidationError] = useState<string | null>(null);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
+  const [isUploading, setIsUploading] = useState(false);
+  const [loadingPieces, setLoadingPieces] = useState(false);
   // const [forceRerender, setForceRerender] = useState(0);
 
   // Fonction pour créer l'aperçu d'un fichier
@@ -255,12 +162,11 @@ function NouveauSousDossierModal({
     setSelectedRubrique(null);
     setSelectedSousDossier(null);
     setPieces([]);
-    setSelectedFiles([]);
     setPieceFiles({});
     // setUploadedFiles([]);
     setPreviewFile(null);
     setMetadataValues({}); // Reset des valeurs de métadonnées
-    setLoading(false);
+    setLoadingPieces(false);
     setSearchAgent("");
     setSearchRubrique("");
     setSearchSousDossier("");
@@ -282,32 +188,63 @@ function NouveauSousDossierModal({
 
   useEffect(() => {
     if (selectedRubrique) {
-      // Récupérer les sous-dossiers depuis le store au lieu de faire un appel API
-      const { dossiers } = useDossiersStore.getState();
-      const dossier = dossiers.find(
-        (d) => d.rubrique.id === selectedRubrique.id
-      );
-      if (dossier) {
-        setSousDossiers(dossier.sousDossiers);
-      }
+      // Charger TOUS les sous-dossiers de cette rubrique (pas seulement ceux créés)
+      const loadSousDossiers = async () => {
+        try {
+          const sousDossiersData =
+            await sousDossiersService.getAllSousDossiersByRubrique(
+              selectedRubrique.id
+            );
+          setSousDossiers(sousDossiersData);
+        } catch (error) {
+          console.error("Erreur chargement sous-dossiers:", error);
+          setSousDossiers([]);
+        }
+      };
+      loadSousDossiers();
     }
   }, [selectedRubrique]);
 
   useEffect(() => {
     if (selectedSousDossier && !justUploaded) {
-      // Récupérer les pièces depuis le store au lieu de faire des appels API
-      const { dossiers } = useDossiersStore.getState();
-      const dossier = dossiers.find(
-        (d) => d.rubrique.id === selectedRubrique?.id
-      );
-      if (dossier) {
-        const sousDossier = dossier.sousDossiers.find(
-          (sd) => sd.id === selectedSousDossier.id
-        );
-        if (sousDossier) {
-          setPieces(sousDossier.pieces as PieceWithMetadata[]);
+      // Charger TOUTES les pièces de ce sous-dossier
+      const loadPieces = async () => {
+        setLoadingPieces(true);
+        try {
+          const piecesData = await piecesService.getAllPiecesBySousDossier(
+            selectedSousDossier.id
+          );
+
+          // Charger les métadonnées et fichiers pour chaque pièce
+          const piecesWithDetails = await Promise.all(
+            piecesData.map(async (piece) => {
+              const [metadataModels, files] = await Promise.all([
+                fetch(`/api/pieces/${piece.id}/metadata-models`).then((res) =>
+                  res.ok ? res.json() : []
+                ),
+                fetch(`/api/pieces/${piece.id}/files`).then((res) =>
+                  res.ok ? res.json() : []
+                ),
+              ]);
+
+              return {
+                ...piece,
+                metadata: [],
+                metadataModels: metadataModels || [],
+                files: files || [],
+              };
+            })
+          );
+
+          setPieces(piecesWithDetails as PieceWithMetadata[]);
+        } catch (error) {
+          console.error("Erreur chargement pièces:", error);
+          setPieces([]);
+        } finally {
+          setLoadingPieces(false);
         }
-      }
+      };
+      loadPieces();
     }
   }, [selectedSousDossier, selectedRubrique, justUploaded]);
 
@@ -347,7 +284,7 @@ function NouveauSousDossierModal({
 
             // Initialiser les valeurs vides pour les inputs
             const valuesMap: Record<string, string> = {};
-            (data.data || []).forEach((metadata: any) => {
+            (data.data || []).forEach((metadata: CreditMetadata) => {
               valuesMap[metadata.id] = "";
             });
             setCreditValues(valuesMap);
@@ -400,11 +337,11 @@ function NouveauSousDossierModal({
     setSelectedRubrique(null);
     setSelectedSousDossier(null);
     setPieces([]);
-    setSelectedFiles([]);
+    setPieceFiles({});
     // setUploadedFiles([]);
     setPreviewFile(null);
     setMetadataValues({}); // Reset des valeurs de métadonnées
-    setLoading(false);
+    setLoadingPieces(false);
     setSearchAgent("");
     setSearchRubrique("");
     setSearchSousDossier("");
@@ -660,670 +597,815 @@ function NouveauSousDossierModal({
                   ? "Gestion du dossier de crédit"
                   : "Gestion des pièces"}
               </h3>
-              {/* Vérifier si c'est un dossier de crédit */}
-              {selectedRubrique?.nom?.toLowerCase().includes("crédit") ||
-              selectedRubrique?.nom?.toLowerCase().includes("credit") ? (
-                /* Affichage pour dossier de crédit - métadonnées du sous-dossier */
-                <div className="space-y-4">
-                  <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
-                    <h4 className="text-md font-medium text-blue-800 mb-3">
-                      Métadonnées du dossier de crédit
-                    </h4>
-                    <p className="text-sm text-blue-600">
-                      Sous-dossier sélectionné:{" "}
-                      <strong>{selectedSousDossier?.titre}</strong>
-                    </p>
-                  </div>
 
-                  {/* Ici on va afficher les métadonnées de la table metadata_credit */}
-                  <div className="bg-white border border-slate-200 rounded-lg p-4">
-                    <h5 className="text-sm font-medium text-slate-700 mb-3">
-                      Champs de métadonnées
-                    </h5>
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                      {creditMetadata.length > 0 ? (
-                        creditMetadata.map((metadata) => (
-                          <div key={metadata.id} className="space-y-2">
-                            <label className="text-sm font-medium text-slate-700 flex items-center gap-2">
-                              <Database className="w-4 h-4" />
-                              {metadata.nom_meta}
-                              <span className="text-xs bg-slate-100 text-slate-600 px-2 py-1 rounded">
-                                {metadata.type_meta}
-                              </span>
-                            </label>
-                            {metadata.type_meta === "text" && (
-                              <input
-                                type="text"
-                                value={creditValues[metadata.id] || ""}
-                                onChange={(e) => {
-                                  const newValues = { ...creditValues };
-                                  newValues[metadata.id] = e.target.value;
-                                  setCreditValues(newValues);
-                                }}
-                                onBlur={async () => {
-                                  if (creditValues[metadata.id]) {
-                                    try {
-                                      await fetch("/api/meta-credit-values", {
-                                        method: "POST",
-                                        headers: {
-                                          "Content-Type": "application/json",
-                                        },
-                                        body: JSON.stringify({
-                                          metadata_credit_id: metadata.id,
-                                          valeur: creditValues[metadata.id],
-                                        }),
-                                      });
-                                      console.log(
-                                        "✅ Valeur sauvegardée:",
-                                        metadata.nom_meta
-                                      );
-                                    } catch (error) {
-                                      console.error(
-                                        "❌ Erreur sauvegarde:",
-                                        error
-                                      );
-                                    }
-                                  }
-                                }}
-                                placeholder={`Saisir ${metadata.nom_meta.toLowerCase()}`}
-                                className="w-full text-black px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-slate-500 focus:border-slate-500 text-sm"
-                              />
-                            )}
-                            {metadata.type_meta === "number" && (
-                              <input
-                                type="number"
-                                value={creditValues[metadata.id] || ""}
-                                onChange={(e) => {
-                                  const newValues = { ...creditValues };
-                                  newValues[metadata.id] = e.target.value;
-                                  setCreditValues(newValues);
-                                }}
-                                onBlur={async () => {
-                                  if (creditValues[metadata.id]) {
-                                    try {
-                                      await fetch("/api/meta-credit-values", {
-                                        method: "POST",
-                                        headers: {
-                                          "Content-Type": "application/json",
-                                        },
-                                        body: JSON.stringify({
-                                          metadata_credit_id: metadata.id,
-                                          valeur: creditValues[metadata.id],
-                                        }),
-                                      });
-                                      console.log(
-                                        "✅ Valeur sauvegardée:",
-                                        metadata.nom_meta
-                                      );
-                                    } catch (error) {
-                                      console.error(
-                                        "❌ Erreur sauvegarde:",
-                                        error
-                                      );
-                                    }
-                                  }
-                                }}
-                                placeholder={`Saisir ${metadata.nom_meta.toLowerCase()}`}
-                                className="w-full text-black px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-slate-500 focus:border-slate-500 text-sm"
-                              />
-                            )}
-                            {metadata.type_meta === "date" && (
-                              <input
-                                type="date"
-                                value={creditValues[metadata.id] || ""}
-                                onChange={(e) => {
-                                  const newValues = { ...creditValues };
-                                  newValues[metadata.id] = e.target.value;
-                                  setCreditValues(newValues);
-                                }}
-                                onBlur={async () => {
-                                  if (creditValues[metadata.id]) {
-                                    try {
-                                      await fetch("/api/meta-credit-values", {
-                                        method: "POST",
-                                        headers: {
-                                          "Content-Type": "application/json",
-                                        },
-                                        body: JSON.stringify({
-                                          metadata_credit_id: metadata.id,
-                                          valeur: creditValues[metadata.id],
-                                        }),
-                                      });
-                                      console.log(
-                                        "✅ Valeur sauvegardée:",
-                                        metadata.nom_meta
-                                      );
-                                    } catch (error) {
-                                      console.error(
-                                        "❌ Erreur sauvegarde:",
-                                        error
-                                      );
-                                    }
-                                  }
-                                }}
-                                className="w-full bg-gray-700 text-white px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-slate-500 focus:border-slate-500 text-sm"
-                              />
-                            )}
-                            {metadata.type_meta === "textarea" && (
-                              <textarea
-                                value={creditValues[metadata.id] || ""}
-                                onChange={(e) => {
-                                  const newValues = { ...creditValues };
-                                  newValues[metadata.id] = e.target.value;
-                                  setCreditValues(newValues);
-                                }}
-                                onBlur={async () => {
-                                  if (creditValues[metadata.id]) {
-                                    try {
-                                      await fetch("/api/meta-credit-values", {
-                                        method: "POST",
-                                        headers: {
-                                          "Content-Type": "application/json",
-                                        },
-                                        body: JSON.stringify({
-                                          metadata_credit_id: metadata.id,
-                                          valeur: creditValues[metadata.id],
-                                        }),
-                                      });
-                                      console.log(
-                                        "✅ Valeur sauvegardée:",
-                                        metadata.nom_meta
-                                      );
-                                    } catch (error) {
-                                      console.error(
-                                        "❌ Erreur sauvegarde:",
-                                        error
-                                      );
-                                    }
-                                  }
-                                }}
-                                placeholder={`Saisir ${metadata.nom_meta.toLowerCase()}`}
-                                rows={3}
-                                className="w-full text-black px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-slate-500 focus:border-slate-500 text-sm"
-                              />
-                            )}
-                          </div>
-                        ))
-                      ) : (
-                        <div className="col-span-full text-center py-8 text-slate-500">
-                          <Database className="w-8 h-8 mx-auto mb-2" />
-                          <p>
-                            Aucune métadonnée de crédit définie pour ce
-                            sous-dossier
-                          </p>
-                          <p className="text-xs mt-1">
-                            Les métadonnées peuvent être créées dans les
-                            paramètres de la rubrique
-                          </p>
-                        </div>
-                      )}
+              {/* Loader pendant le chargement des pièces */}
+              {loadingPieces ? (
+                <div className="flex flex-col items-center justify-center py-16">
+                  <div className="relative w-20 h-20 mb-6">
+                    <div className="absolute inset-0 bg-gradient-to-r from-slate-400 to-slate-600 rounded-full animate-ping opacity-75"></div>
+                    <div className="relative w-20 h-20 bg-gradient-to-br from-slate-600 to-slate-700 rounded-full flex items-center justify-center shadow-lg">
+                      <FileText className="w-10 h-10 text-white animate-pulse" />
                     </div>
                   </div>
-
-                  {/* Bouton Terminer pour les dossiers de crédit */}
-                  {selectedRubrique && isDossierCredit(selectedRubrique) && (
-                    <div className="mt-6 flex justify-center">
-                      <button
-                        onClick={() => {
-                          // Afficher notification de succès
-                          setSuccessMessage(
-                            "✅ Dossier de crédit créé avec succès !"
-                          );
-
-                          // Rafraîchir la page après un délai
-                          setTimeout(() => {
-                            window.location.reload();
-                          }, 2000);
-                        }}
-                        className="group flex items-center gap-2 px-8 py-4 bg-gradient-to-r from-emerald-500 to-emerald-600 text-white rounded-xl hover:from-emerald-600 hover:to-emerald-700 transition-all duration-300 shadow-lg hover:shadow-xl transform hover:scale-105 font-semibold text-lg"
-                      >
-                        <CheckCircle className="w-5 h-5 group-hover:scale-110 transition-transform duration-300" />
-                        Terminer la création du dossier
-                      </button>
-                    </div>
-                  )}
-                </div>
-              ) : /* Affichage normal pour les autres dossiers */
-              loading ? (
-                <div className="text-center py-8">
-                  <div className="w-8 h-8 border-4 border-slate-300 border-t-slate-600 rounded-full animate-spin mx-auto mb-4"></div>
-                  <p className="text-slate-600">Chargement des pièces...</p>
+                  <p className="text-slate-700 font-semibold text-lg">
+                    Chargement des pièces...
+                  </p>
+                  <p className="text-slate-500 text-sm mt-2">
+                    Veuillez patienter
+                  </p>
                 </div>
               ) : (
-                <div className="space-y-3 max-h-96 overflow-y-auto">
-                  {pieces.map((piece) => (
-                    <div
-                      key={piece.id}
-                      className="border border-slate-600 bg-slate-100 rounded-lg p-3"
-                    >
-                      <div className="flex items-center justify-between mb-3">
-                        <h4 className="font-semibold flex gap-2 justify-between bg-gradient-to-r from-slate-600 to-slate-700 text-white px-2 py-1 rounded-lg items-center text-lg">
-                          <FileText className="w-4 h-4 text-white" />
-                          {piece.nom}
+                <>
+                  {/* Vérifier si c'est un dossier de crédit */}
+                  {selectedRubrique?.nom?.toLowerCase().includes("crédit") ||
+                  selectedRubrique?.nom?.toLowerCase().includes("credit") ? (
+                    /* Affichage pour dossier de crédit - métadonnées du sous-dossier */
+                    <div className="space-y-4">
+                      <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+                        <h4 className="text-md font-medium text-blue-800 mb-3">
+                          Métadonnées du dossier de crédit
                         </h4>
-                        <div className="flex items-center gap-2">
-                          {piece.files && piece.files.length > 0 && (
-                            <span className="text-sm bg-green-100 text-green-800 px-2 py-1 rounded">
-                              {piece.files.length} fichier(s)
-                            </span>
+                        <p className="text-sm text-blue-600">
+                          Sous-dossier sélectionné:{" "}
+                          <strong>{selectedSousDossier?.titre}</strong>
+                        </p>
+                      </div>
+
+                      {/* Ici on va afficher les métadonnées de la table metadata_credit */}
+                      <div className="bg-white border border-slate-200 rounded-lg p-4">
+                        <h5 className="text-sm font-medium text-slate-700 mb-3">
+                          Champs de métadonnées
+                        </h5>
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                          {creditMetadata.length > 0 ? (
+                            creditMetadata.map((metadata) => (
+                              <div key={metadata.id} className="space-y-2">
+                                <label className="text-sm font-medium text-slate-700 flex items-center gap-2">
+                                  <Database className="w-4 h-4" />
+                                  {metadata.nom_meta}
+                                  <span className="text-xs bg-slate-100 text-slate-600 px-2 py-1 rounded">
+                                    {metadata.type_meta}
+                                  </span>
+                                </label>
+                                {metadata.type_meta === "text" && (
+                                  <input
+                                    type="text"
+                                    value={creditValues[metadata.id] || ""}
+                                    onChange={(e) => {
+                                      const newValues = { ...creditValues };
+                                      newValues[metadata.id] = e.target.value;
+                                      setCreditValues(newValues);
+                                    }}
+                                    onBlur={async () => {
+                                      if (creditValues[metadata.id]) {
+                                        try {
+                                          await fetch(
+                                            "/api/meta-credit-values",
+                                            {
+                                              method: "POST",
+                                              headers: {
+                                                "Content-Type":
+                                                  "application/json",
+                                              },
+                                              body: JSON.stringify({
+                                                metadata_credit_id: metadata.id,
+                                                valeur:
+                                                  creditValues[metadata.id],
+                                              }),
+                                            }
+                                          );
+                                          console.log(
+                                            "✅ Valeur sauvegardée:",
+                                            metadata.nom_meta
+                                          );
+                                        } catch (error) {
+                                          console.error(
+                                            "❌ Erreur sauvegarde:",
+                                            error
+                                          );
+                                        }
+                                      }
+                                    }}
+                                    placeholder={`Saisir ${metadata.nom_meta.toLowerCase()}`}
+                                    className="w-full text-black px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-slate-500 focus:border-slate-500 text-sm"
+                                  />
+                                )}
+                                {metadata.type_meta === "number" && (
+                                  <input
+                                    type="number"
+                                    value={creditValues[metadata.id] || ""}
+                                    onChange={(e) => {
+                                      const newValues = { ...creditValues };
+                                      newValues[metadata.id] = e.target.value;
+                                      setCreditValues(newValues);
+                                    }}
+                                    onBlur={async () => {
+                                      if (creditValues[metadata.id]) {
+                                        try {
+                                          await fetch(
+                                            "/api/meta-credit-values",
+                                            {
+                                              method: "POST",
+                                              headers: {
+                                                "Content-Type":
+                                                  "application/json",
+                                              },
+                                              body: JSON.stringify({
+                                                metadata_credit_id: metadata.id,
+                                                valeur:
+                                                  creditValues[metadata.id],
+                                              }),
+                                            }
+                                          );
+                                          console.log(
+                                            "✅ Valeur sauvegardée:",
+                                            metadata.nom_meta
+                                          );
+                                        } catch (error) {
+                                          console.error(
+                                            "❌ Erreur sauvegarde:",
+                                            error
+                                          );
+                                        }
+                                      }
+                                    }}
+                                    placeholder={`Saisir ${metadata.nom_meta.toLowerCase()}`}
+                                    className="w-full text-black px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-slate-500 focus:border-slate-500 text-sm"
+                                  />
+                                )}
+                                {metadata.type_meta === "date" && (
+                                  <input
+                                    type="date"
+                                    value={creditValues[metadata.id] || ""}
+                                    onChange={(e) => {
+                                      const newValues = { ...creditValues };
+                                      newValues[metadata.id] = e.target.value;
+                                      setCreditValues(newValues);
+                                    }}
+                                    onBlur={async () => {
+                                      if (creditValues[metadata.id]) {
+                                        try {
+                                          await fetch(
+                                            "/api/meta-credit-values",
+                                            {
+                                              method: "POST",
+                                              headers: {
+                                                "Content-Type":
+                                                  "application/json",
+                                              },
+                                              body: JSON.stringify({
+                                                metadata_credit_id: metadata.id,
+                                                valeur:
+                                                  creditValues[metadata.id],
+                                              }),
+                                            }
+                                          );
+                                          console.log(
+                                            "✅ Valeur sauvegardée:",
+                                            metadata.nom_meta
+                                          );
+                                        } catch (error) {
+                                          console.error(
+                                            "❌ Erreur sauvegarde:",
+                                            error
+                                          );
+                                        }
+                                      }
+                                    }}
+                                    className="w-full bg-gray-700 text-white px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-slate-500 focus:border-slate-500 text-sm"
+                                  />
+                                )}
+                                {metadata.type_meta === "textarea" && (
+                                  <textarea
+                                    value={creditValues[metadata.id] || ""}
+                                    onChange={(e) => {
+                                      const newValues = { ...creditValues };
+                                      newValues[metadata.id] = e.target.value;
+                                      setCreditValues(newValues);
+                                    }}
+                                    onBlur={async () => {
+                                      if (creditValues[metadata.id]) {
+                                        try {
+                                          await fetch(
+                                            "/api/meta-credit-values",
+                                            {
+                                              method: "POST",
+                                              headers: {
+                                                "Content-Type":
+                                                  "application/json",
+                                              },
+                                              body: JSON.stringify({
+                                                metadata_credit_id: metadata.id,
+                                                valeur:
+                                                  creditValues[metadata.id],
+                                              }),
+                                            }
+                                          );
+                                          console.log(
+                                            "✅ Valeur sauvegardée:",
+                                            metadata.nom_meta
+                                          );
+                                        } catch (error) {
+                                          console.error(
+                                            "❌ Erreur sauvegarde:",
+                                            error
+                                          );
+                                        }
+                                      }
+                                    }}
+                                    placeholder={`Saisir ${metadata.nom_meta.toLowerCase()}`}
+                                    rows={3}
+                                    className="w-full text-black px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-slate-500 focus:border-slate-500 text-sm"
+                                  />
+                                )}
+                              </div>
+                            ))
+                          ) : (
+                            <div className="col-span-full text-center py-8 text-slate-500">
+                              <Database className="w-8 h-8 mx-auto mb-2" />
+                              <p>
+                                Aucune métadonnée de crédit définie pour ce
+                                sous-dossier
+                              </p>
+                              <p className="text-xs mt-1">
+                                Les métadonnées peuvent être créées dans les
+                                paramètres de la rubrique
+                              </p>
+                            </div>
                           )}
-                          {piece.metadataModels &&
-                            piece.metadataModels.length > 0 && (
-                              <span className="text-sm bg-slate-100 text-slate-800 px-2 py-1 rounded">
-                                {piece.metadataModels.length} métadonnée(s)
-                              </span>
-                            )}
                         </div>
                       </div>
 
-                      {piece.description && (
-                        <p className="text-md text-slate-600 mb-3">
-                          {piece.description}
-                        </p>
-                      )}
+                      {/* Bouton Terminer pour les dossiers de crédit */}
+                      {selectedRubrique &&
+                        isDossierCredit(selectedRubrique) && (
+                          <div className="mt-6 flex justify-center">
+                            <button
+                              onClick={async () => {
+                                setIsUploading(true);
 
-                      {/* Métadonnées */}
-                      {piece.metadataModels &&
-                        piece.metadataModels.length > 0 && (
-                          <div className="mb-3">
-                            <h5 className="text-md font-medium text-slate-700 mb-2">
-                              Métadonnées:
-                            </h5>
-                            <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
-                              {piece.metadataModels.map(
-                                (model: MetadataModel) => {
-                                  return (
-                                    <div key={model.id} className="space-y-1">
-                                      <label className="text-sm font-medium text-slate-700">
-                                        {model.libelle}
-                                        {model.obligatoire && (
-                                          <span className="text-red-500 ml-1">
-                                            *
-                                          </span>
-                                        )}
-                                      </label>
-                                      {model.type === "text" && (
-                                        <input
-                                          key={`${modalKey}_${piece.id}_${model.id}_text`}
-                                          type="text"
-                                          value={
-                                            metadataValues[
-                                              `${piece.id}_${model.id}`
-                                            ] || ""
-                                          }
-                                          onChange={(e) => {
-                                            setMetadataValues((prev) => ({
-                                              ...prev,
-                                              [`${piece.id}_${model.id}`]:
-                                                e.target.value,
-                                            }));
-                                          }}
-                                          className="w-full px-3 py-2 border border-slate-600 rounded-lg focus:ring-2 focus:ring-slate-500 focus:border-slate-500 text-black"
-                                        />
-                                      )}
-                                      {model.type === "number" && (
-                                        <input
-                                          key={`${modalKey}_${piece.id}_${model.id}_number`}
-                                          type="number"
-                                          value={
-                                            metadataValues[
-                                              `${piece.id}_${model.id}`
-                                            ] || ""
-                                          }
-                                          onChange={(e) =>
-                                            setMetadataValues((prev) => ({
-                                              ...prev,
-                                              [`${piece.id}_${model.id}`]:
-                                                e.target.value,
-                                            }))
-                                          }
-                                          className="w-full px-3 py-2 border border-slate-600 rounded-lg focus:ring-2 focus:ring-slate-500 focus:border-slate-500 text-black"
-                                        />
-                                      )}
-                                      {model.type === "date" && (
-                                        <input
-                                          key={`${modalKey}_${piece.id}_${model.id}_date`}
-                                          type="date"
-                                          value={
-                                            metadataValues[
-                                              `${piece.id}_${model.id}`
-                                            ] || ""
-                                          }
-                                          onChange={(e) =>
-                                            setMetadataValues((prev) => ({
-                                              ...prev,
-                                              [`${piece.id}_${model.id}`]:
-                                                e.target.value,
-                                            }))
-                                          }
-                                          className="w-full px-3 bg-gray-700 text-white py-2 border border-slate-600 rounded-lg focus:ring-2 focus:ring-slate-500 focus:border-slate-500"
-                                        />
-                                      )}
-                                      {model.type === "boolean" && (
-                                        <select
-                                          key={`${modalKey}_${piece.id}_${model.id}_boolean`}
-                                          value={
-                                            metadataValues[
-                                              `${piece.id}_${model.id}`
-                                            ] || ""
-                                          }
-                                          onChange={(e) =>
-                                            setMetadataValues((prev) => ({
-                                              ...prev,
-                                              [`${piece.id}_${model.id}`]:
-                                                e.target.value,
-                                            }))
-                                          }
-                                          className="w-full px-3 py-2 border border-slate-600 rounded-lg focus:ring-2 focus:ring-slate-500 focus:border-slate-500 text-black"
-                                        >
-                                          <option value="">
-                                            Sélectionner...
-                                          </option>
-                                          <option value="true">Oui</option>
-                                          <option value="false">Non</option>
-                                        </select>
-                                      )}
-                                    </div>
-                                  );
+                                // Créer l'entrée agent_dossiers
+                                if (
+                                  selectedAgent &&
+                                  selectedRubrique &&
+                                  selectedSousDossier
+                                ) {
+                                  try {
+                                    await fetch("/api/agent-dossiers", {
+                                      method: "POST",
+                                      headers: {
+                                        "Content-Type": "application/json",
+                                      },
+                                      body: JSON.stringify({
+                                        agent_id: selectedAgent.id,
+                                        rubrique_id: selectedRubrique.id,
+                                        sous_dossier_id: selectedSousDossier.id,
+                                      }),
+                                    });
+                                  } catch (error) {
+                                    console.log(
+                                      "agent_dossiers déjà existant ou erreur:",
+                                      error
+                                    );
+                                  }
                                 }
-                              )}
-                            </div>
+
+                                // Afficher notification de succès
+                                setSuccessMessage(
+                                  "✅ Dossier de crédit créé avec succès !"
+                                );
+
+                                // Vider le cache et rafraîchir
+                                setTimeout(() => {
+                                  // Vider le cache du store
+                                  useDossiersStore.getState().clearCache();
+                                  handleClose();
+                                  window.location.reload();
+                                }, 1500);
+                              }}
+                              className="group flex items-center gap-2 px-8 py-4 bg-gradient-to-r from-emerald-500 to-emerald-600 text-white rounded-xl hover:from-emerald-600 hover:to-emerald-700 transition-all duration-300 shadow-lg hover:shadow-xl transform hover:scale-105 font-semibold text-lg"
+                            >
+                              <CheckCircle className="w-5 h-5 group-hover:scale-110 transition-transform duration-300" />
+                              Terminer la création du dossier
+                            </button>
                           </div>
                         )}
-
-                      {/* Upload de fichiers individuel pour cette pièce */}
-                      <div>
-                        <h5 className="text-sm font-medium text-slate-700 mb-2">
-                          Fichiers pour cette pièce:
-                        </h5>
-
-                        {/* Liste des fichiers sélectionnés pour cette pièce */}
-                        {pieceFiles[piece.id] &&
-                          pieceFiles[piece.id].length > 0 && (
-                            <div className="mb-3 p-3 bg-slate-50 rounded-lg border border-slate-200">
-                              <h6 className="text-xs font-semibold text-slate-600 mb-2">
-                                Fichiers sélectionnés (
-                                {pieceFiles[piece.id].length}):
-                              </h6>
-                              <div className="space-y-2">
-                                {pieceFiles[piece.id].map((file, index) => (
-                                  <div
-                                    key={index}
-                                    className="flex items-center justify-between p-2 bg-white rounded border border-slate-200"
-                                  >
-                                    <div className="flex items-center gap-2">
-                                      <File className="w-4 h-4 text-slate-500" />
-                                      <span className="text-sm text-slate-700">
-                                        {file.name}
-                                      </span>
-                                      <span className="text-xs text-slate-500">
-                                        ({(file.size / 1024 / 1024).toFixed(2)}{" "}
-                                        MB)
-                                      </span>
-                                    </div>
-                                    <div className="flex items-center gap-1">
-                                      <button
-                                        onClick={() => createFilePreview(file)}
-                                        className="text-blue-500 hover:text-blue-700 p-1"
-                                        title="Aperçu"
-                                      >
-                                        <Eye className="w-4 h-4" />
-                                      </button>
-                                      <button
-                                        onClick={() => {
-                                          setPieceFiles((prev) => ({
-                                            ...prev,
-                                            [piece.id]:
-                                              prev[piece.id]?.filter(
-                                                (_, i) => i !== index
-                                              ) || [],
-                                          }));
-                                        }}
-                                        className="text-red-500 hover:text-red-700 p-1"
-                                        title="Supprimer"
-                                      >
-                                        <X className="w-4 h-4" />
-                                      </button>
-                                    </div>
-                                  </div>
-                                ))}
-                              </div>
+                    </div>
+                  ) : (
+                    /* Affichage normal pour les autres dossiers */ <div className="space-y-3 max-h-96 overflow-y-auto">
+                      {pieces.map((piece) => (
+                        <div
+                          key={piece.id}
+                          className="border border-slate-600 bg-slate-100 rounded-lg p-3"
+                        >
+                          <div className="flex items-center justify-between mb-3">
+                            <h4 className="font-semibold flex gap-2 justify-between bg-gradient-to-r from-slate-600 to-slate-700 text-white px-2 py-1 rounded-lg items-center text-lg">
+                              <FileText className="w-4 h-4 text-white" />
+                              {piece.nom}
+                            </h4>
+                            <div className="flex items-center gap-2">
+                              {piece.files && piece.files.length > 0 && (
+                                <span className="text-sm bg-green-100 text-green-800 px-2 py-1 rounded">
+                                  {piece.files.length} fichier(s)
+                                </span>
+                              )}
+                              {piece.metadataModels &&
+                                piece.metadataModels.length > 0 && (
+                                  <span className="text-sm bg-slate-100 text-slate-800 px-2 py-1 rounded">
+                                    {piece.metadataModels.length} métadonnée(s)
+                                  </span>
+                                )}
                             </div>
+                          </div>
+
+                          {piece.description && (
+                            <p className="text-md text-slate-600 mb-3">
+                              {piece.description}
+                            </p>
                           )}
 
-                        <div className="border-2 border-dashed border-slate-600 rounded-lg p-3 text-center">
-                          <Upload className="w-8 h-8 text-slate-400 mx-auto mb-2" />
-                          <p className="text-sm text-slate-600 mb-2">
-                            Glissez-déposez vos fichiers ici ou cliquez pour
-                            sélectionner
-                          </p>
-                          <input
-                            type="file"
-                            multiple
-                            className="hidden"
-                            id={`file-upload-${piece.id}`}
-                            onChange={(e) => {
-                              const files = e.target.files;
-                              if (files && files.length > 0) {
-                                console.log(
-                                  "Fichiers sélectionnés pour",
-                                  piece.nom,
-                                  ":",
-                                  files
-                                );
-                                // Ajouter les nouveaux fichiers aux fichiers de cette pièce
-                                setPieceFiles((prev) => ({
-                                  ...prev,
-                                  [piece.id]: [
-                                    ...(prev[piece.id] || []),
-                                    ...Array.from(files),
-                                  ],
-                                }));
-                              }
-                            }}
-                          />
-                          <label
-                            htmlFor={`file-upload-${piece.id}`}
-                            className="inline-flex items-center gap-2 px-4 py-2 bg-slate-600 text-white rounded-lg hover:bg-slate-700 transition-colors cursor-pointer"
-                          >
-                            <Upload className="w-4 h-4" />
-                            {pieceFiles[piece.id] &&
-                            pieceFiles[piece.id].length > 0
-                              ? "Ajouter des fichiers"
-                              : "Sélectionner des fichiers"}
-                          </label>
-                        </div>
-
-                        {/* Bouton Charger pour cette pièce */}
-                        {pieceFiles[piece.id] &&
-                          pieceFiles[piece.id].length > 0 && (
-                            <div className="mt-3 flex justify-center">
-                              <button
-                                onClick={async () => {
-                                  if (
-                                    !selectedRubrique ||
-                                    !selectedSousDossier
-                                  ) {
-                                    setValidationError(
-                                      "❌ Erreur : Rubrique ou sous-dossier non sélectionné"
-                                    );
-                                    return;
-                                  }
-
-                                  try {
-                                    // Uploader le premier fichier de cette pièce
-                                    const file = pieceFiles[piece.id][0];
-                                    const formData = new FormData();
-                                    formData.append("file", file);
-                                    formData.append(
-                                      "rubriqueId",
-                                      selectedRubrique.id
-                                    );
-                                    formData.append(
-                                      "sousDossierId",
-                                      selectedSousDossier.id
-                                    );
-                                    formData.append(
-                                      "agentId",
-                                      selectedAgent?.id || ""
-                                    );
-                                    formData.append("nom", piece.nom);
-                                    formData.append("fileName", file.name);
-                                    formData.append(
-                                      "description",
-                                      `Fichier uploadé: ${file.name}`
-                                    );
-
-                                    const response = await fetch(
-                                      "/api/upload",
-                                      {
-                                        method: "POST",
-                                        body: formData,
-                                      }
-                                    );
-
-                                    if (!response.ok) {
-                                      const error = await response.json();
-                                      console.error("Erreur upload:", error);
-                                      setValidationError(
-                                        `❌ Erreur lors de l'upload de ${file.name}`
+                          {/* Métadonnées */}
+                          {piece.metadataModels &&
+                            piece.metadataModels.length > 0 && (
+                              <div className="mb-3">
+                                <h5 className="text-md font-medium text-slate-700 mb-2">
+                                  Métadonnées:
+                                </h5>
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
+                                  {piece.metadataModels.map(
+                                    (model: MetadataModel) => {
+                                      return (
+                                        <div
+                                          key={model.id}
+                                          className="space-y-1"
+                                        >
+                                          <label className="text-sm font-medium text-slate-700">
+                                            {model.libelle}
+                                            {model.obligatoire && (
+                                              <span className="text-red-500 ml-1">
+                                                *
+                                              </span>
+                                            )}
+                                          </label>
+                                          {model.type === "text" && (
+                                            <input
+                                              key={`${modalKey}_${piece.id}_${model.id}_text`}
+                                              type="text"
+                                              value={
+                                                metadataValues[
+                                                  `${piece.id}_${model.id}`
+                                                ] || ""
+                                              }
+                                              onChange={(e) => {
+                                                setMetadataValues((prev) => ({
+                                                  ...prev,
+                                                  [`${piece.id}_${model.id}`]:
+                                                    e.target.value,
+                                                }));
+                                              }}
+                                              className="w-full px-3 py-2 border border-slate-600 rounded-lg focus:ring-2 focus:ring-slate-500 focus:border-slate-500 text-black"
+                                            />
+                                          )}
+                                          {model.type === "number" && (
+                                            <input
+                                              key={`${modalKey}_${piece.id}_${model.id}_number`}
+                                              type="number"
+                                              value={
+                                                metadataValues[
+                                                  `${piece.id}_${model.id}`
+                                                ] || ""
+                                              }
+                                              onChange={(e) =>
+                                                setMetadataValues((prev) => ({
+                                                  ...prev,
+                                                  [`${piece.id}_${model.id}`]:
+                                                    e.target.value,
+                                                }))
+                                              }
+                                              className="w-full px-3 py-2 border border-slate-600 rounded-lg focus:ring-2 focus:ring-slate-500 focus:border-slate-500 text-black"
+                                            />
+                                          )}
+                                          {model.type === "date" && (
+                                            <input
+                                              key={`${modalKey}_${piece.id}_${model.id}_date`}
+                                              type="date"
+                                              value={
+                                                metadataValues[
+                                                  `${piece.id}_${model.id}`
+                                                ] || ""
+                                              }
+                                              onChange={(e) =>
+                                                setMetadataValues((prev) => ({
+                                                  ...prev,
+                                                  [`${piece.id}_${model.id}`]:
+                                                    e.target.value,
+                                                }))
+                                              }
+                                              className="w-full px-3 bg-gray-700 text-white py-2 border border-slate-600 rounded-lg focus:ring-2 focus:ring-slate-500 focus:border-slate-500"
+                                            />
+                                          )}
+                                          {model.type === "boolean" && (
+                                            <select
+                                              key={`${modalKey}_${piece.id}_${model.id}_boolean`}
+                                              value={
+                                                metadataValues[
+                                                  `${piece.id}_${model.id}`
+                                                ] || ""
+                                              }
+                                              onChange={(e) =>
+                                                setMetadataValues((prev) => ({
+                                                  ...prev,
+                                                  [`${piece.id}_${model.id}`]:
+                                                    e.target.value,
+                                                }))
+                                              }
+                                              className="w-full px-3 py-2 border border-slate-600 rounded-lg focus:ring-2 focus:ring-slate-500 focus:border-slate-500 text-black"
+                                            >
+                                              <option value="">
+                                                Sélectionner...
+                                              </option>
+                                              <option value="true">Oui</option>
+                                              <option value="false">Non</option>
+                                            </select>
+                                          )}
+                                        </div>
                                       );
-                                      return;
                                     }
+                                  )}
+                                </div>
+                              </div>
+                            )}
 
-                                    const uploadResult = await response.json();
+                          {/* Upload de fichiers individuel pour cette pièce */}
+                          <div>
+                            <h5 className="text-sm font-medium text-slate-700 mb-2">
+                              Fichiers pour cette pièce:
+                            </h5>
+
+                            {/* Liste des fichiers sélectionnés pour cette pièce */}
+                            {pieceFiles[piece.id] &&
+                              pieceFiles[piece.id].length > 0 && (
+                                <div className="mb-3 p-3 bg-slate-50 rounded-lg border border-slate-200">
+                                  <h6 className="text-xs font-semibold text-slate-600 mb-2">
+                                    Fichiers sélectionnés (
+                                    {pieceFiles[piece.id].length}):
+                                  </h6>
+                                  <div className="space-y-2">
+                                    {pieceFiles[piece.id].map((file, index) => (
+                                      <div
+                                        key={index}
+                                        className="flex items-center justify-between p-2 bg-white rounded border border-slate-200"
+                                      >
+                                        <div className="flex items-center gap-2">
+                                          <File className="w-4 h-4 text-slate-500" />
+                                          <span className="text-sm text-slate-700">
+                                            {file.name}
+                                          </span>
+                                          <span className="text-xs text-slate-500">
+                                            (
+                                            {(file.size / 1024 / 1024).toFixed(
+                                              2
+                                            )}{" "}
+                                            MB)
+                                          </span>
+                                        </div>
+                                        <div className="flex items-center gap-1">
+                                          <button
+                                            onClick={() =>
+                                              createFilePreview(file)
+                                            }
+                                            className="text-blue-500 hover:text-blue-700 p-1"
+                                            title="Aperçu"
+                                          >
+                                            <Eye className="w-4 h-4" />
+                                          </button>
+                                          <button
+                                            onClick={() => {
+                                              setPieceFiles((prev) => ({
+                                                ...prev,
+                                                [piece.id]:
+                                                  prev[piece.id]?.filter(
+                                                    (_, i) => i !== index
+                                                  ) || [],
+                                              }));
+                                            }}
+                                            className="text-red-500 hover:text-red-700 p-1"
+                                            title="Supprimer"
+                                          >
+                                            <X className="w-4 h-4" />
+                                          </button>
+                                        </div>
+                                      </div>
+                                    ))}
+                                  </div>
+                                </div>
+                              )}
+
+                            <div className="border-2 border-dashed border-slate-600 rounded-lg p-3 text-center">
+                              <Upload className="w-8 h-8 text-slate-400 mx-auto mb-2" />
+                              <p className="text-sm text-slate-600 mb-2">
+                                Glissez-déposez vos fichiers ici ou cliquez pour
+                                sélectionner
+                              </p>
+                              <input
+                                type="file"
+                                multiple
+                                className="hidden"
+                                id={`file-upload-${piece.id}`}
+                                onChange={(e) => {
+                                  const files = e.target.files;
+                                  if (files && files.length > 0) {
                                     console.log(
-                                      "Fichier uploadé:",
-                                      uploadResult
+                                      "Fichiers sélectionnés pour",
+                                      piece.nom,
+                                      ":",
+                                      files
                                     );
+                                    // Ajouter les nouveaux fichiers aux fichiers de cette pièce
+                                    setPieceFiles((prev) => ({
+                                      ...prev,
+                                      [piece.id]: [
+                                        ...(prev[piece.id] || []),
+                                        ...Array.from(files),
+                                      ],
+                                    }));
+                                  }
+                                }}
+                              />
+                              <label
+                                htmlFor={`file-upload-${piece.id}`}
+                                className="inline-flex items-center gap-2 px-4 py-2 bg-slate-600 text-white rounded-lg hover:bg-slate-700 transition-colors cursor-pointer"
+                              >
+                                <Upload className="w-4 h-4" />
+                                {pieceFiles[piece.id] &&
+                                pieceFiles[piece.id].length > 0
+                                  ? "Ajouter des fichiers"
+                                  : "Sélectionner des fichiers"}
+                              </label>
+                            </div>
 
-                                    // Lier le fichier à la pièce existante
-                                    try {
-                                      const fileResponse = await fetch(
-                                        `/api/pieces/${piece.id}/files`,
-                                        {
-                                          method: "POST",
-                                          headers: {
-                                            "Content-Type": "application/json",
-                                          },
-                                          body: JSON.stringify({
-                                            file_path:
-                                              uploadResult.data.filePath,
-                                          }),
-                                        }
-                                      );
-
-                                      if (!fileResponse.ok) {
-                                        console.error(
-                                          "Erreur liaison fichier à la pièce"
-                                        );
+                            {/* Bouton Charger pour cette pièce */}
+                            {pieceFiles[piece.id] &&
+                              pieceFiles[piece.id].length > 0 && (
+                                <div className="mt-3 flex justify-center">
+                                  <button
+                                    onClick={async () => {
+                                      if (
+                                        !selectedRubrique ||
+                                        !selectedSousDossier
+                                      ) {
                                         setValidationError(
-                                          "❌ Erreur lors de la liaison du fichier à la pièce"
+                                          "❌ Erreur : Rubrique ou sous-dossier non sélectionné"
                                         );
                                         return;
                                       }
 
-                                      console.log(
-                                        "Fichier lié à la pièce avec succès"
-                                      );
+                                      setIsUploading(true);
+                                      try {
+                                        // Uploader le premier fichier de cette pièce
+                                        const file = pieceFiles[piece.id][0];
+                                        const formData = new FormData();
+                                        formData.append("file", file);
+                                        formData.append(
+                                          "rubriqueId",
+                                          selectedRubrique.id
+                                        );
+                                        formData.append(
+                                          "sousDossierId",
+                                          selectedSousDossier.id
+                                        );
+                                        formData.append(
+                                          "agentId",
+                                          selectedAgent?.id || ""
+                                        );
+                                        formData.append("nom", piece.nom);
+                                        formData.append("fileName", file.name);
+                                        formData.append(
+                                          "description",
+                                          `Fichier uploadé: ${file.name}`
+                                        );
 
-                                      // Supprimer le fichier de la liste après upload réussi
-                                      setPieceFiles((prev) => ({
-                                        ...prev,
-                                        [piece.id]:
-                                          prev[piece.id]?.filter(
-                                            (_, i) => i !== 0
-                                          ) || [],
-                                      }));
+                                        const response = await fetch(
+                                          "/api/upload",
+                                          {
+                                            method: "POST",
+                                            body: formData,
+                                          }
+                                        );
 
-                                      // Sauvegarder les métadonnées pour cette pièce si elles existent
-                                      if (
-                                        piece.metadataModels &&
-                                        piece.metadataModels.length > 0
-                                      ) {
-                                        for (const model of piece.metadataModels) {
-                                          const metadataKey = `${piece.id}_${model.id}`;
-                                          const metadataValue =
-                                            metadataValues[metadataKey];
+                                        if (!response.ok) {
+                                          const error = await response.json();
+                                          console.error(
+                                            "Erreur upload:",
+                                            error
+                                          );
+                                          setValidationError(
+                                            `❌ Erreur lors de l'upload de ${file.name}`
+                                          );
+                                          return;
+                                        }
 
-                                          if (
-                                            metadataValue &&
-                                            metadataValue.trim() !== ""
-                                          ) {
-                                            try {
-                                              const metadataResponse =
-                                                await fetch(
-                                                  `/api/pieces/${piece.id}/metadata`,
-                                                  {
-                                                    method: "POST",
-                                                    headers: {
-                                                      "Content-Type":
-                                                        "application/json",
-                                                    },
-                                                    body: JSON.stringify({
-                                                      meta_model_id: model.id,
-                                                      valeur: metadataValue,
-                                                    }),
-                                                  }
-                                                );
+                                        const uploadResult =
+                                          await response.json();
 
-                                              if (metadataResponse.ok) {
-                                                console.log(
-                                                  `Métadonnée ${model.libelle} sauvegardée`
-                                                );
-                                              } else {
-                                                console.error(
-                                                  `Erreur sauvegarde métadonnée ${model.libelle}`
-                                                );
+                                        // Créer ou récupérer l'agent_dossier D'ABORD
+                                        let agentDossierId: string | null =
+                                          null;
+                                        if (
+                                          selectedAgent &&
+                                          selectedRubrique &&
+                                          selectedSousDossier
+                                        ) {
+                                          try {
+                                            const adResponse = await fetch(
+                                              "/api/agent-dossiers",
+                                              {
+                                                method: "POST",
+                                                headers: {
+                                                  "Content-Type":
+                                                    "application/json",
+                                                },
+                                                body: JSON.stringify({
+                                                  agent_id: selectedAgent.id,
+                                                  rubrique_id:
+                                                    selectedRubrique.id,
+                                                  sous_dossier_id:
+                                                    selectedSousDossier.id,
+                                                }),
                                               }
-                                            } catch (error) {
-                                              console.error(
-                                                `Erreur métadonnée ${model.libelle}:`,
-                                                error
+                                            );
+
+                                            if (adResponse.ok) {
+                                              const adData =
+                                                await adResponse.json();
+                                              agentDossierId =
+                                                adData.id.toString();
+                                            } else {
+                                              // Si déjà existant, le récupérer
+                                              const getResponse = await fetch(
+                                                `/api/agent-dossiers?sousDossierId=${selectedSousDossier.id}`
                                               );
+                                              if (getResponse.ok) {
+                                                const existingData =
+                                                  await getResponse.json();
+                                                if (existingData.length > 0) {
+                                                  agentDossierId =
+                                                    existingData[0].id.toString();
+                                                }
+                                              }
                                             }
+                                          } catch (error) {
+                                            console.log(
+                                              "Erreur agent_dossiers:",
+                                              error
+                                            );
                                           }
                                         }
-                                      }
 
-                                      // Afficher un message de succès
-                                      setValidationError(null);
-                                      setSuccessMessage(
-                                        `✅ Fichier et métadonnées uploadés avec succès pour "${piece.nom}"`
-                                      );
-                                      console.log(
-                                        `✅ Fichier uploadé avec succès pour ${piece.nom}`
-                                      );
-                                    } catch (error) {
-                                      console.error(
-                                        "Erreur lors de la liaison du fichier:",
-                                        error
-                                      );
-                                      setValidationError(
-                                        "❌ Erreur lors de la liaison du fichier"
-                                      );
-                                    }
-                                  } catch (error) {
-                                    console.error(
-                                      "Erreur lors de l'upload:",
-                                      error
-                                    );
-                                    setValidationError(
-                                      "❌ Erreur lors de l'upload du fichier"
-                                    );
-                                  }
-                                }}
-                                className="inline-flex items-center gap-2 px-4 py-2 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 transition-colors"
-                              >
-                                <CheckCircle className="w-4 h-4" />
-                                Charger pour {piece.nom}
-                              </button>
-                            </div>
-                          )}
-                      </div>
+                                        // Lier le fichier à la pièce avec agent_dossier_id
+                                        try {
+                                          const fileResponse = await fetch(
+                                            `/api/pieces/${piece.id}/files`,
+                                            {
+                                              method: "POST",
+                                              headers: {
+                                                "Content-Type":
+                                                  "application/json",
+                                              },
+                                              body: JSON.stringify({
+                                                file_path:
+                                                  uploadResult.data.filePath,
+                                                agent_dossier_id:
+                                                  agentDossierId,
+                                              }),
+                                            }
+                                          );
+
+                                          if (!fileResponse.ok) {
+                                            console.error(
+                                              "Erreur liaison fichier à la pièce"
+                                            );
+                                            setValidationError(
+                                              "❌ Erreur lors de la liaison du fichier à la pièce"
+                                            );
+                                            setIsUploading(false);
+                                            return;
+                                          }
+
+                                          // Supprimer le fichier de la liste après upload réussi
+                                          setPieceFiles((prev) => ({
+                                            ...prev,
+                                            [piece.id]:
+                                              prev[piece.id]?.filter(
+                                                (_, i) => i !== 0
+                                              ) || [],
+                                          }));
+
+                                          // Sauvegarder les métadonnées avec agent_dossier_id
+                                          if (
+                                            piece.metadataModels &&
+                                            piece.metadataModels.length > 0
+                                          ) {
+                                            for (const model of piece.metadataModels) {
+                                              const metadataKey = `${piece.id}_${model.id}`;
+                                              const metadataValue =
+                                                metadataValues[metadataKey];
+
+                                              if (
+                                                metadataValue &&
+                                                metadataValue.trim() !== ""
+                                              ) {
+                                                try {
+                                                  const metadataResponse =
+                                                    await fetch(
+                                                      `/api/pieces/${piece.id}/metadata`,
+                                                      {
+                                                        method: "POST",
+                                                        headers: {
+                                                          "Content-Type":
+                                                            "application/json",
+                                                        },
+                                                        body: JSON.stringify({
+                                                          meta_model_id:
+                                                            model.id,
+                                                          valeur: metadataValue,
+                                                          agent_dossier_id:
+                                                            agentDossierId,
+                                                        }),
+                                                      }
+                                                    );
+
+                                                  if (metadataResponse.ok) {
+                                                    console.log(
+                                                      `Métadonnée ${model.libelle} sauvegardée`
+                                                    );
+                                                  } else {
+                                                    console.error(
+                                                      `Erreur sauvegarde métadonnée ${model.libelle}`
+                                                    );
+                                                  }
+                                                } catch (error) {
+                                                  console.error(
+                                                    `Erreur métadonnée ${model.libelle}:`,
+                                                    error
+                                                  );
+                                                }
+                                              }
+                                            }
+                                          }
+
+                                          // Afficher un message de succès
+                                          setValidationError(null);
+                                          setSuccessMessage(
+                                            `✅ Dossier créé avec succès pour "${piece.nom}"`
+                                          );
+                                          console.log(
+                                            `✅ Fichier uploadé avec succès pour ${piece.nom}`
+                                          );
+
+                                          // Vider le cache et rafraîchir
+                                          setTimeout(() => {
+                                            // Vider le cache du store
+                                            useDossiersStore
+                                              .getState()
+                                              .clearCache();
+                                            handleClose();
+                                            window.location.reload();
+                                          }, 1500);
+                                        } catch (error) {
+                                          console.error(
+                                            "Erreur lors de la liaison du fichier:",
+                                            error
+                                          );
+                                          setValidationError(
+                                            "❌ Erreur lors de la liaison du fichier"
+                                          );
+                                          setIsUploading(false);
+                                        }
+                                      } catch (error) {
+                                        console.error(
+                                          "Erreur lors de l'upload:",
+                                          error
+                                        );
+                                        setValidationError(
+                                          "❌ Erreur lors de l'upload du fichier"
+                                        );
+                                        setIsUploading(false);
+                                      }
+                                    }}
+                                    className="inline-flex items-center gap-2 px-4 py-2 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 transition-colors"
+                                  >
+                                    <CheckCircle className="w-4 h-4" />
+                                    Charger pour {piece.nom}
+                                  </button>
+                                </div>
+                              )}
+                          </div>
+                        </div>
+                      ))}
                     </div>
-                  ))}
-                </div>
+                  )}
+                </>
               )}
             </div>
           )}
@@ -1397,6 +1479,9 @@ function NouveauSousDossierModal({
       />
 
       {/* Modale d'aperçu de fichier */}
+      {/* Loader plein écran */}
+      <FullScreenLoader isOpen={isUploading} message="Upload en cours..." />
+
       {previewFile && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
           <div className="bg-white rounded-2xl shadow-2xl w-full max-w-4xl max-h-[90vh] overflow-hidden">
@@ -1494,7 +1579,7 @@ function NouveauSousDossierModal({
 // Composant principal pour les dossiers
 export default function DossiersPage() {
   // Utiliser le store Zustand au lieu du state local
-  const { dossiers, loading, setDossiers, setLoading } = useDossiersStore();
+  const { dossiers, loading, setDossiers } = useDossiersStore();
 
   const [searchTerm, setSearchTerm] = useState("");
   // const [expandedRubriques, setExpandedRubriques] = useState<Set<string>>(
@@ -1515,12 +1600,10 @@ export default function DossiersPage() {
   const loadDossiers = useCallback(
     async (forceRefresh: boolean = false) => {
       try {
-        console.log("🚀 Chargement optimisé des dossiers...");
         const dossiersData = await DossiersOptimizedService.loadDossiers(
           forceRefresh
         );
         setDossiers(dossiersData);
-        console.log("✅ Dossiers chargés avec succès:", dossiersData.length);
       } catch (error) {
         console.error("❌ Erreur lors du chargement des dossiers:", error);
       }
@@ -1529,11 +1612,11 @@ export default function DossiersPage() {
   );
 
   useEffect(() => {
-    loadDossiers();
+    // Vider le cache au premier chargement pour toujours avoir les données fraîches
+    const { clearCache } = useDossiersStore.getState();
+    clearCache();
+    loadDossiers(true); // Force refresh
   }, [loadDossiers]);
-
-  // Filtrage des dossiers (désactivé pour l'instant)
-  const filteredDossiers = dossiers;
 
   // const toggleRubrique = (rubriqueId: string) => {
   //   const newExpanded = new Set(expandedRubriques);
@@ -1763,9 +1846,7 @@ export default function DossiersPage() {
           onSave={handleSaveNouveauSousDossier}
           showSuccessPopup={showSuccessPopup}
           setShowSuccessPopup={setShowSuccessPopup}
-          onReset={() => {
-            // Reset sera géré dans la modale
-          }}
+          onReset={loadDossiers}
         />
 
         {/* Modal de consultation des pièces */}

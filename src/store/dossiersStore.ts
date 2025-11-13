@@ -3,7 +3,7 @@ import { persist } from "zustand/middleware";
 import type { MetaValue, Agent, Rubrique } from "@/types";
 
 // Types
-interface MetadataModel {
+export interface MetadataModel {
   id: string;
   piece_id: string;
   libelle: string;
@@ -14,7 +14,7 @@ interface MetadataModel {
   updated_at?: string;
 }
 
-interface PieceFile {
+export interface PieceFile {
   id: string;
   piece_id: string;
   file_name: string;
@@ -24,7 +24,7 @@ interface PieceFile {
   created_at: string;
 }
 
-interface PieceWithMetadata {
+export interface PieceWithMetadata {
   id: string;
   nom: string;
   description?: string;
@@ -36,7 +36,7 @@ interface PieceWithMetadata {
   files: PieceFile[];
 }
 
-interface SousDossierWithStats {
+export interface SousDossierWithStats {
   id: string;
   rubrique_id: string;
   titre: string;
@@ -52,7 +52,7 @@ interface SousDossierWithStats {
   lastActivity: string;
 }
 
-interface DossierData {
+export interface DossierData {
   rubrique: {
     id: string;
     nom: string;
@@ -66,11 +66,17 @@ interface DossierData {
   totalMetadata: number;
 }
 
+export interface AgentWithDossiers {
+  agent: Agent;
+  dossiers: DossierData[];
+}
+
 interface CacheState {
   // Données mises en cache
   dossiers: DossierData[];
   agents: Agent[];
   rubriques: Rubrique[];
+  agentsWithDossiers: AgentWithDossiers[]; // ← NOUVEAU
 
   // Cache des pièces avec métadonnées et fichiers
   piecesCache: Record<string, PieceWithMetadata>; // key: pieceId
@@ -86,6 +92,7 @@ interface CacheState {
   setDossiers: (dossiers: DossierData[]) => void;
   setAgents: (agents: Agent[]) => void;
   setRubriques: (rubriques: Rubrique[]) => void;
+  setAgentsWithDossiers: (agentsWithDossiers: AgentWithDossiers[]) => void; // ← NOUVEAU
   setLoading: (loading: boolean) => void;
 
   // Actions pour le cache des pièces
@@ -137,6 +144,7 @@ export const useDossiersStore = create<CacheState>()(
       dossiers: [],
       agents: [],
       rubriques: [],
+      agentsWithDossiers: [], // ← NOUVEAU
       piecesCache: {},
       loading: false,
       lastFetch: 0,
@@ -153,6 +161,8 @@ export const useDossiersStore = create<CacheState>()(
       setAgents: (agents) => set({ agents }),
 
       setRubriques: (rubriques) => set({ rubriques }),
+
+      setAgentsWithDossiers: (agentsWithDossiers) => set({ agentsWithDossiers }), // ← NOUVEAU
 
       setLoading: (loading) => set({ loading }),
 
@@ -187,6 +197,7 @@ export const useDossiersStore = create<CacheState>()(
           dossiers: [],
           agents: [],
           rubriques: [],
+          agentsWithDossiers: [],
           piecesCache: {},
           lastFetch: 0,
         }),
@@ -324,6 +335,7 @@ export const useDossiersStore = create<CacheState>()(
         dossiers: state.dossiers,
         agents: state.agents,
         rubriques: state.rubriques,
+        agentsWithDossiers: state.agentsWithDossiers,
         lastFetch: state.lastFetch,
       }),
     }
