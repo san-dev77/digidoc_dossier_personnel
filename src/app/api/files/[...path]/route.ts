@@ -1,14 +1,24 @@
 import { NextRequest, NextResponse } from "next/server";
+import { protectRoute } from "@/lib/auth/routeProtection";
 import fs from "fs";
 import path from "path";
 
 export async function GET(
   request: NextRequest,
-  { params }: { params: { path: string[] } }
+  { params }: { params: Promise<{ path: string[] }> }
 ) {
+  // Protection de la route
+  const authResult = await protectRoute(request);
+  if (!authResult.authorized) {
+    return authResult.response!;
+  }
+
   try {
+    // Attendre la résolution de params (Next.js 16)
+    const { path: pathArray } = await params;
+    
     // Reconstituer le chemin du fichier
-    const filePath = params.path.join("/");
+    const filePath = pathArray.join("/");
     const fullPath = path.join(process.cwd(), "uploads", filePath);
 
     // Vérifier que le fichier existe

@@ -20,6 +20,7 @@ import {
   Eye,
   Database,
   SquarePen,
+  Loader2,
 } from "lucide-react";
 import AuthGuard from "@/components/AuthGuard";
 import DashboardLayout from "@/components/DashboardLayout";
@@ -31,8 +32,8 @@ import { ToastContainer, useToast } from "@/components/Toast";
 import { usePiecesStore } from "@/store/piecesStore";
 import { rubriquesService } from "@/services/rubriques";
 import CreditMetadataManager from "@/components/CreditMetadataManager";
+import PositionManagerModal from "@/components/PositionManagerModal";
 import { isDossierCredit } from "@/utils/rubrique-utils";
-import { MetadataService } from "@/services/metadata";
 
 // Composant réactif pour le badge de comptage des pièces
 function PieceCountBadge({ sousDossierId }: { sousDossierId: string }) {
@@ -86,6 +87,10 @@ export default function RubriqueParametresPage() {
   const [sousDossierPieces, setSousDossierPieces] = useState<
     Record<string, PieceWithMetadata[]>
   >({});
+  const [loadingPieces, setLoadingPieces] = useState(false);
+  const [loadingSousDossierPieces, setLoadingSousDossierPieces] = useState<
+    Record<string, boolean>
+  >({});
   const [selectedPiece, setSelectedPiece] = useState<PieceWithMetadata | null>(
     null
   );
@@ -106,6 +111,7 @@ export default function RubriqueParametresPage() {
     useState(false);
   const [selectedSousDossierForMetadata, setSelectedSousDossierForMetadata] =
     useState<string | null>(null);
+  const [showPositionManager, setShowPositionManager] = useState(false);
   const { toasts, removeToast, success, error: showError } = useToast();
 
   useEffect(() => {
@@ -215,10 +221,13 @@ export default function RubriqueParametresPage() {
 
   const loadPieces = async () => {
     try {
+      setLoadingPieces(true);
       const data = await piecesService.getAllPiecesByRubrique(rubriqueId);
       setPieces(data);
     } catch (err) {
       console.error("Erreur lors du chargement des pièces:", err);
+    } finally {
+      setLoadingPieces(false);
     }
   };
 
@@ -288,6 +297,10 @@ export default function RubriqueParametresPage() {
 
   const loadSousDossierPieces = async (sousDossierId: string) => {
     try {
+      setLoadingSousDossierPieces((prev) => ({
+        ...prev,
+        [sousDossierId]: true,
+      }));
       const pieces = await piecesService.getPiecesWithMetadata(sousDossierId);
       setSousDossierPieces((prev) => ({
         ...prev,
@@ -295,6 +308,11 @@ export default function RubriqueParametresPage() {
       }));
     } catch (err) {
       console.error("Erreur lors du chargement des pièces:", err);
+    } finally {
+      setLoadingSousDossierPieces((prev) => ({
+        ...prev,
+        [sousDossierId]: false,
+      }));
     }
   };
 
@@ -362,19 +380,58 @@ export default function RubriqueParametresPage() {
 
       console.log("✅ Pièce mise à jour:", updatedPiece);
 
-      // Mettre à jour la liste des pièces
+      // Convertir updatedPiece en PieceWithMetadata pour la compatibilité
+      const updatedPieceWithMetadata: PieceWithMetadata = {
+        ...updatedPiece,
+        metadonnees: selectedPiece.metadonnees || [],
+      };
+
+      // Mettre à jour la liste globale des pièces
       setPieces(
         pieces.map((p) => (p.id === selectedPiece.id ? updatedPiece : p))
       );
 
-      // Mettre à jour le store Zustand si on a le sousDossierId
-      const sousDossierId = selectedPiece.sousDossierId || expandedSousDossier;
+      // Mettre à jour immédiatement sousDossierPieces pour l'affichage
+      const sousDossierId = selectedPiece.sousDossierId;
       if (sousDossierId) {
+        console.log("🔄 Mise à jour sousDossierPieces pour:", sousDossierId);
+        console.log("🔍 ID de la pièce à mettre à jour:", selectedPiece.id);
+
+        setSousDossierPieces((prev) => {
+          const currentPieces = prev[sousDossierId] || [];
+          console.log("📋 Pièces actuelles:", currentPieces.length);
+
+          const updated = currentPieces.map((p) => {
+            // Comparer les IDs en tant que strings pour éviter les problèmes de type
+            const pieceId = p.id.toString();
+            const selectedId = selectedPiece.id.toString();
+
+            if (pieceId === selectedId) {
+              console.log("✅ Pièce trouvée et mise à jour:", pieceId);
+              return updatedPieceWithMetadata;
+            }
+            return p;
+          });
+
+          console.log("📦 Pièces mises à jour:", updated.length);
+
+          return {
+            ...prev,
+            [sousDossierId]: updated,
+          };
+        });
+
+        // Mettre à jour le store Zustand
         usePiecesStore.getState().updatePiece(sousDossierId, updatedPiece);
+      } else {
+        console.warn(
+          "⚠️ Aucun sousDossierId trouvé pour la pièce:",
+          selectedPiece
+        );
       }
 
-      // Rafraîchir les pièces du sous-dossier si il est ouvert
-      if (expandedSousDossier) {
+      // Rafraîchir les pièces du sous-dossier si il est ouvert (pour synchroniser avec le serveur)
+      if (expandedSousDossier && expandedSousDossier === sousDossierId) {
         await loadSousDossierPieces(expandedSousDossier);
       }
 
@@ -423,24 +480,195 @@ export default function RubriqueParametresPage() {
     }
   };
 
-  const handleViewPieceDetails = (piece: PieceWithMetadata) => {
-    setSelectedPieceForView(piece);
-    setShowMetadataViewer(true);
+  const handleViewPieceDetails = async (piece: PieceWithMetadata) => {
+    // Recharger les métadonnées à jour avant d'afficher
+    try {
+      console.log("🔍 Rechargement des métadonnées pour la pièce:", piece.id);
+      const response = await fetch(`/api/pieces/${piece.id}/metadata-models`);
+      if (response.ok) {
+        const metadataModels = await response.json();
+        console.log("✅ Métadonnées récupérées:", metadataModels.length);
+
+        // Mettre à jour la pièce avec les métadonnées récupérées
+        const updatedPiece: PieceWithMetadata = {
+          ...piece,
+          metadonnees: metadataModels.map(
+            (model: {
+              id: string | number;
+              libelle: string;
+              type: string;
+              obligatoire: boolean;
+              description: string | null;
+            }) => ({
+              id: model.id.toString(),
+              nom: model.libelle,
+              type: model.type,
+              obligatoire: model.obligatoire || false,
+              description: model.description || "",
+              createdAt: "",
+              updatedAt: "",
+            })
+          ),
+        };
+
+        setSelectedPieceForView(updatedPiece);
+        setShowMetadataViewer(true);
+      } else {
+        // Si l'API échoue, afficher quand même avec les métadonnées existantes
+        console.warn(
+          "⚠️ Impossible de recharger les métadonnées, utilisation des données en cache"
+        );
+        setSelectedPieceForView(piece);
+        setShowMetadataViewer(true);
+      }
+    } catch (error) {
+      console.error("❌ Erreur lors du rechargement des métadonnées:", error);
+      // En cas d'erreur, afficher quand même avec les métadonnées existantes
+      setSelectedPieceForView(piece);
+      setShowMetadataViewer(true);
+    }
+  };
+
+  const handleEditMetadataFromViewer = (metadata: MetadataModel) => {
+    setSelectedMetadata(metadata);
+    setShowEditMetadataForm(true);
+    // Fermer le viewer pour ouvrir le formulaire d'édition
+    setShowMetadataViewer(false);
+  };
+
+  const handleDeleteMetadataFromViewer = async (metadata: MetadataModel) => {
+    if (!selectedPieceForView) return;
+
+    if (
+      !confirm(
+        `Êtes-vous sûr de vouloir supprimer le champ "${metadata.nom}" ?`
+      )
+    ) {
+      return;
+    }
+
+    try {
+      console.log("🗑️ Suppression de la métadonnée:", metadata.id);
+
+      const response = await fetch(
+        `/api/pieces/${selectedPieceForView.id}/metadata-models/${metadata.id}`,
+        {
+          method: "DELETE",
+        }
+      );
+
+      if (!response.ok) {
+        throw new Error("Erreur lors de la suppression de la métadonnée");
+      }
+
+      const result = await response.json();
+      console.log("✅ Métadonnée supprimée:", result);
+
+      // Recharger les métadonnées de la pièce
+      const metadataResponse = await fetch(
+        `/api/pieces/${selectedPieceForView.id}/metadata-models`
+      );
+      if (metadataResponse.ok) {
+        const metadataModels = await metadataResponse.json();
+        const updatedPiece: PieceWithMetadata = {
+          ...selectedPieceForView,
+          metadonnees: metadataModels.map(
+            (model: {
+              id: string | number;
+              libelle: string;
+              type: string;
+              obligatoire: boolean;
+              description: string | null;
+            }) => ({
+              id: model.id.toString(),
+              nom: model.libelle,
+              type: model.type,
+              obligatoire: model.obligatoire || false,
+              description: model.description || "",
+              createdAt: "",
+              updatedAt: "",
+            })
+          ),
+          aMetadonnees: metadataModels.length > 0,
+        };
+        setSelectedPieceForView(updatedPiece);
+      }
+
+      // Mettre à jour les pièces du sous-dossier
+      if (expandedSousDossier) {
+        await loadSousDossierPieces(expandedSousDossier);
+      }
+
+      success(
+        "Métadonnée supprimée",
+        `Le champ "${metadata.nom}" a été supprimé avec succès.`
+      );
+    } catch (err) {
+      console.error("❌ Erreur lors de la suppression de la métadonnée:", err);
+      showError(
+        "Erreur de suppression",
+        "Impossible de supprimer la métadonnée. Veuillez réessayer."
+      );
+    }
   };
 
   const handleSubmitEditMetadata = async (
     formData: Omit<MetadataModel, "id" | "createdAt" | "updatedAt">[]
   ) => {
-    if (!selectedMetadata) return;
+    if (!selectedMetadata || !selectedPieceForView) return;
 
     try {
       console.log("🔧 Modification de la métadonnée:", selectedMetadata);
       console.log("📝 Nouvelles données:", formData[0]); // Prendre le premier élément
 
-      await MetadataService.updateMetadata(parseInt(selectedMetadata.id), {
-        nom_meta: formData[0].nom,
-        type_meta: formData[0].type,
-      });
+      // Utiliser l'API PUT pour mettre à jour le modèle de métadonnée
+      // L'API attend "nom" (pas "libelle") et "type" comme champs requis
+      const response = await fetch(
+        `/api/pieces/${selectedPieceForView.id}/metadata-models/${selectedMetadata.id}`,
+        {
+          method: "PUT",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            nom: formData[0].nom, // L'API attend "nom" et le convertit en "libelle" en base
+            type: formData[0].type,
+            obligatoire: formData[0].obligatoire || false,
+            description: formData[0].description || "",
+          }),
+        }
+      );
+
+      if (!response.ok) {
+        throw new Error("Erreur lors de la mise à jour de la métadonnée");
+      }
+
+      // Recharger les métadonnées de la pièce
+      const metadataResponse = await fetch(
+        `/api/pieces/${selectedPieceForView.id}/metadata-models`
+      );
+      if (metadataResponse.ok) {
+        const metadataModels = await metadataResponse.json();
+        const updatedPiece: PieceWithMetadata = {
+          ...selectedPieceForView,
+          metadonnees: metadataModels.map(
+            (model: {
+              id: string | number;
+              libelle: string;
+              type: string;
+              obligatoire: boolean;
+              description: string | null;
+            }) => ({
+              id: model.id.toString(),
+              nom: model.libelle,
+              type: model.type,
+              obligatoire: model.obligatoire || false,
+              description: model.description || "",
+              createdAt: "",
+              updatedAt: "",
+            })
+          ),
+        };
+        setSelectedPieceForView(updatedPiece);
+      }
 
       // Rafraîchir les pièces du sous-dossier
       if (expandedSousDossier) {
@@ -452,9 +680,10 @@ export default function RubriqueParametresPage() {
         `La métadonnée "${formData[0].nom}" a été mise à jour avec succès.`
       );
 
-      // Fermer la modale
+      // Fermer la modale d'édition et rouvrir le viewer
       setShowEditMetadataForm(false);
       setSelectedMetadata(null);
+      setShowMetadataViewer(true);
     } catch (err) {
       console.error("❌ Erreur lors de la modification de la métadonnée:", err);
       showError(
@@ -478,13 +707,23 @@ export default function RubriqueParametresPage() {
       console.log("💾 Sauvegarde des métadonnées:", metadata);
       console.log("📄 Pour la pièce:", selectedPieceForMetadata);
 
+      // Mapper les métadonnées : le formulaire utilise "nom" mais l'API attend "libelle"
+      const metadataForAPI = metadata.map((meta) => ({
+        libelle: meta.nom, // Mapper "nom" vers "libelle"
+        type: meta.type,
+        obligatoire: meta.obligatoire || false,
+        description: meta.description || "",
+      }));
+
+      console.log("📤 Métadonnées mappées pour l'API:", metadataForAPI);
+
       // Créer l'API call pour sauvegarder les modèles de métadonnées
       const response = await fetch(
         `/api/pieces/${selectedPieceForMetadata.id}/metadata-models`,
         {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ metadataModels: metadata }),
+          body: JSON.stringify({ metadataModels: metadataForAPI }),
         }
       );
 
@@ -499,8 +738,47 @@ export default function RubriqueParametresPage() {
       const result = await response.json();
       console.log("✅ Modèles de métadonnées sauvegardés:", result);
 
-      // Rafraîchir les pièces du sous-dossier
-      if (expandedSousDossier) {
+      // Mapper les modèles retournés par l'API vers le format MetadataModel
+      const mappedMetadata: MetadataModel[] = (result.models || []).map(
+        (model: {
+          id: string | number;
+          libelle: string;
+          type: string;
+          obligatoire: boolean;
+          description: string | null;
+        }) => ({
+          id: model.id.toString(),
+          nom: model.libelle, // Mapper "libelle" vers "nom" pour le frontend
+          type: model.type,
+          obligatoire: model.obligatoire || false,
+          description: model.description || "",
+          createdAt: "",
+          updatedAt: "",
+        })
+      );
+
+      // Mettre à jour immédiatement la pièce dans sousDossierPieces
+      const sousDossierId = selectedPieceForMetadata.sousDossierId;
+      if (sousDossierId) {
+        setSousDossierPieces((prev) => {
+          const currentPieces = prev[sousDossierId] || [];
+          return {
+            ...prev,
+            [sousDossierId]: currentPieces.map((p) =>
+              p.id === selectedPieceForMetadata.id
+                ? {
+                    ...p,
+                    aMetadonnees: true,
+                    metadonnees: mappedMetadata,
+                  }
+                : p
+            ),
+          };
+        });
+      }
+
+      // Rafraîchir les pièces du sous-dossier pour synchroniser avec le serveur
+      if (expandedSousDossier && expandedSousDossier === sousDossierId) {
         await loadSousDossierPieces(expandedSousDossier);
       }
 
@@ -530,16 +808,40 @@ export default function RubriqueParametresPage() {
     }
   };
 
+  // Fonction pour tronquer les noms longs
+  const truncateName = (name: string, maxLength: number = 40): string => {
+    if (name.length <= maxLength) return name;
+    return name.substring(0, maxLength) + "...";
+  };
+
   // Composant pour le contenu des pièces d'un sous-dossier
   const SousDossierPiecesContent = ({
     sousDossierId,
     pieces,
     onCreatePiece,
+    isLoading,
   }: {
     sousDossierId: string;
     pieces: PieceWithMetadata[];
     onCreatePiece: (id: string) => void;
+    isLoading: boolean;
   }) => {
+    if (isLoading) {
+      return (
+        <div className="p-12 text-center">
+          <div className="w-20 h-20 bg-gradient-to-br from-primary-500 to-primary-600 rounded-2xl flex items-center justify-center mx-auto mb-6 shadow-lg">
+            <Loader2 className="w-10 h-10 text-white animate-spin" />
+          </div>
+          <h3 className="text-xl font-bold text-gray-900 mb-2">
+            Chargement des documents...
+          </h3>
+          <p className="text-gray-600">
+            Veuillez patienter pendant que nous récupérons les pièces.
+          </p>
+        </div>
+      );
+    }
+
     if (pieces.length === 0) {
       return (
         <div className="p-8 text-center">
@@ -570,22 +872,22 @@ export default function RubriqueParametresPage() {
     }
 
     return (
-      <div className="p-6 space-y-6">
-        <div className="flex items-center justify-between">
+      <div className="p-6 space-y-6 bg-white">
+        <div className="flex items-center justify-between pb-4 border-b-2 border-gray-200">
           <div className="flex items-center gap-4">
-            <div className="w-3 h-8 bg-gradient-to-b from-accent-blue to-blue-600 rounded-full"></div>
+            <div className="w-3 h-8 bg-gradient-to-b from-blue-500 to-blue-700 rounded-full shadow-sm"></div>
             <div>
               <h3 className="text-xl font-bold text-gray-900">
                 Documents dans ce dossier
               </h3>
-              <p className="text-sm text-gray-600 mt-1">
+              <p className="text-sm text-gray-600 mt-1 font-medium">
                 {pieces.length} document{pieces.length !== 1 ? "s" : ""} trouvé
                 {pieces.length !== 1 ? "s" : ""}
               </p>
             </div>
           </div>
           <div className="flex items-center gap-3">
-            <div className="text-xs text-primary-600 bg-primary-100 px-3 py-1.5 rounded-lg">
+            <div className="text-xs font-semibold text-emerald-700 bg-emerald-50 border border-emerald-200 px-3 py-1.5 rounded-lg shadow-sm">
               {pieces.filter((p) => p.aMetadonnees).length} avec métadonnées
             </div>
             <button
@@ -593,59 +895,74 @@ export default function RubriqueParametresPage() {
                 e.stopPropagation();
                 onCreatePiece(sousDossierId);
               }}
-              className="button-primary btn-sm gap-2"
+              className="button-primary btn-sm gap-2 shadow-md hover:shadow-lg transition-shadow"
             >
               <Plus className="w-4 h-4" />
-              Ajouter un document
+              Ajouter une pièce
             </button>
           </div>
         </div>
-        <div className="overflow-x-auto content-scrollbar">
-          <table className="table table-zebra w-full">
+        <div className="overflow-x-auto content-scrollbar rounded-lg border border-gray-200 shadow-sm">
+          <table className="w-full">
             <thead>
-              <tr className="bg-primary-50 border-b border-primary-600">
-                <th className="text-primary-700 font-semibold">#</th>
-                <th className="text-primary-700 font-semibold">
+              <tr className="bg-gradient-to-r from-gray-50 to-gray-100 border-b-2 border-gray-300">
+                <th className="px-4 py-3 text-left text-xs font-bold text-gray-700 uppercase tracking-wider">
+                  #
+                </th>
+                <th className="px-4 py-3 text-left text-xs font-bold text-gray-700 uppercase tracking-wider">
                   Nom du document
                 </th>
-                <th className="text-primary-700 font-semibold">Description</th>
-                <th className="text-primary-700 font-semibold">Métadonnées</th>
-                <th className="text-primary-700 font-semibold">
+                <th className="px-4 py-3 text-left text-xs font-bold text-gray-700 uppercase tracking-wider">
+                  Description
+                </th>
+                <th className="px-4 py-3 text-left text-xs font-bold text-gray-700 uppercase tracking-wider">
+                  Métadonnées
+                </th>
+                <th className="px-4 py-3 text-left text-xs font-bold text-gray-700 uppercase tracking-wider">
                   Date de création
                 </th>
-                <th className="text-primary-700 font-semibold text-center">
+                <th className="px-4 py-3 text-center text-xs font-bold text-gray-700 uppercase tracking-wider">
                   Actions
                 </th>
               </tr>
             </thead>
-            <tbody>
+            <tbody className="bg-white divide-y divide-gray-200">
               {pieces.map((piece, index) => (
                 <tr
                   key={piece.id}
-                  className="hover:bg-primary-25 border-b border-primary-600 bg-primary-100"
+                  className="hover:bg-blue-50 transition-colors duration-150 border-b border-gray-100"
                 >
-                  <td>
-                    <div className="w-8 h-8 bg-primary-200 rounded-lg flex items-center justify-center text-sm font-bold text-primary-700">
+                  <td className="px-4 py-3 whitespace-nowrap">
+                    <div className="w-10 h-10 bg-gradient-to-br from-blue-500 to-blue-600 rounded-lg flex items-center justify-center text-sm font-bold text-white shadow-md">
                       {index + 1}
                     </div>
                   </td>
-                  <td>
-                    <div className="font-semibold text-primary-900 flex items-center gap-2">
-                      <File className="w-4 h-4 text-primary-600" />
-                      {piece.nom}
+                  <td className="px-4 py-3">
+                    <div className="font-bold text-gray-900 flex items-center gap-2">
+                      <File className="w-5 h-5 text-blue-600 flex-shrink-0" />
+                      <span
+                        className="text-gray-900 truncate max-w-md"
+                        title={piece.nom}
+                      >
+                        {truncateName(piece.nom, 45)}
+                      </span>
                     </div>
                   </td>
-                  <td>
-                    <div className="text-primary-700 text-sm max-w-xs truncate">
-                      {piece.description || "-"}
+                  <td className="px-4 py-3">
+                    <div className="text-gray-700 text-sm max-w-xs truncate font-medium">
+                      {piece.description || (
+                        <span className="text-gray-400 italic">
+                          Aucune description
+                        </span>
+                      )}
                     </div>
                   </td>
-                  <td>
+                  <td className="px-4 py-3 whitespace-nowrap">
                     <span
-                      className={`badge badge-outline ${
+                      className={`inline-flex items-center px-3 py-1 rounded-full text-xs font-bold ${
                         piece.aMetadonnees
-                          ? "bg-success-50 text-success-700 border-success-300"
-                          : "bg-warning-50 text-warning-700 border-warning-300"
+                          ? "bg-emerald-100 text-emerald-800 border border-emerald-300"
+                          : "bg-amber-100 text-amber-800 border border-amber-300"
                       }`}
                     >
                       {piece.aMetadonnees
@@ -653,43 +970,47 @@ export default function RubriqueParametresPage() {
                         : "Sans métadonnées"}
                     </span>
                   </td>
-                  <td>
-                    <span className="text-primary-600 text-sm">
-                      {new Date(piece.createdAt).toLocaleDateString("fr-FR")}
+                  <td className="px-4 py-3 whitespace-nowrap">
+                    <span className="text-gray-700 text-sm font-medium">
+                      {new Date(piece.createdAt).toLocaleDateString("fr-FR", {
+                        day: "2-digit",
+                        month: "2-digit",
+                        year: "numeric",
+                      })}
                     </span>
                   </td>
-                  <td>
+                  <td className="px-4 py-3 whitespace-nowrap">
                     <div className="flex gap-2 justify-center">
                       <button
                         onClick={() => handleViewPieceDetails(piece)}
-                        className="btn btn-ghost btn-sm hover:bg-primary-100"
+                        className="p-2 bg-blue-50 text-blue-600 rounded-lg hover:bg-blue-100 hover:text-blue-700 transition-colors shadow-sm hover:shadow-md"
                         title="Voir détails"
                       >
-                        <Eye className="w-4 h-4 text-primary-600" />
+                        <Eye className="w-4 h-4" />
                       </button>
                       <button
                         onClick={() => handleEditPiece(piece)}
-                        className="btn btn-ghost btn-sm hover:bg-primary-100"
+                        className="p-2 bg-gray-50 text-gray-600 rounded-lg hover:bg-gray-100 hover:text-gray-700 transition-colors shadow-sm hover:shadow-md"
                         title="Modifier"
                       >
-                        <Edit className="w-4 h-4 text-primary-600" />
+                        <Edit className="w-4 h-4" />
                       </button>
                       {/* Bouton métadonnées des pièces - caché pour les dossiers de crédit */}
                       {rubrique && !isDossierCredit(rubrique) && (
                         <button
                           onClick={() => handleAddMetadata(piece)}
-                          className="btn btn-ghost btn-sm hover:bg-accent-purple-light"
+                          className="p-2 bg-purple-50 text-purple-600 rounded-lg hover:bg-purple-100 hover:text-purple-700 transition-colors shadow-sm hover:shadow-md"
                           title="Gérer métadonnées"
                         >
-                          <Database className="w-4 h-4 text-accent-purple" />
+                          <Database className="w-4 h-4" />
                         </button>
                       )}
                       <button
                         onClick={() => handleDeletePiece(piece)}
-                        className="btn btn-ghost btn-sm hover:bg-accent-red-light"
+                        className="p-2 bg-red-50 text-red-600 rounded-lg hover:bg-red-100 hover:text-red-700 transition-colors shadow-sm hover:shadow-md"
                         title="Supprimer"
                       >
-                        <Trash2 className="w-4 h-4 text-accent-red" />
+                        <Trash2 className="w-4 h-4" />
                       </button>
                     </div>
                   </td>
@@ -845,15 +1166,28 @@ export default function RubriqueParametresPage() {
                   <p className="text-sm font-semibold text-accent-green mb-2">
                     Documents
                   </p>
-                  <p className="text-4xl font-bold text-primary-800 mb-1">
-                    {pieces.length}
-                  </p>
+                  {loadingPieces ? (
+                    <div className="flex items-center gap-2 mb-1">
+                      <Loader2 className="w-6 h-6 text-primary-600 animate-spin" />
+                      <p className="text-lg font-semibold text-gray-500">
+                        Chargement...
+                      </p>
+                    </div>
+                  ) : (
+                    <p className="text-4xl font-bold text-primary-800 mb-1">
+                      {pieces.length}
+                    </p>
+                  )}
                   <p className="text-sm text-neutral-600">
                     Dans tous les dossiers
                   </p>
                 </div>
                 <div className="bg-accent-green-light p-4 rounded-2xl">
-                  <FileText className="w-8 h-8 text-accent-green" />
+                  {loadingPieces ? (
+                    <Loader2 className="w-8 h-8 text-accent-green animate-spin" />
+                  ) : (
+                    <FileText className="w-8 h-8 text-accent-green" />
+                  )}
                 </div>
               </div>
             </div>
@@ -864,13 +1198,26 @@ export default function RubriqueParametresPage() {
                   <p className="text-sm font-semibold text-accent-purple mb-2">
                     Avec métadonnées
                   </p>
-                  <p className="text-4xl font-bold text-primary-800 mb-1">
-                    {pieces.filter((p) => p.aMetadonnees).length}
-                  </p>
+                  {loadingPieces ? (
+                    <div className="flex items-center gap-2 mb-1">
+                      <Loader2 className="w-6 h-6 text-primary-600 animate-spin" />
+                      <p className="text-lg font-semibold text-gray-500">
+                        Chargement...
+                      </p>
+                    </div>
+                  ) : (
+                    <p className="text-4xl font-bold text-primary-800 mb-1">
+                      {pieces.filter((p) => p.aMetadonnees).length}
+                    </p>
+                  )}
                   <p className="text-sm text-neutral-600">Documents enrichis</p>
                 </div>
                 <div className="bg-accent-purple-light p-4 rounded-2xl">
-                  <Sparkles className="w-8 h-8 text-accent-purple" />
+                  {loadingPieces ? (
+                    <Loader2 className="w-8 h-8 text-accent-purple animate-spin" />
+                  ) : (
+                    <Sparkles className="w-8 h-8 text-accent-purple" />
+                  )}
                 </div>
               </div>
             </div>
@@ -890,6 +1237,14 @@ export default function RubriqueParametresPage() {
                   </p>
                 </div>
                 <div className="flex items-center gap-4">
+                  <button
+                    onClick={() => setShowPositionManager(true)}
+                    className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg flex items-center gap-2 text-sm font-semibold transition-colors shadow-md hover:shadow-lg"
+                    title="Gérer l'ordre des sous-dossiers et pièces"
+                  >
+                    <Settings className="w-4 h-4" />
+                    Gérer l&apos;ordre
+                  </button>
                   <button
                     onClick={handleCreateSousDossier}
                     className="button-primary flex items-center gap-2 text-sm font-medium"
@@ -1040,12 +1395,15 @@ export default function RubriqueParametresPage() {
                       {expandedSousDossier === sousDossier.id && (
                         <div
                           key={`pieces-${sousDossier.id}`}
-                          className="border-t border-primary-200 bg-primary-50/20"
+                          className="border-t-2 border-gray-200 bg-gray-50/50"
                         >
                           <SousDossierPiecesContent
                             sousDossierId={sousDossier.id}
                             pieces={sousDossierPieces[sousDossier.id] || []}
                             onCreatePiece={handleCreatePiece}
+                            isLoading={
+                              loadingSousDossierPieces[sousDossier.id] || false
+                            }
                           />
                         </div>
                       )}
@@ -1174,6 +1532,8 @@ export default function RubriqueParametresPage() {
               setSelectedPieceForView(null);
             }}
             piece={selectedPieceForView}
+            onEditMetadata={handleEditMetadataFromViewer}
+            onDeleteMetadata={handleDeleteMetadataFromViewer}
           />
         )}
 
@@ -1188,6 +1548,18 @@ export default function RubriqueParametresPage() {
             sousDossierId={selectedSousDossierForMetadata}
           />
         )}
+
+        {/* Position Manager Modal */}
+        <PositionManagerModal
+          isOpen={showPositionManager}
+          onClose={() => setShowPositionManager(false)}
+          rubriqueId={rubriqueId}
+          sousDossiers={sousDossiers}
+          onUpdate={() => {
+            loadSousDossiers();
+            loadPieces();
+          }}
+        />
 
         {/* Toast Notifications */}
         <ToastContainer toasts={toasts} onClose={removeToast} />

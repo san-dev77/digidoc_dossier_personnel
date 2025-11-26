@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { protectRoute } from "@/lib/auth/routeProtection";
+import { createErrorResponse } from "@/lib/errors/safeError";
 
 export async function PUT(
   req: NextRequest,
@@ -21,7 +23,21 @@ export async function PUT(
     }
 
     // Préparer les données avec conversion de date
-    const dataToUpdate: any = {
+    interface AgentUpdateData {
+      matricule: string;
+      nom_complet: string;
+      email: string | null;
+      fonction: string | null;
+      lieu_naissance: string | null;
+      sexe: string | null;
+      situation_matrimoniale: string | null;
+      adresse: string | null;
+      telephone: string | null;
+      updated_at: Date;
+      date_naissance?: Date;
+    }
+
+    const dataToUpdate: AgentUpdateData = {
       matricule: body.matricule,
       nom_complet: body.nom_complet,
       email: body.email ?? null,
@@ -48,13 +64,9 @@ export async function PUT(
 
     console.log("[UPDATE AGENT] Success:", updated.id);
     return NextResponse.json(updated);
-  } catch (error: any) {
+  } catch (error) {
     console.error("[UPDATE AGENT] Erreur:", error);
-    console.error("[UPDATE AGENT] Stack:", error.stack);
-    return NextResponse.json(
-      { message: "Erreur serveur", detail: error.message },
-      { status: 500 }
-    );
+    return createErrorResponse(error, "Erreur lors de la mise à jour de l'agent", 500);
   }
 }
 
@@ -62,6 +74,12 @@ export async function DELETE(
   req: NextRequest,
   context: { params: Promise<{ id: string }> | { id: string } }
 ) {
+  // Protection de la route
+  const authResult = await protectRoute(req);
+  if (!authResult.authorized) {
+    return authResult.response!;
+  }
+
   try {
     const params = await Promise.resolve(context.params);
     const id = parseInt(params.id);

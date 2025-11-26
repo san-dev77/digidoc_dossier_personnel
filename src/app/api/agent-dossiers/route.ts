@@ -1,10 +1,15 @@
-import { NextResponse } from "next/server";
-import { PrismaClient } from "@prisma/client";
-
-const prisma = new PrismaClient();
+import { NextRequest, NextResponse } from "next/server";
+import { prisma } from "@/lib/prisma";
+import { protectRoute } from "@/lib/auth/routeProtection";
 
 // GET - Récupérer tous les agent_dossiers ou filtrer par agentId/sousDossierId
-export async function GET(request: Request) {
+export async function GET(request: NextRequest) {
+  // Protection de la route
+  const authResult = await protectRoute(request);
+  if (!authResult.authorized) {
+    return authResult.response!;
+  }
+
   try {
     const { searchParams } = new URL(request.url);
     const agentId = searchParams.get("agentId");
@@ -54,7 +59,13 @@ export async function GET(request: Request) {
 }
 
 // POST - Créer un agent_dossier
-export async function POST(request: Request) {
+export async function POST(request: NextRequest) {
+  // Protection de la route
+  const authResult = await protectRoute(request);
+  if (!authResult.authorized) {
+    return authResult.response!;
+  }
+
   try {
     const body = await request.json();
     const { agent_id, rubrique_id, sous_dossier_id } = body;

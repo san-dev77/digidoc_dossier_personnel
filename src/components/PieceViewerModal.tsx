@@ -8,43 +8,16 @@ import {
   Eye,
   Calendar,
   DatabaseZap,
-  Image,
-  File,
-  Video,
-  Music,
-  Table,
 } from "lucide-react";
-import type { PieceData, FileData } from "@/services/agent-data";
+import type { PieceData } from "@/services/agent-data";
+import FileViewerModal from "./PieceViewerModal/FileViewerModal";
+import FilePreview from "./PieceViewerModal/FilePreview";
 
-// Composant pour gérer l'affichage des images avec fallback
-const ImagePreview = ({
-  file,
-  fileName,
-}: {
-  file: FileData;
-  fileName: string;
-}) => {
-  const [imageError, setImageError] = useState(false);
-  const [imageUrl, setImageUrl] = useState(file.file_path);
-
-  return (
-    <div className="w-16 h-16 rounded-lg overflow-hidden border border-gray-200 bg-gray-50 relative">
-      {!imageError ? (
-        <Image
-          src={imageUrl}
-          alt={fileName}
-          className="w-full h-full object-cover"
-          onError={() => setImageError(true)}
-          width={100}
-          height={100}
-        />
-      ) : (
-        <div className="w-full h-full bg-gradient-to-br from-green-100 to-green-200 flex items-center justify-center">
-          <Image className="w-6 h-6 text-green-600" alt="Image" />
-        </div>
-      )}
-    </div>
-  );
+// Type pour les fichiers avec mime_type (peut être différent de FileData)
+type FileWithMimeType = {
+  id: string;
+  file_path: string;
+  mime_type?: string;
 };
 
 interface PieceViewerModalProps {
@@ -59,171 +32,18 @@ export default function PieceViewerModal({
   pieceData,
 }: PieceViewerModalProps) {
   const [activeTab, setActiveTab] = useState<"metadata" | "files">("metadata");
+  const [selectedFile, setSelectedFile] = useState<FileWithMimeType | null>(
+    null
+  );
 
   if (!isOpen || !pieceData) return null;
 
-  const handleViewFile = (file: { id: string; file_path: string }) => {
-    // Ouvrir le fichier dans un nouvel onglet
-    const viewUrl = `/api/files/${file.id}`;
-    window.open(viewUrl, "_blank");
+  const handleViewFile = (file: FileWithMimeType) => {
+    setSelectedFile(file);
   };
 
-  // Fonction pour obtenir l'icône appropriée selon le type de fichier
-  const getFileIcon = (mimeType: string, fileName: string) => {
-    const extension = fileName.split(".").pop()?.toLowerCase();
-
-    if (
-      mimeType.startsWith("image/") ||
-      ["jpg", "jpeg", "png", "gif", "bmp", "svg", "webp"].includes(
-        extension || ""
-      )
-    ) {
-      return <Image className="w-4 h-4 text-green-600" />;
-    } else if (mimeType === "application/pdf" || extension === "pdf") {
-      return <FileText className="w-4 h-4 text-red-600" />;
-    } else if (
-      mimeType.startsWith("video/") ||
-      ["mp4", "avi", "mov", "wmv", "flv", "webm"].includes(extension || "")
-    ) {
-      return <Video className="w-4 h-4 text-purple-600" />;
-    } else if (
-      mimeType.startsWith("audio/") ||
-      ["mp3", "wav", "ogg", "flac", "aac"].includes(extension || "")
-    ) {
-      return <Music className="w-4 h-4 text-orange-600" />;
-    } else if (
-      mimeType.includes("spreadsheet") ||
-      mimeType.includes("excel") ||
-      ["xls", "xlsx", "csv"].includes(extension || "")
-    ) {
-      return <Table className="w-4 h-4 text-green-500" />;
-    } else if (
-      mimeType.includes("text/") ||
-      ["txt", "md", "json", "xml", "html", "css", "js"].includes(
-        extension || ""
-      )
-    ) {
-      return <FileText className="w-4 h-4 text-blue-600" />;
-    } else {
-      return <File className="w-4 h-4 text-gray-600" />;
-    }
-  };
-
-  // Fonction pour générer un aperçu du contenu du fichier
-  const getFilePreview = (file: {
-    mime_type: string;
-    file_path: string;
-    id: string;
-  }) => {
-    const mimeType = file.mime_type || "";
-    const fileName = file.file_path.split("/").pop() || "";
-    const extension = fileName.split(".").pop()?.toLowerCase();
-
-    // Pour les images - afficher la vraie image
-    if (
-      mimeType.startsWith("image/") ||
-      ["jpg", "jpeg", "png", "gif", "bmp", "svg", "webp"].includes(
-        extension || ""
-      )
-    ) {
-      return <ImagePreview file={file} fileName={fileName} />;
-    }
-
-    // Pour les PDF - afficher un aperçu avec icône
-    if (mimeType === "application/pdf" || extension === "pdf") {
-      return (
-        <div className="w-16 h-16 rounded-lg border border-gray-200 bg-white flex flex-col items-center justify-center p-2 relative overflow-hidden">
-          <div className="absolute inset-0 bg-gradient-to-br from-red-50 to-red-100"></div>
-          <FileText className="w-8 h-8 text-red-600 relative z-10" />
-          <div className="text-xs text-red-600 font-bold mt-1 relative z-10">
-            PDF
-          </div>
-        </div>
-      );
-    }
-
-    // Pour les fichiers texte - afficher le nom et l'extension
-    if (
-      mimeType.includes("text/") ||
-      ["txt", "md", "json", "xml", "html", "css", "js", "csv"].includes(
-        extension || ""
-      )
-    ) {
-      return (
-        <div className="w-16 h-16 rounded-lg border border-gray-200 bg-white overflow-hidden">
-          <div className="p-1 text-xs text-gray-700 leading-tight h-full flex flex-col justify-center">
-            <div className="font-mono truncate text-center">
-              {fileName.length > 10
-                ? fileName.substring(0, 10) + "..."
-                : fileName}
-            </div>
-            <div className="text-gray-500 mt-1 text-center font-semibold">
-              {extension?.toUpperCase() || "TXT"}
-            </div>
-          </div>
-        </div>
-      );
-    }
-
-    // Pour les vidéos - afficher une icône avec info
-    if (
-      mimeType.startsWith("video/") ||
-      ["mp4", "avi", "mov", "wmv", "flv", "webm"].includes(extension || "")
-    ) {
-      return (
-        <div className="w-16 h-16 rounded-lg border border-gray-200 bg-white flex flex-col items-center justify-center p-2 relative overflow-hidden">
-          <div className="absolute inset-0 bg-gradient-to-br from-purple-50 to-purple-100"></div>
-          <Video className="w-8 h-8 text-purple-600 relative z-10" />
-          <div className="text-xs text-purple-600 font-bold mt-1 relative z-10">
-            VID
-          </div>
-        </div>
-      );
-    }
-
-    // Pour les fichiers audio
-    if (
-      mimeType.startsWith("audio/") ||
-      ["mp3", "wav", "ogg", "flac", "aac"].includes(extension || "")
-    ) {
-      return (
-        <div className="w-16 h-16 rounded-lg border border-gray-200 bg-white flex flex-col items-center justify-center p-2 relative overflow-hidden">
-          <div className="absolute inset-0 bg-gradient-to-br from-orange-50 to-orange-100"></div>
-          <Music className="w-8 h-8 text-orange-600 relative z-10" />
-          <div className="text-xs text-orange-600 font-bold mt-1 relative z-10">
-            AUD
-          </div>
-        </div>
-      );
-    }
-
-    // Pour les tableurs
-    if (
-      mimeType.includes("spreadsheet") ||
-      mimeType.includes("excel") ||
-      ["xls", "xlsx", "csv"].includes(extension || "")
-    ) {
-      return (
-        <div className="w-16 h-16 rounded-lg border border-gray-200 bg-white flex flex-col items-center justify-center p-2 relative overflow-hidden">
-          <div className="absolute inset-0 bg-gradient-to-br from-green-50 to-green-100"></div>
-          <Table className="w-8 h-8 text-green-600 relative z-10" />
-          <div className="text-xs text-green-600 font-bold mt-1 relative z-10">
-            {extension?.toUpperCase() || "XLS"}
-          </div>
-        </div>
-      );
-    }
-
-    // Pour les autres types - icône générique avec info
-    return (
-      <div className="w-16 h-16 rounded-lg border border-gray-200 bg-white flex flex-col items-center justify-center p-2 relative overflow-hidden">
-        <div className="absolute inset-0 bg-gradient-to-br from-gray-50 to-gray-100"></div>
-        <File className="w-8 h-8 text-gray-600 relative z-10" />
-        <div className="text-xs text-gray-600 font-bold mt-1 relative z-10">
-          {extension?.toUpperCase() || "FILE"}
-        </div>
-      </div>
-    );
+  const closeFileViewer = () => {
+    setSelectedFile(null);
   };
 
   return (
@@ -498,7 +318,10 @@ export default function PieceViewerModal({
                               <FileText className="w-4 h-4" />
                             </td>
                             <td className="px-4 py-3 text-sm text-slate-800 border-r border-slate-200">
-                              {getFilePreview(file)}
+                              <FilePreview
+                                file={file as FileWithMimeType}
+                                fileName={file.file_path.split("/").pop() || ""}
+                              />
                             </td>
                             <td className="px-4 py-3 text-sm text-slate-800 border-r border-slate-200">
                               <span
@@ -524,8 +347,10 @@ export default function PieceViewerModal({
                             </td>
                             <td className="px-4 py-3 text-sm text-slate-800">
                               <button
-                                onClick={() => handleViewFile(file)}
-                                className="flex items-center justify-center gap-1 px-3 py-1 bg-blue-500 text-white rounded-md hover:bg-blue-600 transition-colors text-xs"
+                                onClick={() =>
+                                  handleViewFile(file as FileWithMimeType)
+                                }
+                                className="flex items-center justify-center gap-1 px-3 py-1 bg-blue-500 text-white rounded-md hover:bg-blue-600 transition-colors text-xs font-semibold"
                               >
                                 <Eye className="w-3 h-3" />
                                 Voir
@@ -542,6 +367,9 @@ export default function PieceViewerModal({
           )}
         </div>
       </div>
+
+      {/* Modale pour afficher le fichier */}
+      <FileViewerModal file={selectedFile} onClose={closeFileViewer} />
     </div>
   );
 }

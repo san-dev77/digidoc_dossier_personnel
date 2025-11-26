@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { Palette, Check } from "lucide-react";
 import { useTheme, ThemeName } from "@/styles/theme-utils";
 

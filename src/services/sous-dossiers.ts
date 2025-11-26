@@ -1,3 +1,5 @@
+import { fetchWithAuth } from "@/lib/api/fetchWithAuth";
+
 export interface SousDossier {
   id: string;
   titre: string;
@@ -21,22 +23,40 @@ export const sousDossiersService = {
     rubriqueId: string
   ): Promise<SousDossier[]> {
     try {
-      const response = await fetch(
+      const response = await fetchWithAuth(
         `/api/sous-dossiers?rubriqueId=${rubriqueId}`
       );
       if (!response.ok) {
         throw new Error("Erreur lors de la récupération des sous-dossiers");
       }
 
-      const data = await response.json();
-      return data.map((sousDossier: any) => ({
+      interface SousDossierRow {
+        id: number | string;
+        titre: string;
+        description?: string | null;
+        rubrique_id: number | string;
+        statut?: string | null;
+        created_at?: string | Date;
+        updated_at?: string | Date;
+      }
+
+      const data: SousDossierRow[] = await response.json();
+      return data.map((sousDossier) => ({
         id: sousDossier.id.toString(),
         titre: sousDossier.titre,
-        description: sousDossier.description,
+        description: sousDossier.description || "",
         rubrique_id: sousDossier.rubrique_id.toString(),
-        statut: sousDossier.statut,
-        createdAt: sousDossier.created_at || "",
-        updatedAt: sousDossier.updated_at || "",
+        statut: sousDossier.statut || "",
+        createdAt: sousDossier.created_at
+          ? typeof sousDossier.created_at === "string"
+            ? sousDossier.created_at
+            : sousDossier.created_at.toISOString()
+          : "",
+        updatedAt: sousDossier.updated_at
+          ? typeof sousDossier.updated_at === "string"
+            ? sousDossier.updated_at
+            : sousDossier.updated_at.toISOString()
+          : "",
       }));
     } catch (error) {
       console.error("Erreur lors de la récupération des sous-dossiers:", error);
@@ -46,7 +66,7 @@ export const sousDossiersService = {
 
   async getSousDossierById(id: string): Promise<SousDossier | null> {
     try {
-      const response = await fetch(`/api/sous-dossiers/${id}`);
+      const response = await fetchWithAuth(`/api/sous-dossiers/${id}`);
       if (!response.ok) {
         if (response.status === 404) return null;
         throw new Error("Erreur lors de la récupération du sous-dossier");
@@ -72,7 +92,7 @@ export const sousDossiersService = {
     sousDossierData: SousDossierFormData
   ): Promise<SousDossier> {
     try {
-      const response = await fetch("/api/sous-dossiers", {
+      const response = await fetchWithAuth("/api/sous-dossiers", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -110,7 +130,7 @@ export const sousDossiersService = {
     >
   ): Promise<SousDossier> {
     try {
-      const response = await fetch(`/api/sous-dossiers/${id}`, {
+      const response = await fetchWithAuth(`/api/sous-dossiers/${id}`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(sousDossierData),
@@ -138,7 +158,7 @@ export const sousDossiersService = {
 
   async deleteSousDossier(id: string): Promise<void> {
     try {
-      const response = await fetch(`/api/sous-dossiers/${id}`, {
+      const response = await fetchWithAuth(`/api/sous-dossiers/${id}`, {
         method: "DELETE",
       });
 

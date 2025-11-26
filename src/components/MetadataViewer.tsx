@@ -8,6 +8,8 @@ import {
   ToggleLeft,
   List,
   Sparkles,
+  Edit,
+  Trash2,
 } from "lucide-react";
 import type { PieceWithMetadata, MetadataModel } from "@/types";
 import { formatDate } from "@/utils/date";
@@ -16,12 +18,16 @@ interface MetadataViewerProps {
   isOpen: boolean;
   onClose: () => void;
   piece: PieceWithMetadata | null;
+  onEditMetadata?: (metadata: MetadataModel) => void;
+  onDeleteMetadata?: (metadata: MetadataModel) => void;
 }
 
 export default function MetadataViewer({
   isOpen,
   onClose,
   piece,
+  onEditMetadata,
+  onDeleteMetadata,
 }: MetadataViewerProps) {
   if (!isOpen || !piece) return null;
 
@@ -80,17 +86,12 @@ export default function MetadataViewer({
     <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
       <div className="bg-white rounded-2xl shadow-2xl w-full max-w-4xl max-h-[90vh] overflow-hidden">
         {/* Header */}
-        <div className="flex items-center justify-between p-6 border-b border-gray-200 bg-gradient-to-r from-primary-100/20 to-accent-green-light/20">
+        <div className="flex items-center justify-between p-6 border-b border-gray-700 bg-gradient-to-r from-primary-100/20 to-accent-green-light/20">
           <div className="flex items-center gap-4">
             <div className="relative">
-              <div className="w-12 h-12 bg-gradient-to-br from-primary-600 to-primary-700 rounded-xl flex items-center justify-center shadow-md">
-                <FileText className="w-6 h-6 text-white" />
+              <div className="w-12 h-12 bg-gray-600 rounded-xl flex items-center justify-center shadow-md">
+                <FileText className="w-6 h-6 text-primary-200" />
               </div>
-              {piece.aMetadonnees && (
-                <div className="absolute -top-1 -right-1 w-5 h-5 bg-gradient-to-br from-accent-green to-green-600 rounded-full flex items-center justify-center shadow-md">
-                  <Sparkles className="w-3 h-3 text-white" />
-                </div>
-              )}
             </div>
             <div>
               <h2 className="text-2xl font-bold text-gray-900">{piece.nom}</h2>
@@ -162,68 +163,113 @@ export default function MetadataViewer({
                   </span>
                 </div>
 
-                <div className="grid gap-4">
-                  {piece.metadonnees.map((meta, index) => (
-                    <div
-                      key={meta.id}
-                      className="bg-white rounded-xl p-5 border border-gray-200 shadow-sm hover:shadow-md transition-all duration-200"
-                    >
-                      <div className="flex items-start justify-between">
-                        <div className="flex items-start gap-4 flex-1">
-                          <div
-                            className={`w-10 h-10 ${getTypeColor(
-                              meta.type
-                            )} rounded-lg flex items-center justify-center shadow-sm`}
-                          >
-                            {getTypeIcon(meta.type)}
-                          </div>
-                          <div className="flex-1">
-                            <div className="flex items-center gap-3 mb-2">
-                              <h4 className="text-lg font-semibold text-gray-900">
-                                {meta.nom}
-                              </h4>
-                              <span
-                                className={`text-xs px-3 py-1 rounded-full font-medium ${getTypeColor(
+                {/* Tableau des métadonnées */}
+                <div className="overflow-x-auto rounded-lg border border-gray-200 shadow-sm bg-white">
+                  <table className="w-full">
+                    <thead>
+                      <tr className="bg-gradient-to-r from-gray-50 to-gray-100 border-b-2 border-gray-300">
+                        <th className="px-4 py-3 text-left text-xs font-bold text-gray-700 uppercase tracking-wider">
+                          #
+                        </th>
+                        <th className="px-4 py-3 text-left text-xs font-bold text-gray-700 uppercase tracking-wider">
+                          Nom du champ
+                        </th>
+                        <th className="px-4 py-3 text-left text-xs font-bold text-gray-700 uppercase tracking-wider">
+                          Type
+                        </th>
+                        <th className="px-4 py-3 text-left text-xs font-bold text-gray-700 uppercase tracking-wider">
+                          Description
+                        </th>
+                        <th className="px-4 py-3 text-left text-xs font-bold text-gray-700 uppercase tracking-wider">
+                          Statut
+                        </th>
+                        {(onEditMetadata || onDeleteMetadata) && (
+                          <th className="px-4 py-3 text-center text-xs font-bold text-gray-700 uppercase tracking-wider">
+                            Actions
+                          </th>
+                        )}
+                      </tr>
+                    </thead>
+                    <tbody className="bg-white divide-y divide-gray-200">
+                      {piece.metadonnees.map((meta, index) => (
+                        <tr
+                          key={meta.id}
+                          className="hover:bg-blue-50 transition-colors duration-150"
+                        >
+                          <td className="px-4 py-3 whitespace-nowrap">
+                            <div className="w-8 h-8 bg-gradient-to-br from-blue-500 to-blue-600 rounded-lg flex items-center justify-center text-sm font-bold text-white shadow-md">
+                              {index + 1}
+                            </div>
+                          </td>
+                          <td className="px-4 py-3">
+                            <div className="font-bold text-gray-900 flex items-center gap-2">
+                              <div
+                                className={`w-8 h-8 ${getTypeColor(
                                   meta.type
-                                )}`}
+                                )} rounded-lg flex items-center justify-center shadow-sm`}
                               >
-                                {getTypeLabel(meta.type)}
-                              </span>
-                              {meta.obligatoire && (
-                                <span className="text-xs bg-red-100 text-red-700 px-3 py-1 rounded-full font-bold">
-                                  Obligatoire
+                                {getTypeIcon(meta.type)}
+                              </div>
+                              <span>{meta.nom}</span>
+                            </div>
+                          </td>
+                          <td className="px-4 py-3 whitespace-nowrap">
+                            <span
+                              className={`inline-flex items-center px-3 py-1 rounded-full text-xs font-bold ${getTypeColor(
+                                meta.type
+                              )}`}
+                            >
+                              {getTypeLabel(meta.type)}
+                            </span>
+                          </td>
+                          <td className="px-4 py-3">
+                            <div className="text-gray-700 text-sm max-w-xs truncate">
+                              {meta.description || (
+                                <span className="text-gray-400 italic">
+                                  Aucune description
                                 </span>
                               )}
                             </div>
-                            {meta.description && (
-                              <p className="text-sm text-gray-600 leading-relaxed mb-3">
-                                {meta.description}
-                              </p>
+                          </td>
+                          <td className="px-4 py-3 whitespace-nowrap">
+                            {meta.obligatoire ? (
+                              <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-bold bg-red-100 text-red-800 border border-red-300">
+                                Obligatoire
+                              </span>
+                            ) : (
+                              <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-bold bg-gray-100 text-gray-800 border border-gray-300">
+                                Optionnel
+                              </span>
                             )}
-                            {meta.type === "select" &&
-                              meta.options &&
-                              meta.options.length > 0 && (
-                                <div className="mt-3">
-                                  <label className="block text-xs font-medium text-gray-500 mb-2">
-                                    Options disponibles :
-                                  </label>
-                                  <div className="flex flex-wrap gap-2">
-                                    {meta.options.map((option, optionIndex) => (
-                                      <span
-                                        key={optionIndex}
-                                        className="text-xs bg-gray-100 text-gray-700 px-2 py-1 rounded-md border"
-                                      >
-                                        {option}
-                                      </span>
-                                    ))}
-                                  </div>
-                                </div>
-                              )}
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-                  ))}
+                          </td>
+                          {(onEditMetadata || onDeleteMetadata) && (
+                            <td className="px-4 py-3 whitespace-nowrap">
+                              <div className="flex gap-2 justify-center">
+                                {onEditMetadata && (
+                                  <button
+                                    onClick={() => onEditMetadata(meta)}
+                                    className="p-2 bg-blue-50 text-blue-600 rounded-lg hover:bg-blue-100 hover:text-blue-700 transition-colors shadow-sm hover:shadow-md"
+                                    title="Modifier"
+                                  >
+                                    <Edit className="w-4 h-4" />
+                                  </button>
+                                )}
+                                {onDeleteMetadata && (
+                                  <button
+                                    onClick={() => onDeleteMetadata(meta)}
+                                    className="p-2 bg-red-50 text-red-600 rounded-lg hover:bg-red-100 hover:text-red-700 transition-colors shadow-sm hover:shadow-md"
+                                    title="Supprimer"
+                                  >
+                                    <Trash2 className="w-4 h-4" />
+                                  </button>
+                                )}
+                              </div>
+                            </td>
+                          )}
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
                 </div>
               </div>
             ) : (

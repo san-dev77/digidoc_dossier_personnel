@@ -1,8 +1,15 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { Prisma } from "@prisma/client";
+import { protectRoute } from "@/lib/auth/routeProtection";
 
 export async function GET(req: NextRequest) {
+  // Protection de la route
+  const authResult = await protectRoute(req);
+  if (!authResult.authorized) {
+    return authResult.response!;
+  }
+
   try {
     const { searchParams } = new URL(req.url);
     const agentId = searchParams.get("agentId");
@@ -32,6 +39,12 @@ export async function GET(req: NextRequest) {
 }
 
 export async function POST(req: NextRequest) {
+  // Protection de la route
+  const authResult = await protectRoute(req);
+  if (!authResult.authorized) {
+    return authResult.response!;
+  }
+
   try {
     const body = await req.json();
     const { agent_id, rubrique_id } = body;
@@ -80,6 +93,12 @@ export async function POST(req: NextRequest) {
 }
 
 export async function DELETE(req: NextRequest) {
+  // Protection de la route
+  const authResult = await protectRoute(req);
+  if (!authResult.authorized) {
+    return authResult.response!;
+  }
+
   try {
     const { searchParams } = new URL(req.url);
     const agentId = searchParams.get("agentId");

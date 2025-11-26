@@ -1,9 +1,15 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useEffect, useState } from "react";
 import { X } from "lucide-react";
 import { ButtonLoader } from "./Loader";
 import { Rubrique, RubriqueFormData } from "@/types";
+import { Input, SecureTextarea } from "@/components/forms";
+import { useFormValidation } from "@/hooks/useFormValidation";
+import {
+  rubriqueFormSchema,
+  type RubriqueFormData as RubriqueFormDataZod,
+} from "@/lib/validation/schemas";
 
 interface RubriqueFormProps {
   isOpen: boolean;
@@ -20,59 +26,42 @@ export default function RubriqueForm({
   rubrique,
   mode,
 }: RubriqueFormProps) {
-  const [formData, setFormData] = useState<RubriqueFormData>({
+  const [isSubmitting, setIsSubmitting] = useState(false);
+
+  const initialValues: RubriqueFormDataZod = {
     nom: "",
     description: "",
-  });
+  };
 
-  const [errors, setErrors] = useState<Partial<RubriqueFormData>>({});
-  const [isSubmitting, setIsSubmitting] = useState(false);
+  const {
+    values: formData,
+    errors,
+    setValue,
+    setFieldTouched,
+    validateForm,
+    reset,
+  } = useFormValidation(rubriqueFormSchema, initialValues);
 
   useEffect(() => {
     if (mode === "edit" && rubrique) {
-      setFormData({
+      reset({
         nom: rubrique.nom,
-        description: rubrique.description,
+        description: rubrique.description || "",
       });
     } else {
-      setFormData({
-        nom: "",
-        description: "",
-      });
+      reset(initialValues);
     }
-    setErrors({});
   }, [mode, rubrique, isOpen]);
-
-  const validateForm = (): boolean => {
-    const newErrors: Partial<RubriqueFormData> = {};
-
-    if (!formData.nom.trim()) {
-      newErrors.nom = "Le nom est requis";
-    }
-    if (!formData.description.trim()) {
-      newErrors.description = "La description est requise";
-    }
-
-    setErrors(newErrors);
-    return Object.keys(newErrors).length === 0;
-  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (validateForm() && !isSubmitting) {
       setIsSubmitting(true);
       try {
-        await onSubmit(formData);
+        await onSubmit(formData as RubriqueFormData);
       } finally {
         setIsSubmitting(false);
       }
-    }
-  };
-
-  const handleChange = (field: keyof RubriqueFormData, value: string) => {
-    setFormData((prev) => ({ ...prev, [field]: value }));
-    if (errors[field]) {
-      setErrors((prev) => ({ ...prev, [field]: undefined }));
     }
   };
 
@@ -97,42 +86,30 @@ export default function RubriqueForm({
         {/* Form */}
         <form onSubmit={handleSubmit} className="p-6 space-y-6">
           {/* Nom */}
-          <div>
-            <label className="block text-sm font-semibold text-gray-700 mb-2">
-              Nom de la rubrique *
-            </label>
-            <input
-              type="text"
-              value={formData.nom}
-              onChange={(e) => handleChange("nom", e.target.value)}
-              className={`w-full text-black px-3 py-2.5 border rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500 ${
-                errors.nom ? "border-red-300" : "border-gray-300"
-              }`}
-              placeholder="Ex: Documents administratifs"
-            />
-            {errors.nom && (
-              <p className="text-red-600 text-sm mt-1">{errors.nom}</p>
-            )}
-          </div>
+          <Input
+            label="Nom de la rubrique"
+            value={formData.nom}
+            onChange={(e) => setValue("nom", e.target.value)}
+            onBlur={() => setFieldTouched("nom")}
+            error={errors.nom}
+            required
+            placeholder="Ex: Documents administratifs"
+          />
 
           {/* Description */}
-          <div>
-            <label className="block text-sm font-semibold text-gray-700 mb-2">
-              Description *
-            </label>
-            <textarea
-              value={formData.description}
-              onChange={(e) => handleChange("description", e.target.value)}
-              rows={3}
-              className={`w-full text-black px-3 py-2.5 border rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500 resize-none ${
-                errors.description ? "border-red-300" : "border-gray-300"
-              }`}
-              placeholder="Décrivez le contenu de cette rubrique..."
-            />
-            {errors.description && (
-              <p className="text-red-600 text-sm mt-1">{errors.description}</p>
-            )}
-          </div>
+          <SecureTextarea
+            label="Description"
+            value={formData.description || ""}
+            onChange={(value) => {
+              setValue("description", value);
+              setFieldTouched("description");
+            }}
+            error={errors.description}
+            maxLength={1000}
+            sanitize={true}
+            rows={3}
+            placeholder="Décrivez le contenu de cette rubrique..."
+          />
 
           {/* Actions */}
           <div className="flex items-center justify-end gap-3 pt-4 border-t border-gray-200">

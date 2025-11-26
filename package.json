@@ -12,19 +12,31 @@
     "db:reset": "prisma db push --force-reset",
     "db:migrate": "prisma db push",
     "db:status": "prisma db push --accept-data-loss",
-    "db:init": "npm run db:generate && npm run db:push",
-    "db:setup": "npm run db:init"
+    "db:seed": "tsx prisma/seed.ts",
+    "db:init": "npm run db:generate && npm run db:push && npm run db:seed",
+    "db:setup": "npm run db:init",
+    "db:migrate-positions": "tsx scripts/migrate-positions.ts"
+  },
+  "prisma": {
+    "seed": "tsx prisma/seed.ts"
   },
   "dependencies": {
-    "@prisma/client": "^6.15.0",
+    "@dnd-kit/core": "^6.3.1",
+    "@dnd-kit/sortable": "^10.0.0",
+    "@dnd-kit/utilities": "^3.2.2",
+    "@prisma/client": "^6.19.0",
     "@supabase/supabase-js": "^2.56.1",
+    "@types/bcryptjs": "^2.4.6",
     "@types/fs-extra": "^11.0.4",
+    "@types/jsonwebtoken": "^9.0.10",
     "@types/multer": "^2.0.0",
     "@types/pg": "^8.15.5",
+    "bcryptjs": "^3.0.3",
     "fs-extra": "^11.3.2",
+    "jsonwebtoken": "^9.0.2",
     "lucide-react": "^0.542.0",
     "multer": "^2.0.2",
-    "next": "15.5.2",
+    "next": "^16.0.3",
     "path": "^0.12.7",
     "pg": "^8.16.3",
     "react": "19.1.0",
@@ -32,11 +44,13 @@
     "react-hot-toast": "^2.6.0",
     "sharp": "^0.34.4",
     "winston": "^3.17.0",
+    "xlsx": "^0.18.5",
     "zod": "^4.1.11",
     "zustand": "^5.0.8"
   },
   "devDependencies": {
     "@eslint/eslintrc": "^3",
+    "@prisma/engines": "^6.19.0",
     "@tailwindcss/postcss": "^4",
     "@types/node": "^20",
     "@types/react": "^19",
@@ -44,8 +58,9 @@
     "daisyui": "^5.1.6",
     "eslint": "^9",
     "eslint-config-next": "15.5.2",
-    "prisma": "^6.15.0",
+    "prisma": "^6.19.0",
     "tailwindcss": "^4",
+    "tsx": "^4.20.6",
     "typescript": "^5"
   }
 }

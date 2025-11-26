@@ -106,7 +106,14 @@ export class FileValidator {
   /**
    * Valide un ensemble de fichiers
    */
-  static validateMultipleFiles(files: any[]): ValidationResult {
+  static validateMultipleFiles(
+    files: Array<{
+      originalname: string;
+      size: number;
+      mimetype?: string;
+      buffer?: Buffer;
+    }>
+  ): ValidationResult {
     const errors: string[] = [];
     const warnings: string[] = [];
 
@@ -117,15 +124,31 @@ export class FileValidator {
       );
     }
 
-    // Valider chaque fichier
+    // Valider chaque fichier (seulement si buffer disponible)
     files.forEach((file, index) => {
-      const result = this.validateFile(file);
-      if (!result.isValid) {
-        errors.push(`Fichier ${index + 1}: ${result.errors.join(", ")}`);
+      if (file.buffer && file.mimetype) {
+        const fileObj = {
+          originalname: file.originalname,
+          mimetype: file.mimetype,
+          size: file.size,
+          buffer: file.buffer,
+        };
+        const result = this.validateFile(fileObj);
+        if (!result.isValid) {
+          errors.push(`Fichier ${index + 1}: ${result.errors.join(", ")}`);
+        }
+        warnings.push(
+          ...result.warnings.map((w) => `Fichier ${index + 1}: ${w}`)
+        );
+      } else {
+        // Validation basique sans buffer
+        if (!file.originalname || file.originalname.trim() === "") {
+          errors.push(`Fichier ${index + 1}: Le nom du fichier est requis`);
+        }
+        if (!FileManager.validateFileSize(file.size)) {
+          errors.push(`Fichier ${index + 1}: Taille invalide`);
+        }
       }
-      warnings.push(
-        ...result.warnings.map((w) => `Fichier ${index + 1}: ${w}`)
-      );
     });
 
     // Vérifier les doublons
@@ -177,6 +200,40 @@ export class FileValidator {
   }
 
   /**
+   * Valide les magic bytes (signature du fichier) pour détecter les fichiers malveillants
+   */
+  private static validateMagicBytes(buffer: Buffer, mimetype: string): boolean {
+    if (buffer.length < 4) return false;
+
+    // Signatures magiques communes
+    const magicSignatures: Record<string, number[][]> = {
+      "image/jpeg": [[0xff, 0xd8, 0xff]],
+      "image/png": [[0x89, 0x50, 0x4e, 0x47]],
+      "image/gif": [[0x47, 0x49, 0x46, 0x38]],
+      "application/pdf": [[0x25, 0x50, 0x44, 0x46]], // %PDF
+      "application/msword": [[0xd0, 0xcf, 0x11, 0xe0]], // DOC
+      "application/vnd.openxmlformats-officedocument.wordprocessingml.document":
+        [[0x50, 0x4b, 0x03, 0x04]], // DOCX (ZIP)
+      "application/vnd.ms-excel": [[0xd0, 0xcf, 0x11, 0xe0]], // XLS
+      "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet": [
+        [0x50, 0x4b, 0x03, 0x04],
+      ], // XLSX (ZIP)
+    };
+
+    const signature = magicSignatures[mimetype];
+    if (!signature) {
+      // Si on ne connaît pas le type, on accepte (pour flexibilité)
+      return true;
+    }
+
+    // Vérifier si le buffer commence par une des signatures attendues
+    return signature.some((sig) => {
+      if (buffer.length < sig.length) return false;
+      return sig.every((byte, index) => buffer[index] === byte);
+    });
+  }
+
+  /**
    * Vérifie si une chaîne est un UUID valide
    */
   private static isValidUUID(uuid: string): boolean {
@@ -201,11 +258,7 @@ export class FileValidator {
   /**
    * Valide les permissions d'accès
    */
-  static validateAccess(
-    userId: string,
-    rubriqueId: string,
-    sousDossierId: string
-  ): ValidationResult {
+  static validateAccess(userId: string): ValidationResult {
     const errors: string[] = [];
     const warnings: string[] = [];
 

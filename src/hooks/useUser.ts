@@ -5,7 +5,16 @@ export const useUser = () => {
   const isAuthenticated = useAuthStore((state) => state.isAuthenticated);
 
   // Gérer à la fois nom_complet (DB) et nom (TypeScript)
-  const nomComplet = (appUser as any)?.nom_complet || appUser?.nom || "";
+  interface UserWithNomComplet {
+    nom_complet?: string;
+    nom?: string;
+    prenom?: string;
+    matricule?: string;
+    email?: string;
+    fonction?: string;
+  }
+  const userWithNomComplet = appUser as UserWithNomComplet | undefined;
+  const nomComplet = userWithNomComplet?.nom_complet || userWithNomComplet?.nom || "";
   
   return {
     user: appUser,

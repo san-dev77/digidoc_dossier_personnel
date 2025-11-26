@@ -1,7 +1,15 @@
 import { NextRequest, NextResponse } from "next/server";
 import { MetadataService } from "@/services/metadata";
+import { protectRoute } from "@/lib/auth/routeProtection";
+import { createErrorResponse } from "@/lib/errors/safeError";
 
 export async function GET(request: NextRequest) {
+  // Protection de la route
+  const authResult = await protectRoute(request);
+  if (!authResult.authorized) {
+    return authResult.response!;
+  }
+
   try {
     const { searchParams } = new URL(request.url);
     const action = searchParams.get("action");
@@ -38,21 +46,17 @@ export async function GET(request: NextRequest) {
         return NextResponse.json(defaultResult);
     }
   } catch (error: unknown) {
-    const errorMessage =
-      error instanceof Error
-        ? error.message
-        : "Une erreur inconnue est survenue";
-    return NextResponse.json(
-      {
-        success: false,
-        message: `Erreur: ${errorMessage}`,
-      },
-      { status: 500 }
-    );
+    return createErrorResponse(error, "Erreur lors de la récupération des métadonnées", 500);
   }
 }
 
 export async function POST(request: NextRequest) {
+  // Protection de la route
+  const authResult = await protectRoute(request);
+  if (!authResult.authorized) {
+    return authResult.response!;
+  }
+
   try {
     const body = await request.json();
     const { action, ...data } = body;
@@ -86,16 +90,6 @@ export async function POST(request: NextRequest) {
         );
     }
   } catch (error: unknown) {
-    const errorMessage =
-      error instanceof Error
-        ? error.message
-        : "Une erreur inconnue est survenue";
-    return NextResponse.json(
-      {
-        success: false,
-        message: `Erreur: ${errorMessage}`,
-      },
-      { status: 500 }
-    );
+    return createErrorResponse(error, "Erreur lors de la création/recherche de métadonnées", 500);
   }
 }

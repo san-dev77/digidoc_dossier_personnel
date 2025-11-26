@@ -1,7 +1,14 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { protectRoute } from "@/lib/auth/routeProtection";
 
-export async function GET() {
+export async function GET(request: NextRequest) {
+  // Protection de la route
+  const authResult = await protectRoute(request);
+  if (!authResult.authorized) {
+    return authResult.response!;
+  }
+
   try {
     const rubriques = await prisma.rubriques.findMany({
       orderBy: { nom: "asc" },
@@ -22,6 +29,12 @@ export async function GET() {
 }
 
 export async function POST(req: NextRequest) {
+  // Protection de la route
+  const authResult = await protectRoute(req);
+  if (!authResult.authorized) {
+    return authResult.response!;
+  }
+
   try {
     const body = await req.json();
     const { nom, description } = body;

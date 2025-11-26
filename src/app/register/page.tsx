@@ -4,7 +4,6 @@ import { useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import {
-  Building2,
   Eye,
   EyeOff,
   ArrowLeft,
@@ -12,82 +11,124 @@ import {
   Mail,
   Phone,
   MapPin,
-  Calendar,
-  Users,
   Shield,
   CheckCircle,
   FileText,
   Briefcase,
-  Heart,
   AlertCircle,
+  AlertTriangle,
 } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
+import { Input, SecureTextarea, Select } from "@/components/forms";
+import { useFormValidation } from "@/hooks/useFormValidation";
+import { agentFormSchema } from "@/lib/validation/schemas";
+import RateLimitModal from "@/components/RateLimitModal";
+import type { RateLimitInfo, AuthError } from "@/services/auth";
 
 export default function RegisterPage() {
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [showOptionalFields, setShowOptionalFields] = useState(false);
-  const [formData, setFormData] = useState({
+  const [confirmPassword, setConfirmPassword] = useState("");
+  const [confirmPasswordError, setConfirmPasswordError] = useState("");
+  const [rateLimitInfo, setRateLimitInfo] = useState<RateLimitInfo | null>(
+    null
+  );
+  const [showRateLimitModal, setShowRateLimitModal] = useState(false);
+  const [rateLimitError, setRateLimitError] = useState<string>("");
+
+  const { register, error: authError, loading } = useAuth();
+  const router = useRouter();
+
+  const initialValues = {
     matricule: "",
     nom_complet: "",
     fonction: "",
     date_naissance: "",
     lieu_naissance: "",
-    sexe: "",
-    situation_matrimoniale: "",
+    sexe: "M" as "M" | "F",
+    situationMatrimoniale: "Célibataire",
     adresse: "",
     telephone: "",
     email: "",
     password: "",
-    confirmPassword: "",
-  });
+  };
 
-  const { register, error: authError, loading } = useAuth();
-  const router = useRouter();
+  const {
+    values: formData,
+    errors,
+    setValue,
+    setFieldTouched,
+    validateForm,
+  } = useFormValidation(agentFormSchema, initialValues);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (isSubmitting) return;
 
-    if (formData.password !== formData.confirmPassword) {
-      alert("Les mots de passe ne correspondent pas");
+    // Vérifier la confirmation du mot de passe
+    if (formData.password !== confirmPassword) {
+      setConfirmPasswordError("Les mots de passe ne correspondent pas");
       return;
     }
+    setConfirmPasswordError("");
+
+    if (!validateForm()) return;
 
     try {
       setIsSubmitting(true);
-      const { password, confirmPassword, ...restData } = formData;
+      setRateLimitError("");
+      const { password, ...restData } = formData;
       const registerData = {
         matricule: restData.matricule,
-        password,
+        password: password || "",
         nom_complet: restData.nom_complet,
         fonction: restData.fonction || undefined,
         email: restData.email || undefined,
         date_naissance: restData.date_naissance || undefined,
         lieu_naissance: restData.lieu_naissance || undefined,
         sexe: restData.sexe || undefined,
-        situation_matrimoniale: restData.situation_matrimoniale || undefined,
+        situation_matrimoniale: restData.situationMatrimoniale || undefined,
         adresse: restData.adresse || undefined,
         telephone: restData.telephone || undefined,
       };
-      console.log("📝 Données d'inscription envoyées:", { ...registerData, password: "***" });
-      await register(registerData);
+      console.log("📝 Données d'inscription envoyées:", {
+        ...registerData,
+        password: "***",
+      });
+      const result = await register(registerData);
+
+      // Mettre à jour les infos de rate limit si disponibles (même en cas de succès)
+      if (result && "rateLimitInfo" in result && result.rateLimitInfo) {
+        setRateLimitInfo(result.rateLimitInfo);
+      }
+
       router.push("/dashboard"); // Redirection vers le tableau de bord
     } catch (error) {
       console.error("Erreur d'inscription:", error);
+
+      // Vérifier si c'est une erreur avec rate limit info
+      const authError = error as AuthError;
+
+      // Toujours mettre à jour les infos de rate limit si disponibles
+      if (authError?.rateLimitInfo) {
+        setRateLimitInfo(authError.rateLimitInfo);
+
+        // Si c'est une erreur 429 (rate limit atteint), afficher la modale
+        if (
+          authError.message?.includes("Trop de tentatives") ||
+          authError.message?.includes("Réessayez")
+        ) {
+          setRateLimitError(
+            authError.message || "Trop de tentatives d'inscription"
+          );
+          setShowRateLimitModal(true);
+        }
+      }
     } finally {
       setIsSubmitting(false);
     }
-  };
-
-  const handleChange = (
-    e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>
-  ) => {
-    setFormData({
-      ...formData,
-      [e.target.name]: e.target.value,
-    });
   };
 
   return (
@@ -142,10 +183,42 @@ export default function RegisterPage() {
           ></div>
 
           {/* Affichage des erreurs */}
-          {authError && (
+          {authError && !rateLimitError && (
             <div className="mb-6 p-4 bg-red-50 border border-red-200 rounded-xl flex items-center space-x-3">
               <AlertCircle className="w-5 h-5 text-red-600" />
               <span className="text-red-700 font-medium">{authError}</span>
+            </div>
+          )}
+
+          {/* Compteur de tentatives restantes */}
+          {rateLimitInfo && rateLimitInfo.remaining < rateLimitInfo.limit && (
+            <div className="mb-6 p-4 bg-amber-50 border border-amber-200 rounded-xl">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center space-x-3">
+                  <AlertTriangle className="w-5 h-5 text-amber-600" />
+                  <div>
+                    <p className="text-amber-800 font-semibold text-sm">
+                      Tentatives restantes
+                    </p>
+                    <p className="text-amber-700 text-xs">
+                      {rateLimitInfo.remaining} / {rateLimitInfo.limit}{" "}
+                      tentatives
+                    </p>
+                  </div>
+                </div>
+                <div className="flex items-center space-x-2">
+                  <div className="w-24 h-2 bg-amber-200 rounded-full overflow-hidden">
+                    <div
+                      className="h-full bg-amber-600 transition-all duration-300"
+                      style={{
+                        width: `${
+                          (rateLimitInfo.remaining / rateLimitInfo.limit) * 100
+                        }%`,
+                      }}
+                    />
+                  </div>
+                </div>
+              </div>
             </div>
           )}
 
@@ -160,69 +233,71 @@ export default function RegisterPage() {
                 <div>
                   <label
                     htmlFor="matricule"
-                    className="block text-sm font-semibold text-slate-700 mb-3 flex items-center"
+                    className="bloc text-sm font-semibold text-slate-700 mb-3 flex items-center"
                   >
                     <User className="w-4 h-4 mr-2 text-slate-600" />
                     Matricule *
                   </label>
                   <div className="relative">
-                    <input
+                    <Input
                       type="text"
                       id="matricule"
-                      name="matricule"
                       value={formData.matricule}
-                      onChange={handleChange}
+                      onChange={(e) => setValue("matricule", e.target.value)}
+                      onBlur={() => setFieldTouched("matricule")}
+                      error={errors.matricule}
                       required
                       disabled={isSubmitting || loading}
                       className="w-full px-4 py-4 pl-12 border-2 border-slate-200 rounded-xl focus:ring-4 focus:ring-slate-500/20 focus:border-slate-500 transition-all duration-300 bg-white/90 backdrop-blur-sm hover:bg-white text-slate-900 placeholder-slate-500 font-medium disabled:opacity-50 disabled:cursor-not-allowed"
                       placeholder="Ex: M001"
+                      fullWidth={false}
+                      label=""
                     />
-                    <User className="absolute left-4 top-1/2 transform -translate-y-1/2 w-5 h-5 text-slate-400" />
+                    <User className="absolute left-4 top-1/2 transform -translate-y-1/2 w-5 h-5 text-slate-400 pointer-events-none" />
                   </div>
                 </div>
 
                 <div>
                   <label
                     htmlFor="fonction"
-                    className="block text-sm font-semibold text-slate-700 mb-3 flex items-center"
+                    className=" text-sm font-semibold text-slate-700 mb-3 flex items-center"
                   >
                     <Briefcase className="w-4 h-4 mr-2 text-slate-600" />
                     Fonction *
                   </label>
                   <div className="relative">
-                    <input
+                    <Input
                       type="text"
                       id="fonction"
-                      name="fonction"
                       value={formData.fonction}
-                      onChange={handleChange}
+                      onChange={(e) => setValue("fonction", e.target.value)}
+                      onBlur={() => setFieldTouched("fonction")}
+                      error={errors.fonction}
                       required
                       disabled={isSubmitting || loading}
                       className="w-full px-4 py-4 pl-12 border-2 border-slate-200 rounded-xl focus:ring-4 focus:ring-slate-500/20 focus:border-slate-500 transition-all duration-300 bg-white/90 backdrop-blur-sm hover:bg-white text-slate-900 placeholder-slate-500 font-medium disabled:opacity-50 disabled:cursor-not-allowed"
                       placeholder="Ex: Directeur, Manager..."
+                      fullWidth={false}
+                      label=""
                     />
-                    <Briefcase className="absolute left-4 top-1/2 transform -translate-y-1/2 w-5 h-5 text-slate-400" />
+                    <Briefcase className="absolute left-4 top-1/2 transform -translate-y-1/2 w-5 h-5 text-slate-400 pointer-events-none" />
                   </div>
                 </div>
 
                 <div className="md:col-span-2">
-                  <label
-                    htmlFor="nom_complet"
-                    className="block text-sm font-semibold text-slate-700 mb-3 flex items-center"
-                  >
-                    <User className="w-4 h-4 mr-2 text-slate-600" />
-                    Nom complet *
-                  </label>
-                  <input
+                  <Input
+                    label="Nom complet"
                     type="text"
                     id="nom_complet"
-                    name="nom_complet"
                     value={formData.nom_complet}
-                    onChange={handleChange}
+                    onChange={(e) => setValue("nom_complet", e.target.value)}
+                    onBlur={() => setFieldTouched("nom_complet")}
+                    error={errors.nom_complet}
                     required
                     disabled={isSubmitting || loading}
                     className="w-full px-4 py-4 border-2 border-slate-200 rounded-xl focus:ring-4 focus:ring-slate-500/20 focus:border-slate-500 transition-all duration-300 bg-white/90 backdrop-blur-sm hover:bg-white text-slate-900 placeholder-slate-500 font-medium disabled:opacity-50 disabled:cursor-not-allowed"
                     placeholder="Ex: Jean Dupont"
+                    fullWidth={false}
                   />
                 </div>
               </div>
@@ -269,155 +344,161 @@ export default function RegisterPage() {
                   <div>
                     <label
                       htmlFor="email"
-                      className="block text-sm font-semibold text-slate-700 mb-3 flex items-center"
+                      className=" text-sm font-semibold text-slate-700 mb-3 flex items-center"
                     >
                       <Mail className="w-4 h-4 mr-2 text-slate-600" />
                       Email
                     </label>
                     <div className="relative">
-                      <input
+                      <Input
                         type="email"
                         id="email"
-                        name="email"
-                        value={formData.email}
-                        onChange={handleChange}
+                        value={formData.email || ""}
+                        onChange={(e) => setValue("email", e.target.value)}
+                        onBlur={() => setFieldTouched("email")}
+                        error={errors.email}
                         disabled={isSubmitting || loading}
                         className="w-full px-4 py-4 pl-12 border-2 border-slate-200 rounded-xl focus:ring-4 focus:ring-slate-500/20 focus:border-slate-500 transition-all duration-300 bg-white/90 backdrop-blur-sm hover:bg-white text-slate-900 placeholder-slate-500 font-medium disabled:opacity-50 disabled:cursor-not-allowed"
                         placeholder="votre.email@exemple.com"
+                        fullWidth={false}
+                        label=""
                       />
-                      <Mail className="absolute left-4 top-1/2 transform -translate-y-1/2 w-5 h-5 text-slate-400" />
+                      <Mail className="absolute left-4 top-1/2 transform -translate-y-1/2 w-5 h-5 text-slate-400 pointer-events-none" />
                     </div>
                   </div>
 
                   <div>
                     <label
                       htmlFor="telephone"
-                      className="block text-sm font-semibold text-slate-700 mb-3 flex items-center"
+                      className="bloc text-sm font-semibold text-slate-700 mb-3 flex items-center"
                     >
                       <Phone className="w-4 h-4 mr-2 text-slate-600" />
                       Téléphone
                     </label>
                     <div className="relative">
-                      <input
+                      <Input
                         type="tel"
                         id="telephone"
-                        name="telephone"
-                        value={formData.telephone}
-                        onChange={handleChange}
+                        value={formData.telephone || ""}
+                        onChange={(e) => setValue("telephone", e.target.value)}
+                        onBlur={() => setFieldTouched("telephone")}
+                        error={errors.telephone}
                         disabled={isSubmitting || loading}
                         className="w-full px-4 py-4 pl-12 border-2 border-slate-200 rounded-xl focus:ring-4 focus:ring-slate-500/20 focus:border-slate-500 transition-all duration-300 bg-white/90 backdrop-blur-sm hover:bg-white text-slate-900 placeholder-slate-500 font-medium disabled:opacity-50 disabled:cursor-not-allowed"
                         placeholder="+33 6 12 34 56 78"
+                        fullWidth={false}
+                        label=""
                       />
-                      <Phone className="absolute left-4 top-1/2 transform -translate-y-1/2 w-5 h-5 text-slate-400" />
+                      <Phone className="absolute left-4 top-1/2 transform -translate-y-1/2 w-5 h-5 text-slate-400 pointer-events-none" />
                     </div>
                   </div>
 
                   <div>
-                    <label
-                      htmlFor="date_naissance"
-                      className="block text-sm font-semibold text-slate-700 mb-3 flex items-center"
-                    >
-                      <Calendar className="w-4 h-4 mr-2 text-slate-600" />
-                      Date de naissance
-                    </label>
-                    <input
+                    <Input
+                      label="Date de naissance"
                       type="date"
                       id="date_naissance"
-                      name="date_naissance"
-                      value={formData.date_naissance}
-                      onChange={handleChange}
+                      value={formData.date_naissance || ""}
+                      onChange={(e) =>
+                        setValue("date_naissance", e.target.value)
+                      }
+                      onBlur={() => setFieldTouched("date_naissance")}
+                      error={errors.date_naissance}
                       disabled={isSubmitting || loading}
                       className="w-full px-4 py-4 border-2 border-slate-200 rounded-xl focus:ring-4 focus:ring-slate-500/20 focus:border-slate-500 transition-all duration-300 bg-slate-800 text-white hover:bg-slate-700 cursor-pointer font-medium disabled:opacity-50 disabled:cursor-not-allowed"
+                      fullWidth={false}
                     />
                   </div>
 
                   <div>
                     <label
                       htmlFor="lieu_naissance"
-                      className="block text-sm font-semibold text-slate-700 mb-3 flex items-center"
+                      className=" text-sm font-semibold text-slate-700 mb-3 flex items-center"
                     >
                       <MapPin className="w-4 h-4 mr-2 text-slate-600" />
                       Lieu de naissance
                     </label>
                     <div className="relative">
-                      <input
+                      <Input
                         type="text"
                         id="lieu_naissance"
-                        name="lieu_naissance"
-                        value={formData.lieu_naissance}
-                        onChange={handleChange}
+                        value={formData.lieu_naissance || ""}
+                        onChange={(e) =>
+                          setValue("lieu_naissance", e.target.value)
+                        }
+                        onBlur={() => setFieldTouched("lieu_naissance")}
+                        error={errors.lieu_naissance}
                         disabled={isSubmitting || loading}
                         className="w-full px-4 py-4 pl-12 border-2 border-slate-200 rounded-xl focus:ring-4 focus:ring-slate-500/20 focus:border-slate-500 transition-all duration-300 bg-white/90 backdrop-blur-sm hover:bg-white text-slate-900 placeholder-slate-500 font-medium disabled:opacity-50 disabled:cursor-not-allowed"
                         placeholder="Ville, Pays"
+                        fullWidth={false}
+                        label=""
                       />
-                      <MapPin className="absolute left-4 top-1/2 transform -translate-y-1/2 w-5 h-5 text-slate-400" />
+                      <MapPin className="absolute left-4 top-1/2 transform -translate-y-1/2 w-5 h-5 text-slate-400 pointer-events-none" />
                     </div>
                   </div>
 
                   <div>
-                    <label
-                      htmlFor="sexe"
-                      className="block text-sm font-semibold text-slate-700 mb-3 flex items-center"
-                    >
-                      <Users className="w-4 h-4 mr-2 text-slate-600" />
-                      Sexe
-                    </label>
-                    <select
+                    <Select
+                      label="Sexe"
                       id="sexe"
-                      name="sexe"
                       value={formData.sexe}
-                      onChange={handleChange}
+                      onChange={(e) =>
+                        setValue("sexe", e.target.value as "M" | "F")
+                      }
+                      onBlur={() => setFieldTouched("sexe")}
+                      error={errors.sexe}
                       disabled={isSubmitting || loading}
                       className="w-full px-4 py-4 border-2 border-slate-200 rounded-xl focus:ring-4 focus:ring-slate-500/20 focus:border-slate-500 transition-all duration-300 bg-white/90 backdrop-blur-sm hover:bg-white text-slate-900 font-medium disabled:opacity-50 disabled:cursor-not-allowed"
-                    >
-                      <option value="">Sélectionnez</option>
-                      <option value="M">Masculin</option>
-                      <option value="F">Féminin</option>
-                    </select>
+                      options={[
+                        { value: "", label: "Sélectionnez" },
+                        { value: "M", label: "Masculin" },
+                        { value: "F", label: "Féminin" },
+                      ]}
+                      fullWidth={false}
+                    />
                   </div>
 
                   <div>
-                    <label
-                      htmlFor="situation_matrimoniale"
-                      className="block text-sm font-semibold text-slate-700 mb-3"
-                    >
-                      Situation matrimoniale
-                    </label>
-                    <select
+                    <Select
+                      label="Situation matrimoniale"
                       id="situation_matrimoniale"
-                      name="situation_matrimoniale"
-                      value={formData.situation_matrimoniale}
-                      onChange={handleChange}
+                      value={formData.situationMatrimoniale}
+                      onChange={(e) =>
+                        setValue("situationMatrimoniale", e.target.value)
+                      }
+                      onBlur={() => setFieldTouched("situationMatrimoniale")}
+                      error={errors.situationMatrimoniale}
                       disabled={isSubmitting || loading}
                       className="w-full px-4 py-4 border-2 border-slate-200 rounded-xl focus:ring-4 focus:ring-slate-500/20 focus:border-slate-500 transition-all duration-300 bg-white/90 backdrop-blur-sm hover:bg-white text-slate-900 font-medium disabled:opacity-50 disabled:cursor-not-allowed"
-                    >
-                      <option value="">Sélectionnez</option>
-                      <option value="Célibataire">Célibataire</option>
-                      <option value="Marié(e)">Marié(e)</option>
-                      <option value="Divorcé(e)">Divorcé(e)</option>
-                      <option value="Veuf/Veuve">Veuf/Veuve</option>
-                    </select>
+                      options={[
+                        { value: "", label: "Sélectionnez" },
+                        { value: "Célibataire", label: "Célibataire" },
+                        { value: "Marié(e)", label: "Marié(e)" },
+                        { value: "Divorcé(e)", label: "Divorcé(e)" },
+                        { value: "Veuf/Veuve", label: "Veuf/Veuve" },
+                      ]}
+                      fullWidth={false}
+                    />
                   </div>
 
                   <div className="md:col-span-2">
-                    <label
-                      htmlFor="adresse"
-                      className="block text-sm font-semibold text-slate-700 mb-3 flex items-center"
-                    >
-                      <MapPin className="w-4 h-4 mr-2 text-slate-600" />
-                      Adresse
-                    </label>
-                    <textarea
+                    <SecureTextarea
+                      label="Adresse"
                       id="adresse"
-                      name="adresse"
-                      value={formData.adresse}
-                      onChange={(e) =>
-                        setFormData({ ...formData, adresse: e.target.value })
-                      }
-                      rows={3}
+                      value={formData.adresse || ""}
+                      onChange={(value) => {
+                        setValue("adresse", value);
+                        setFieldTouched("adresse");
+                      }}
+                      error={errors.adresse}
                       disabled={isSubmitting || loading}
+                      maxLength={500}
+                      sanitize={true}
+                      rows={3}
                       className="w-full px-4 py-4 border-2 border-slate-200 rounded-xl focus:ring-4 focus:ring-slate-500/20 focus:border-slate-500 transition-all duration-300 bg-white/90 backdrop-blur-sm hover:bg-white text-slate-900 placeholder-slate-500 font-medium disabled:opacity-50 disabled:cursor-not-allowed"
                       placeholder="Votre adresse complète"
+                      fullWidth={false}
                     />
                   </div>
                 </div>
@@ -434,29 +515,33 @@ export default function RegisterPage() {
                 <div>
                   <label
                     htmlFor="password"
-                    className="block text-sm font-semibold text-slate-700 mb-3 flex items-center"
+                    className=" text-sm font-semibold text-slate-700 mb-3 flex items-center"
                   >
                     <Shield className="w-4 h-4 mr-2 text-slate-600" />
                     Mot de passe *
                   </label>
                   <div className="relative">
-                    <input
+                    <Input
                       type={showPassword ? "text" : "password"}
                       id="password"
-                      name="password"
-                      value={formData.password}
-                      onChange={handleChange}
+                      value={formData.password || ""}
+                      onChange={(e) => setValue("password", e.target.value)}
+                      onBlur={() => setFieldTouched("password")}
+                      error={errors.password}
                       required
                       disabled={isSubmitting || loading}
                       className="w-full px-4 py-4 pl-12 pr-12 border-2 border-slate-200 rounded-xl focus:ring-4 focus:ring-slate-500/20 focus:border-slate-500 transition-all duration-300 bg-white/90 backdrop-blur-sm hover:bg-white text-slate-900 placeholder-slate-500 font-medium disabled:opacity-50 disabled:cursor-not-allowed"
                       placeholder="Créez un mot de passe"
+                      fullWidth={false}
+                      label=""
+                      helperText="Minimum 6 caractères"
                     />
-                    <Shield className="absolute left-4 top-1/2 transform -translate-y-1/2 w-5 h-5 text-slate-400" />
+                    <Shield className="absolute left-4 top-1/2 transform -translate-y-1/2 w-5 h-5 text-slate-400 pointer-events-none" />
                     <button
                       type="button"
                       onClick={() => setShowPassword(!showPassword)}
                       disabled={isSubmitting || loading}
-                      className="absolute right-4 top-1/2 transform -translate-y-1/2 text-slate-400 hover:text-slate-600 transition-all duration-300 p-2 hover:bg-slate-100 rounded-xl hover:scale-110 disabled:opacity-50 disabled:cursor-not-allowed"
+                      className="absolute right-4 top-1/2 transform -translate-y-1/2 text-slate-400 hover:text-slate-600 transition-all duration-300 p-2 hover:bg-slate-100 rounded-xl hover:scale-110 disabled:opacity-50 disabled:cursor-not-allowed z-10"
                     >
                       {showPassword ? (
                         <EyeOff className="w-5 h-5" />
@@ -470,31 +555,46 @@ export default function RegisterPage() {
                 <div>
                   <label
                     htmlFor="confirmPassword"
-                    className="block text-sm font-semibold text-slate-700 mb-3 flex items-center"
+                    className=" text-sm font-semibold text-slate-700 mb-3 flex items-center"
                   >
                     <CheckCircle className="w-4 h-4 mr-2 text-slate-600" />
                     Confirmer le mot de passe *
                   </label>
                   <div className="relative">
-                    <input
+                    <Input
                       type={showConfirmPassword ? "text" : "password"}
                       id="confirmPassword"
-                      name="confirmPassword"
-                      value={formData.confirmPassword}
-                      onChange={handleChange}
+                      value={confirmPassword}
+                      onChange={(e) => {
+                        setConfirmPassword(e.target.value);
+                        if (confirmPasswordError) setConfirmPasswordError("");
+                      }}
+                      onBlur={() => {
+                        if (
+                          formData.password &&
+                          confirmPassword !== formData.password
+                        ) {
+                          setConfirmPasswordError(
+                            "Les mots de passe ne correspondent pas"
+                          );
+                        }
+                      }}
+                      error={confirmPasswordError}
                       required
                       disabled={isSubmitting || loading}
                       className="w-full px-4 py-4 pl-12 pr-12 border-2 border-slate-200 rounded-xl focus:ring-4 focus:ring-slate-500/20 focus:border-slate-500 transition-all duration-300 bg-white/90 backdrop-blur-sm hover:bg-white text-slate-900 placeholder-slate-500 font-medium disabled:opacity-50 disabled:cursor-not-allowed"
                       placeholder="Confirmez votre mot de passe"
+                      fullWidth={false}
+                      label=""
                     />
-                    <CheckCircle className="absolute left-4 top-1/2 transform -translate-y-1/2 w-5 h-5 text-slate-400" />
+                    <CheckCircle className="absolute left-4 top-1/2 transform -translate-y-1/2 w-5 h-5 text-slate-400 pointer-events-none" />
                     <button
                       type="button"
                       onClick={() =>
                         setShowConfirmPassword(!showConfirmPassword)
                       }
                       disabled={isSubmitting || loading}
-                      className="absolute right-4 top-1/2 transform -translate-y-1/2 text-slate-400 hover:text-slate-600 transition-all duration-300 p-2 hover:bg-slate-100 rounded-xl hover:scale-110 disabled:opacity-50 disabled:cursor-not-allowed"
+                      className="absolute right-4 top-1/2 transform -translate-y-1/2 text-slate-400 hover:text-slate-600 transition-all duration-300 p-2 hover:bg-slate-100 rounded-xl hover:scale-110 disabled:opacity-50 disabled:cursor-not-allowed z-10"
                     >
                       {showConfirmPassword ? (
                         <EyeOff className="w-5 h-5" />
@@ -536,6 +636,17 @@ export default function RegisterPage() {
           </div>
         </div>
       </div>
+
+      {/* Modale de rate limiting */}
+      <RateLimitModal
+        isOpen={showRateLimitModal}
+        onClose={() => setShowRateLimitModal(false)}
+        message={
+          rateLimitError ||
+          "Trop de tentatives d'inscription. Réessayez dans une heure."
+        }
+        retryAfter={rateLimitInfo?.retryAfter}
+      />
     </div>
   );
 }

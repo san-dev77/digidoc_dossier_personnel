@@ -1,8 +1,16 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { query } from "@/lib/db";
+import { protectRoute } from "@/lib/auth/routeProtection";
 
 // GET /api/pieces?sousDossierId=X
 export async function GET(request: NextRequest) {
+  // Protection de la route
+  const authResult = await protectRoute(request);
+  if (!authResult.authorized) {
+    return authResult.response!;
+  }
+
   try {
     const { searchParams } = new URL(request.url);
     const sousDossierId = searchParams.get("sousDossierId");
@@ -14,20 +22,69 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    const pieces = await prisma.pieces.findMany({
-      where: {
-        sous_dossier_id: parseInt(sousDossierId),
-      },
-      include: {
-        metadata_model: true,
-        piece_file: true,
-      },
-      orderBy: {
-        created_at: "desc",
-      },
-    });
+    // Utiliser une requête SQL pour trier par position
+    const { rows } = await query(
+      `SELECT 
+        p.id,
+        p.sous_dossier_id,
+        p.nom,
+        p.description,
+        p.has_meta,
+        p.created_at,
+        p.updated_at,
+        COALESCE(pp.position, 999) as position
+      FROM pieces p
+      LEFT JOIN piece_positions pp ON p.id = pp.piece_id AND pp.sous_dossier_id = $1
+      WHERE p.sous_dossier_id = $1
+      ORDER BY COALESCE(pp.position, 999) ASC, p.id ASC`,
+      [sousDossierId]
+    );
 
-    const formattedPieces = pieces.map((piece) => ({
+    // Récupérer les métadonnées et fichiers pour chaque pièce
+    const pieces = await Promise.all(
+      rows.map(async (piece: { id: number }) => {
+        const [metadata, files] = await Promise.all([
+          prisma.metadata_model.findMany({
+            where: { piece_id: piece.id },
+          }),
+          prisma.piece_file.findMany({
+            where: { id_piece: piece.id },
+          }),
+        ]);
+
+        return {
+          ...piece,
+          metadata_model: metadata,
+          piece_file: files,
+        };
+      })
+    );
+
+    interface PieceWithRelations {
+      id: number | bigint;
+      sous_dossier_id: number | bigint;
+      nom: string;
+      description: string | null;
+      has_meta: boolean;
+      created_at: Date | null;
+      updated_at: Date | null;
+      piece_file: Array<{
+        id: number | bigint;
+        file_path: string;
+        created_at: Date | null;
+      }>;
+      metadata_model: Array<{
+        id: number | bigint;
+        libelle: string;
+        type: string;
+        obligatoire: boolean;
+        description: string | null;
+        created_at: Date | null;
+        updated_at: Date | null;
+      }>;
+    }
+
+    const formattedPieces = (pieces as PieceWithRelations[]).map((piece) => ({
       id: piece.id,
       sousDossierId: piece.sous_dossier_id.toString(),
       nom: piece.nom,
@@ -35,20 +92,24 @@ export async function GET(request: NextRequest) {
       aMetadonnees: piece.has_meta || false,
       createdAt: piece.created_at?.toISOString() || "",
       updatedAt: piece.updated_at?.toISOString() || "",
-      files: piece.piece_file.map((file) => ({
-        id: file.id,
-        filePath: file.file_path,
-        createdAt: file.created_at?.toISOString() || "",
-      })),
-      metadonnees: piece.metadata_model.map((meta) => ({
-        id: meta.id,
-        nom: meta.libelle,
-        type: meta.type,
-        obligatoire: meta.obligatoire || false,
-        description: meta.description,
-        createdAt: meta.created_at?.toISOString() || "",
-        updatedAt: meta.updated_at?.toISOString() || "",
-      })),
+      files: piece.piece_file.map(
+        (file: PieceWithRelations["piece_file"][0]) => ({
+          id: file.id,
+          filePath: file.file_path,
+          createdAt: file.created_at?.toISOString() || "",
+        })
+      ),
+      metadonnees: piece.metadata_model.map(
+        (meta: PieceWithRelations["metadata_model"][0]) => ({
+          id: meta.id,
+          nom: meta.libelle,
+          type: meta.type,
+          obligatoire: meta.obligatoire || false,
+          description: meta.description,
+          createdAt: meta.created_at?.toISOString() || "",
+          updatedAt: meta.updated_at?.toISOString() || "",
+        })
+      ),
     }));
 
     return NextResponse.json(formattedPieces);
@@ -60,6 +121,12 @@ export async function GET(request: NextRequest) {
 
 // POST /api/pieces
 export async function POST(request: NextRequest) {
+  // Protection de la route
+  const authResult = await protectRoute(request);
+  if (!authResult.authorized) {
+    return authResult.response!;
+  }
+
   try {
     const body = await request.json();
     const {
@@ -69,8 +136,12 @@ export async function POST(request: NextRequest) {
       has_meta,
       metadonnees,
       filePath,
+      // Note: fileName, fileSize, mimeType peuvent être utilisés pour des validations futures
+      // eslint-disable-next-line @typescript-eslint/no-unused-vars
       fileName,
+      // eslint-disable-next-line @typescript-eslint/no-unused-vars
       fileSize,
+      // eslint-disable-next-line @typescript-eslint/no-unused-vars
       mimeType,
     } = body;
 
@@ -103,7 +174,14 @@ export async function POST(request: NextRequest) {
 
     // Créer les métadonnées si elles existent
     if (has_meta && metadonnees && metadonnees.length > 0) {
-      const metadataToInsert = metadonnees.map((meta: any) => ({
+      interface MetadataInput {
+        nom: string;
+        type: string;
+        obligatoire?: boolean;
+        description?: string | null;
+      }
+
+      const metadataToInsert = (metadonnees as MetadataInput[]).map((meta) => ({
         piece_id: piece.id,
         libelle: meta.nom,
         type: meta.type,

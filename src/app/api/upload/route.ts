@@ -6,10 +6,18 @@ import {
   generateAgentFileName,
 } from "@/config/storage";
 import { prisma } from "@/lib/prisma";
+import { createErrorResponse } from "@/lib/errors/safeError";
+import { protectRoute } from "@/lib/auth/routeProtection";
 import fs from "fs-extra";
 import path from "path";
 
 export async function POST(request: NextRequest) {
+  // Protection de la route
+  const authResult = await protectRoute(request);
+  if (!authResult.authorized) {
+    return authResult.response!;
+  }
+
   try {
     // Récupérer les données du formulaire
     const formData = await request.formData();
@@ -44,7 +52,7 @@ export async function POST(request: NextRequest) {
     const validation = FileValidator.validateFile(fileObj);
     if (!validation.isValid) {
       return NextResponse.json(
-        { error: "Fichier invalide", details: validation.errors },
+        { error: "Fichier invalide", errors: validation.errors },
         { status: 400 }
       );
     }
@@ -59,7 +67,7 @@ export async function POST(request: NextRequest) {
 
     if (!metadataValidation.isValid) {
       return NextResponse.json(
-        { error: "Métadonnées invalides", details: metadataValidation.errors },
+        { error: "Métadonnées invalides", errors: metadataValidation.errors },
         { status: 400 }
       );
     }
@@ -159,18 +167,21 @@ export async function POST(request: NextRequest) {
     return NextResponse.json(response);
   } catch (error) {
     console.error("Erreur lors de l'upload:", error);
-
-    return NextResponse.json(
-      {
-        error: "Erreur lors de l'upload du fichier",
-        details: error instanceof Error ? error.message : "Erreur inconnue",
-      },
-      { status: 500 }
+    return createErrorResponse(
+      error,
+      "Erreur lors de l'upload du fichier",
+      500
     );
   }
 }
 
 export async function GET(request: NextRequest) {
+  // Protection de la route
+  const authResult = await protectRoute(request);
+  if (!authResult.authorized) {
+    return authResult.response!;
+  }
+
   try {
     const { searchParams } = new URL(request.url);
     const pieceId = searchParams.get("pieceId");
@@ -198,13 +209,10 @@ export async function GET(request: NextRequest) {
     });
   } catch (error) {
     console.error("Erreur lors de la récupération du fichier:", error);
-
-    return NextResponse.json(
-      {
-        error: "Erreur lors de la récupération du fichier",
-        details: error instanceof Error ? error.message : "Erreur inconnue",
-      },
-      { status: 500 }
+    return createErrorResponse(
+      error,
+      "Erreur lors de la récupération du fichier",
+      500
     );
   }
 }

@@ -1,4 +1,5 @@
 import type { MetaValue } from "@/types";
+import { fetchWithAuth } from "@/lib/api/fetchWithAuth";
 
 export interface PieceMetadata {
   id: string;
@@ -15,7 +16,7 @@ export interface PieceMetadata {
 export const piecesMetadataService = {
   async getPieceMetadata(pieceId: string): Promise<PieceMetadata[]> {
     try {
-      const response = await fetch(`/api/pieces/${pieceId}/metadata`);
+      const response = await fetchWithAuth(`/api/pieces/${pieceId}/metadata`);
       if (!response.ok) {
         throw new Error("Erreur lors de la récupération des métadonnées");
       }
@@ -32,7 +33,7 @@ export const piecesMetadataService = {
     valeur: string
   ): Promise<PieceMetadata> {
     try {
-      const response = await fetch(`/api/pieces/${pieceId}/metadata`, {
+      const response = await fetchWithAuth(`/api/pieces/${pieceId}/metadata`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -58,7 +59,7 @@ export const piecesMetadataService = {
     valeur: string
   ): Promise<PieceMetadata> {
     try {
-      const response = await fetch(`/api/pieces/${pieceId}/metadata`, {
+      const response = await fetchWithAuth(`/api/pieces/${pieceId}/metadata`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -83,7 +84,7 @@ export const piecesMetadataService = {
     metaValueId: string
   ): Promise<{ hasRemainingMetadata: boolean }> {
     try {
-      const response = await fetch(
+      const response = await fetchWithAuth(
         `/api/pieces/${pieceId}/metadata?meta_value_id=${metaValueId}`,
         {
           method: "DELETE",

@@ -1,11 +1,18 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { protectRoute } from "@/lib/auth/routeProtection";
 
 // GET /api/pieces/[id]/metadata
 export async function GET(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
+  // Protection de la route
+  const authResult = await protectRoute(request);
+  if (!authResult.authorized) {
+    return authResult.response!;
+  }
+
   try {
     const { id: idParam } = await params;
     const pieceId = parseInt(idParam);
@@ -20,7 +27,14 @@ export async function GET(
     console.log("📋 Récupération des métadonnées pour la pièce ID:", pieceId);
 
     // Construire le where clause avec filtre optionnel par agent_dossier_id
-    const whereClause: any = {
+    interface WhereClause {
+      metadata_model: {
+        piece_id: number;
+      };
+      agent_dossier_id?: number;
+    }
+
+    const whereClause: WhereClause = {
       metadata_model: {
         piece_id: pieceId,
       },
@@ -31,7 +45,7 @@ export async function GET(
     }
 
     // Récupérer les métadonnées de la pièce avec les modèles de métadonnées
-    const metaValues = await (prisma as any).meta_values.findMany({
+    const metaValues = await prisma.meta_values.findMany({
       where: whereClause,
       include: {
         metadata_model: {
@@ -50,11 +64,23 @@ export async function GET(
     console.log("✅ Métadonnées récupérées:", metaValues.length);
 
     // Transformer les données pour le frontend
-    const metadata = metaValues.map((meta) => ({
+    interface MetaValueWithModel {
+      id: number | bigint;
+      meta_model_id: number | bigint;
+      valeur: string;
+      created_at: Date;
+      metadata_model: {
+        libelle: string;
+        type: string;
+        obligatoire: boolean;
+      } | null;
+    }
+
+    const metadata = (metaValues as MetaValueWithModel[]).map((meta) => ({
       id: meta.id.toString(),
       meta_model_id: meta.meta_model_id.toString(),
       valeur: meta.valeur,
-      created_at: meta.created_at.toISOString(),
+      created_at: meta.created_at?.toISOString() ?? null,
       metadataModel: meta.metadata_model
         ? {
             libelle: meta.metadata_model.libelle,
@@ -76,6 +102,12 @@ export async function POST(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
+  // Protection de la route
+  const authResult = await protectRoute(request);
+  if (!authResult.authorized) {
+    return authResult.response!;
+  }
+
   try {
     const { id: idParam } = await params;
     const pieceId = parseInt(idParam);
@@ -118,9 +150,14 @@ export async function POST(
       "📋 Tous les modèles de métadonnées pour cette pièce:",
       allMetadataModels
     );
+    interface MetadataModel {
+      id: number | bigint;
+      libelle: string;
+    }
+
     console.log(
       "🔍 IDs disponibles:",
-      allMetadataModels.map((m) => m.id)
+      allMetadataModels.map((m: MetadataModel) => m.id)
     );
 
     // Vérifier que le modèle de métadonnée existe
@@ -130,9 +167,17 @@ export async function POST(
 
     if (!metadataModel) {
       console.error("❌ Modèle de métadonnée non trouvé:", meta_model_id);
+      interface MetadataModel {
+        id: number | bigint;
+        libelle: string;
+      }
+
       console.error(
         "📋 Modèles disponibles:",
-        allMetadataModels.map((m) => ({ id: m.id, libelle: m.libelle }))
+        allMetadataModels.map((m: MetadataModel) => ({
+          id: m.id,
+          libelle: m.libelle,
+        }))
       );
       return NextResponse.json(
         { message: "Modèle de métadonnée non trouvé" },
@@ -143,7 +188,13 @@ export async function POST(
     console.log("✅ Modèle de métadonnée trouvé:", metadataModel);
 
     // Créer la métadonnée
-    const dataToCreate: any = {
+    interface MetaValueCreateData {
+      meta_model_id: number;
+      valeur: string;
+      agent_dossier_id?: number;
+    }
+
+    const dataToCreate: MetaValueCreateData = {
       meta_model_id: parseInt(meta_model_id),
       valeur: valeur,
     };
@@ -174,7 +225,7 @@ export async function POST(
       id: metaValue.id.toString(),
       meta_model_id: metaValue.meta_model_id.toString(),
       valeur: metaValue.valeur,
-      created_at: metaValue.created_at.toISOString(),
+      created_at: metaValue.created_at?.toISOString() ?? null,
       metadataModel: metaValue.metadata_model
         ? {
             libelle: metaValue.metadata_model.libelle,
@@ -194,6 +245,12 @@ export async function PUT(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
+  // Protection de la route
+  const authResult = await protectRoute(request);
+  if (!authResult.authorized) {
+    return authResult.response!;
+  }
+
   try {
     const { id: idParam } = await params;
     const pieceId = parseInt(idParam);
@@ -215,7 +272,7 @@ export async function PUT(
     console.log("🔧 Mise à jour de la métadonnée ID:", meta_value_id);
 
     // Mettre à jour la métadonnée
-    const metaValue = await (prisma as any).meta_values.update({
+    const metaValue = await prisma.meta_values.update({
       where: { id: parseInt(meta_value_id) },
       data: {
         valeur: valeur,
@@ -237,7 +294,7 @@ export async function PUT(
       id: metaValue.id.toString(),
       meta_model_id: metaValue.meta_model_id.toString(),
       valeur: metaValue.valeur,
-      created_at: metaValue.created_at.toISOString(),
+      created_at: metaValue.created_at?.toISOString() ?? null,
       metadataModel: metaValue.metadata_model
         ? {
             libelle: metaValue.metadata_model.libelle,
@@ -257,6 +314,12 @@ export async function DELETE(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
+  // Protection de la route
+  const authResult = await protectRoute(request);
+  if (!authResult.authorized) {
+    return authResult.response!;
+  }
+
   try {
     const { id: idParam } = await params;
     const pieceId = parseInt(idParam);
@@ -278,12 +341,12 @@ export async function DELETE(
     console.log("🗑️ Suppression de la métadonnée ID:", metaValueId);
 
     // Supprimer la métadonnée
-    await (prisma as any).meta_values.delete({
+    await prisma.meta_values.delete({
       where: { id: parseInt(metaValueId) },
     });
 
     // Vérifier s'il reste des métadonnées pour cette pièce
-    const remainingMetadata = await (prisma as any).meta_values.count({
+    const remainingMetadata = await prisma.meta_values.count({
       where: {
         metadata_model: {
           piece_id: pieceId,

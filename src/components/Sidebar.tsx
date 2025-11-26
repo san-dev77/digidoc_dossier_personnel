@@ -7,17 +7,15 @@ import {
   LayoutDashboard,
   Users,
   FileText,
-  FolderOpen,
-  Settings,
   ChevronLeft,
   ChevronRight,
   Layers3,
   Sparkles,
   Zap,
   Shield,
-  Bell,
   BarChart3,
   HardDrive,
+  Upload,
 } from "lucide-react";
 import { useState } from "react";
 import logo from "@/app/assets/logo.png";
@@ -95,6 +93,17 @@ export default function Sidebar({
       bgColor: "bg-orange-50",
       textColor: "text-orange-700",
       borderColor: "border-orange-200",
+    },
+    {
+      name: "Import",
+      href: "/import",
+      icon: Upload,
+      current: pathname.startsWith("/import"),
+      description: "Import de données en masse",
+      color: "from-blue-500 to-blue-600",
+      bgColor: "bg-cyan-50",
+      textColor: "text-cyan-700",
+      borderColor: "border-cyan-200",
     },
     {
       name: "Explorateur",

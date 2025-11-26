@@ -1,8 +1,9 @@
 "use client";
 
 import { useState } from "react";
-import { X, Plus, Trash2, Save } from "lucide-react";
+import { X, Plus, Trash2, Save, Loader2 } from "lucide-react";
 import type { MetadataModel } from "@/types";
+import { Input, SecureTextarea, Select } from "@/components/forms";
 
 interface MetadataFormProps {
   isOpen: boolean;
@@ -35,6 +36,7 @@ export default function MetadataForm({
           },
         ]
   );
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   const addMetadataField = () => {
     setMetadata([
@@ -64,7 +66,7 @@ export default function MetadataForm({
     setMetadata(updated);
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
     // Filtrer les champs vides
@@ -75,7 +77,14 @@ export default function MetadataForm({
       return;
     }
 
-    onSubmit(validMetadata);
+    setIsSubmitting(true);
+    try {
+      await onSubmit(validMetadata);
+    } catch (error) {
+      console.error("Erreur lors de la soumission:", error);
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   if (!isOpen) return null;
@@ -134,57 +143,44 @@ export default function MetadataForm({
 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   {/* Nom du champ */}
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
-                      Nom du champ *
-                    </label>
-                    <input
-                      type="text"
-                      value={meta.nom}
-                      onChange={(e) =>
-                        updateMetadataField(index, "nom", e.target.value)
-                      }
-                      className="w-full text-black px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-accent-blue focus:border-transparent transition-all duration-200"
-                      placeholder="Ex: Date de signature, Montant, etc."
-                      required
-                    />
-                  </div>
+                  <Input
+                    label="Nom du champ"
+                    type="text"
+                    value={meta.nom}
+                    onChange={(e) =>
+                      updateMetadataField(index, "nom", e.target.value)
+                    }
+                    required
+                    placeholder="Ex: Date de signature, Montant, etc."
+                  />
 
                   {/* Type de champ */}
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
-                      Type de champ *
-                    </label>
-                    <select
-                      value={meta.type}
-                      onChange={(e) =>
-                        updateMetadataField(index, "type", e.target.value)
-                      }
-                      className="w-full text-black px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-accent-blue focus:border-transparent transition-all duration-200"
-                    >
-                      <option value="text">Texte</option>
-                      <option value="number">Nombre</option>
-                      <option value="date">Date</option>
-                      <option value="boolean">Oui/Non</option>
-                      <option value="select">Liste déroulante</option>
-                    </select>
-                  </div>
+                  <Select
+                    label="Type de champ"
+                    value={meta.type}
+                    onChange={(e) =>
+                      updateMetadataField(index, "type", e.target.value)
+                    }
+                    required
+                    options={[
+                      { value: "text", label: "Texte" },
+                      { value: "number", label: "Nombre" },
+                      { value: "date", label: "Date" },
+                      { value: "email", label: "Email" },
+                      { value: "url", label: "URL" },
+                    ]}
+                  />
 
                   {/* Description */}
                   <div className="md:col-span-2">
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
-                      Description
-                    </label>
-                    <textarea
+                    <SecureTextarea
+                      label="Description"
                       value={meta.description || ""}
-                      onChange={(e) =>
-                        updateMetadataField(
-                          index,
-                          "description",
-                          e.target.value
-                        )
+                      onChange={(value) =>
+                        updateMetadataField(index, "description", value)
                       }
-                      className="w-full text-black px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-accent-blue focus:border-transparent transition-all duration-200 resize-none"
+                      maxLength={500}
+                      sanitize={true}
                       rows={2}
                       placeholder="Description du champ (optionnel)"
                     />
@@ -193,10 +189,8 @@ export default function MetadataForm({
                   {/* Options pour les listes déroulantes */}
                   {meta.type === "select" && (
                     <div className="md:col-span-2">
-                      <label className="block text-sm font-medium text-gray-700 mb-2">
-                        Options (séparées par des virgules)
-                      </label>
-                      <input
+                      <Input
+                        label="Options (séparées par des virgules)"
                         type="text"
                         value={meta.options?.join(", ") || ""}
                         onChange={(e) =>
@@ -209,7 +203,6 @@ export default function MetadataForm({
                               .filter((opt) => opt !== "")
                           )
                         }
-                        className="w-full text-black px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-accent-blue focus:border-transparent transition-all duration-200"
                         placeholder="Option 1, Option 2, Option 3"
                       />
                     </div>
@@ -258,16 +251,27 @@ export default function MetadataForm({
           <button
             type="button"
             onClick={onClose}
-            className="px-6 py-3 text-gray-600 hover:text-gray-800 font-medium transition-colors duration-200"
+            disabled={isSubmitting}
+            className="px-6 py-3 text-gray-600 hover:text-gray-800 font-medium transition-colors duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
           >
             Annuler
           </button>
           <button
             onClick={handleSubmit}
-            className="inline-flex items-center gap-2 px-6 py-3 bg-primary-600 text-white font-semibold rounded-lg hover:from-primary-700 hover:to-primary-800 transition-all duration-200 shadow-lg hover:shadow-xl"
+            disabled={isSubmitting}
+            className="inline-flex items-center gap-2 px-6 py-3 bg-primary-600 text-white font-semibold rounded-lg hover:from-primary-700 hover:to-primary-800 transition-all duration-200 shadow-lg hover:shadow-xl disabled:opacity-50 disabled:cursor-not-allowed"
           >
-            <Save className="w-4 h-4" />
-            Enregistrer les métadonnées
+            {isSubmitting ? (
+              <>
+                <Loader2 className="w-4 h-4 animate-spin" />
+                Enregistrement en cours...
+              </>
+            ) : (
+              <>
+                <Save className="w-4 h-4" />
+                Enregistrer les métadonnées
+              </>
+            )}
           </button>
         </div>
       </div>

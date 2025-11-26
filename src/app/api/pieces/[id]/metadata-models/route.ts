@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { protectRoute } from "@/lib/auth/routeProtection";
 
 // GET /api/pieces/[id]/metadata-models - Récupérer les modèles de métadonnées d'une pièce
 export async function GET(
@@ -53,6 +54,12 @@ export async function POST(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
+  // Protection de la route
+  const authResult = await protectRoute(request);
+  if (!authResult.authorized) {
+    return authResult.response!;
+  }
+
   try {
     const { id: idParam } = await params;
     const pieceId = parseInt(idParam);
@@ -154,6 +161,12 @@ export async function DELETE(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
+  // Protection de la route
+  const authResult = await protectRoute(request);
+  if (!authResult.authorized) {
+    return authResult.response!;
+  }
+
   try {
     const { id: idParam } = await params;
     const pieceId = parseInt(idParam);

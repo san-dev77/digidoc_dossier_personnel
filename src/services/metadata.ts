@@ -1,4 +1,5 @@
 import { PrismaClient } from "@prisma/client";
+import { fetchWithAuth } from "@/lib/api/fetchWithAuth";
 
 const prisma = new PrismaClient();
 
@@ -67,7 +68,7 @@ export class MetadataService {
     metadataData: MetadataCreate
   ): Promise<MetadataResponse> {
     try {
-      const response = await fetch("/api/metadata-credit", {
+      const response = await fetchWithAuth("/api/metadata-credit", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -141,7 +142,7 @@ export class MetadataService {
     sousDossierId: number
   ): Promise<MetadataResponse> {
     try {
-      const response = await fetch(
+      const response = await fetchWithAuth(
         `/api/metadata-credit?action=by-sous-dossier&sous_dossier_id=${sousDossierId}`
       );
       const result = await response.json();
@@ -164,7 +165,7 @@ export class MetadataService {
    */
   static async getMetadataById(id: number): Promise<MetadataResponse> {
     try {
-      const response = await fetch(`/api/metadata-credit/${id}`);
+      const response = await fetchWithAuth(`/api/metadata-credit/${id}`);
       const result = await response.json();
       return result;
     } catch (error: unknown) {
@@ -188,7 +189,7 @@ export class MetadataService {
     updateData: MetadataUpdate
   ): Promise<MetadataResponse> {
     try {
-      const response = await fetch(`/api/metadata-credit/${id}`, {
+      const response = await fetchWithAuth(`/api/metadata-credit/${id}`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(updateData),
@@ -214,7 +215,7 @@ export class MetadataService {
    */
   static async deleteMetadata(id: number): Promise<MetadataResponse> {
     try {
-      const response = await fetch(`/api/metadata-credit/${id}`, {
+      const response = await fetchWithAuth(`/api/metadata-credit/${id}`, {
         method: "DELETE",
       });
 

@@ -75,26 +75,44 @@ model notifications {
 }
 
 model rubriques {
-  id              Int               @id @default(autoincrement())
-  nom             String            @db.VarChar(255)
-  description     String?
-  agent_rubriques agent_rubriques[]
-  agent_dossiers  agent_dossiers[]
-  sous_dossiers   sous_dossiers[]
+  id                     Int                      @id @default(autoincrement())
+  nom                    String                   @db.VarChar(255)
+  description            String?
+  agent_rubriques        agent_rubriques[]
+  agent_dossiers         agent_dossiers[]
+  sous_dossiers          sous_dossiers[]
+  sous_dossier_positions sous_dossier_positions[]
 }
 
 model sous_dossiers {
-  id               Int               @id @default(autoincrement())
-  rubrique_id      Int
-  titre            String            @db.VarChar(255)
-  description      String?
-  statut           String            @default("ouvert") @db.VarChar(50)
-  created_at       DateTime?         @default(now()) @db.Timestamp(6)
-  updated_at       DateTime?         @default(now()) @db.Timestamp(6)
-  agent_dossiers   agent_dossiers[]
-  pieces           pieces[]
-  metadata_credit  metadata_credit[]
-  rubriques        rubriques         @relation(fields: [rubrique_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  id              Int                     @id @default(autoincrement())
+  rubrique_id     Int
+  titre           String                  @db.VarChar(255)
+  description     String?
+  statut          String                  @default("ouvert") @db.VarChar(50)
+  created_at      DateTime?               @default(now()) @db.Timestamp(6)
+  updated_at      DateTime?               @default(now()) @db.Timestamp(6)
+  agent_dossiers  agent_dossiers[]
+  pieces          pieces[]
+  metadata_credit metadata_credit[]
+  rubriques       rubriques               @relation(fields: [rubrique_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  position        sous_dossier_positions?
+  piece_positions piece_positions[]
+}
+
+model sous_dossier_positions {
+  id              Int           @id @default(autoincrement())
+  rubrique_id     Int
+  sous_dossier_id Int           @unique
+  position        Int           @default(0)
+  created_at      DateTime?     @default(now()) @db.Timestamp(6)
+  updated_at      DateTime?     @default(now()) @db.Timestamp(6)
+  sous_dossiers   sous_dossiers @relation(fields: [sous_dossier_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  rubriques       rubriques     @relation(fields: [rubrique_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@unique([rubrique_id, sous_dossier_id])
+  @@index([rubrique_id])
+  @@index([sous_dossier_id])
 }
 
 model pieces {
@@ -109,29 +127,45 @@ model pieces {
   pieces_check    pieces_check[]
   piece_file      piece_file[]
   sous_dossiers   sous_dossiers    @relation(fields: [sous_dossier_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  position        piece_positions?
+}
+
+model piece_positions {
+  id              Int           @id @default(autoincrement())
+  sous_dossier_id Int
+  piece_id        Int           @unique
+  position        Int           @default(0)
+  created_at      DateTime?     @default(now()) @db.Timestamp(6)
+  updated_at      DateTime?     @default(now()) @db.Timestamp(6)
+  pieces          pieces        @relation(fields: [piece_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  sous_dossiers   sous_dossiers @relation(fields: [sous_dossier_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@unique([sous_dossier_id, piece_id])
+  @@index([sous_dossier_id])
+  @@index([piece_id])
 }
 
 model metadata_model {
-  id            Int           @id @default(autoincrement())
-  piece_id      Int
-  obligatoire   Boolean?      @default(false)
-  created_at    DateTime?     @default(now()) @db.Timestamp(6)
-  description   String?
-  libelle       String        @db.VarChar(255)
-  type          String        @db.VarChar(50)
-  updated_at    DateTime?     @default(now()) @db.Timestamp(6)
-  pieces        pieces        @relation(fields: [piece_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
-  meta_values   meta_values[]
+  id          Int           @id @default(autoincrement())
+  piece_id    Int
+  obligatoire Boolean?      @default(false)
+  created_at  DateTime?     @default(now()) @db.Timestamp(6)
+  description String?
+  libelle     String        @db.VarChar(255)
+  type        String        @db.VarChar(50)
+  updated_at  DateTime?     @default(now()) @db.Timestamp(6)
+  pieces      pieces        @relation(fields: [piece_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  meta_values meta_values[]
 }
 
 model pieces_check {
-  id         Int       @id @default(autoincrement())
+  id         Int      @id @default(autoincrement())
   piece_id   Int
   disponible Boolean
-  date_check DateTime  @default(now()) @db.Timestamp(6)
+  date_check DateTime @default(now()) @db.Timestamp(6)
   agent_id   Int
-  pieces     pieces    @relation(fields: [piece_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
-  agents     agents    @relation(fields: [agent_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  pieces     pieces   @relation(fields: [piece_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  agents     agents   @relation(fields: [agent_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
 }
 
 model piece_file {
@@ -147,32 +181,32 @@ model piece_file {
 }
 
 model meta_values {
-  id                Int             @id @default(autoincrement())
-  meta_model_id     Int
-  agent_dossier_id  Int?
-  valeur            String
-  created_at        DateTime        @default(now()) @db.Timestamp(6)
-  metadata_model    metadata_model  @relation(fields: [meta_model_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
-  agent_dossiers    agent_dossiers? @relation(fields: [agent_dossier_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  id               Int             @id @default(autoincrement())
+  meta_model_id    Int
+  agent_dossier_id Int?
+  valeur           String
+  created_at       DateTime        @default(now()) @db.Timestamp(6)
+  metadata_model   metadata_model  @relation(fields: [meta_model_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  agent_dossiers   agent_dossiers? @relation(fields: [agent_dossier_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
 
   @@index([agent_dossier_id])
 }
 
 model metadata_credit {
-  id              Int           @id @default(autoincrement())
-  sous_dossier_id Int
-  nom_meta        String        @db.VarChar(255)
-  type_meta       String        @db.VarChar(50)
-  created_at      DateTime      @default(now()) @db.Timestamp(6)
-  sous_dossiers   sous_dossiers @relation(fields: [sous_dossier_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  id                 Int                  @id @default(autoincrement())
+  sous_dossier_id    Int
+  nom_meta           String               @db.VarChar(255)
+  type_meta          String               @db.VarChar(50)
+  created_at         DateTime             @default(now()) @db.Timestamp(6)
+  sous_dossiers      sous_dossiers        @relation(fields: [sous_dossier_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
   meta_credit_values meta_credit_values[]
 }
 
 model meta_credit_values {
-  id              Int            @id @default(autoincrement())
+  id                 Int             @id @default(autoincrement())
   metadata_credit_id Int
-  valeur          String         @db.Text
-  created_at      DateTime       @default(now()) @db.Timestamp(6)
-  updated_at      DateTime?      @default(now()) @db.Timestamp(6)
-  metadata_credit metadata_credit @relation(fields: [metadata_credit_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  valeur             String          @db.Text
+  created_at         DateTime        @default(now()) @db.Timestamp(6)
+  updated_at         DateTime?       @default(now()) @db.Timestamp(6)
+  metadata_credit    metadata_credit @relation(fields: [metadata_credit_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
 }

@@ -1,4 +1,5 @@
 import type { Agent } from "@/types";
+import { fetchWithAuth } from "@/lib/api/fetchWithAuth";
 
 export interface AgentRubrique {
   id: string;
@@ -17,7 +18,7 @@ export const agentRubriqueService = {
   // Récupérer toutes les relations agent-rubrique
   async getAllAgentRubriques(): Promise<AgentRubrique[]> {
     try {
-      const response = await fetch("/api/agent-rubriques");
+      const response = await fetchWithAuth("/api/agent-rubriques");
       if (!response.ok) {
         throw new Error(
           "Erreur lors de la récupération des relations agent-rubrique"
@@ -36,7 +37,7 @@ export const agentRubriqueService = {
   // Récupérer tous les agents avec leurs rubriques affectées
   async getAgentsWithRubriques(): Promise<AgentWithRubrique[]> {
     try {
-      const response = await fetch("/api/agents/with-rubriques");
+      const response = await fetchWithAuth("/api/agents/with-rubriques");
       if (!response.ok) {
         throw new Error(
           "Erreur lors de la récupération des agents avec rubriques"
@@ -58,7 +59,7 @@ export const agentRubriqueService = {
     rubriqueId: string
   ): Promise<AgentRubrique> {
     try {
-      const response = await fetch("/api/agent-rubriques", {
+      const response = await fetchWithAuth("/api/agent-rubriques", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -88,7 +89,7 @@ export const agentRubriqueService = {
     rubriqueId: string
   ): Promise<void> {
     try {
-      const response = await fetch(
+      const response = await fetchWithAuth(
         `/api/agent-rubriques?agentId=${agentId}&rubriqueId=${rubriqueId}`,
         {
           method: "DELETE",
@@ -108,7 +109,7 @@ export const agentRubriqueService = {
   // Récupérer les agents non affectés à une rubrique
   async getUnassignedAgents(): Promise<Agent[]> {
     try {
-      const response = await fetch("/api/agents/unassigned");
+      const response = await fetchWithAuth("/api/agents/unassigned");
       if (!response.ok) {
         throw new Error(
           "Erreur lors de la récupération des agents non affectés"
@@ -127,7 +128,7 @@ export const agentRubriqueService = {
   // Récupérer les agents affectés à une rubrique spécifique
   async getAgentsByRubrique(rubriqueId: string): Promise<AgentWithRubrique[]> {
     try {
-      const response = await fetch(
+      const response = await fetchWithAuth(
         `/api/agent-rubriques?rubriqueId=${rubriqueId}`
       );
       if (!response.ok) {
@@ -135,8 +136,16 @@ export const agentRubriqueService = {
           "Erreur lors de la récupération des agents par rubrique"
         );
       }
-      const data = await response.json();
-      return data.map((relation: any) => ({
+      interface AgentRubriqueRelation {
+        agents: Record<string, unknown>;
+        rubrique_id?: number | string;
+        rubriques?: {
+          nom: string;
+        };
+      }
+
+      const data: AgentRubriqueRelation[] = await response.json();
+      return data.map((relation) => ({
         ...relation.agents,
         rubrique_id: relation.rubrique_id?.toString(),
         rubrique_nom: relation.rubriques?.nom,

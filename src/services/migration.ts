@@ -8,7 +8,7 @@ const prisma = new PrismaClient();
 export interface MigrationResult {
   success: boolean;
   message: string;
-  details?: any;
+  details?: Record<string, unknown>;
 }
 
 export class MigrationService {
@@ -28,11 +28,13 @@ export class MigrationService {
         message: `Base de données connectée. ${agentCount} agents trouvés.`,
         details: { agentCount },
       };
-    } catch (error: any) {
+    } catch (error) {
+      const errorMessage =
+        error instanceof Error ? error.message : "Erreur inconnue";
       return {
         success: false,
-        message: `Erreur de connexion: ${error.message}`,
-        details: { error: error.message },
+        message: `Erreur de connexion: ${errorMessage}`,
+        details: { error: errorMessage },
       };
     }
   }
@@ -57,11 +59,13 @@ export class MigrationService {
         message: "Client Prisma généré avec succès",
         details: { stdout },
       };
-    } catch (error: any) {
+    } catch (error) {
+      const errorMessage =
+        error instanceof Error ? error.message : "Erreur inconnue";
       return {
         success: false,
-        message: `Erreur lors de la génération: ${error.message}`,
-        details: { error: error.message },
+        message: `Erreur lors de la génération: ${errorMessage}`,
+        details: { error: errorMessage },
       };
     }
   }
@@ -88,11 +92,13 @@ export class MigrationService {
         message: "Migrations exécutées avec succès",
         details: { stdout },
       };
-    } catch (error: any) {
+    } catch (error) {
+      const errorMessage =
+        error instanceof Error ? error.message : "Erreur inconnue";
       return {
         success: false,
-        message: `Erreur lors des migrations: ${error.message}`,
-        details: { error: error.message },
+        message: `Erreur lors des migrations: ${errorMessage}`,
+        details: { error: errorMessage },
       };
     }
   }
@@ -119,11 +125,13 @@ export class MigrationService {
         message: "Base de données réinitialisée avec succès",
         details: { stdout },
       };
-    } catch (error: any) {
+    } catch (error) {
+      const errorMessage =
+        error instanceof Error ? error.message : "Erreur inconnue";
       return {
         success: false,
-        message: `Erreur lors du reset: ${error.message}`,
-        details: { error: error.message },
+        message: `Erreur lors du reset: ${errorMessage}`,
+        details: { error: errorMessage },
       };
     }
   }
@@ -162,11 +170,13 @@ export class MigrationService {
           status: statusResult.details,
         },
       };
-    } catch (error: any) {
+    } catch (error) {
+      const errorMessage =
+        error instanceof Error ? error.message : "Erreur inconnue";
       return {
         success: false,
-        message: `Erreur lors de l'initialisation: ${error.message}`,
-        details: { error: error.message },
+        message: `Erreur lors de l'initialisation: ${errorMessage}`,
+        details: { error: errorMessage },
       };
     }
   }
@@ -197,11 +207,13 @@ export class MigrationService {
         message: `Sauvegarde créée: ${backupFile}`,
         details: { backupFile, stdout },
       };
-    } catch (error: any) {
+    } catch (error) {
+      const errorMessage =
+        error instanceof Error ? error.message : "Erreur inconnue";
       return {
         success: false,
-        message: `Erreur lors de la sauvegarde: ${error.message}`,
-        details: { error: error.message },
+        message: `Erreur lors de la sauvegarde: ${errorMessage}`,
+        details: { error: errorMessage },
       };
     }
   }

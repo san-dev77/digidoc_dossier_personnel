@@ -1,8 +1,14 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useEffect, useState } from "react";
 import { X } from "lucide-react";
 import { ButtonLoader } from "./Loader";
+import { Input, SecureTextarea } from "@/components/forms";
+import { useFormValidation } from "@/hooks/useFormValidation";
+import {
+  sousDossierFormSchema,
+  type SousDossierFormData as SousDossierFormDataZod,
+} from "@/lib/validation/schemas";
 
 interface SousDossierFormData {
   titre: string;
@@ -34,62 +40,48 @@ export default function SousDossierForm({
   mode,
   sousDossier,
 }: SousDossierFormProps) {
-  const [formData, setFormData] = useState<SousDossierFormData>({
+  const [isSubmitting, setIsSubmitting] = useState(false);
+
+  const initialValues: SousDossierFormDataZod = {
     titre: "",
     description: "",
     rubrique_id: rubriqueId,
-  });
+  };
 
-  const [errors, setErrors] = useState<Partial<SousDossierFormData>>({});
-  const [isSubmitting, setIsSubmitting] = useState(false);
+  const {
+    values: formData,
+    errors,
+    setValue,
+    setFieldTouched,
+    validateForm,
+    reset,
+  } = useFormValidation(sousDossierFormSchema, initialValues);
 
   useEffect(() => {
     if (mode === "edit" && sousDossier) {
-      setFormData({
+      reset({
         titre: sousDossier.titre || "",
         description: sousDossier.description || "",
         rubrique_id: rubriqueId,
       });
     } else {
-      setFormData({
+      reset({
         titre: "",
         description: "",
         rubrique_id: rubriqueId,
       });
     }
-    setErrors({});
   }, [mode, sousDossier, rubriqueId, isOpen]);
-
-  const validateForm = (): boolean => {
-    const newErrors: Partial<SousDossierFormData> = {};
-
-    if (!formData.titre.trim()) {
-      newErrors.titre = "Le titre est requis";
-    }
-    if (!formData.description.trim()) {
-      newErrors.description = "La description est requise";
-    }
-
-    setErrors(newErrors);
-    return Object.keys(newErrors).length === 0;
-  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (validateForm() && !isSubmitting) {
       setIsSubmitting(true);
       try {
-        await onSubmit(formData);
+        await onSubmit(formData as SousDossierFormData);
       } finally {
         setIsSubmitting(false);
       }
-    }
-  };
-
-  const handleChange = (field: keyof SousDossierFormData, value: string) => {
-    setFormData((prev) => ({ ...prev, [field]: value }));
-    if (errors[field]) {
-      setErrors((prev) => ({ ...prev, [field]: undefined }));
     }
   };
 
@@ -116,42 +108,30 @@ export default function SousDossierForm({
         {/* Form */}
         <form onSubmit={handleSubmit} className="p-6 space-y-6">
           {/* Titre */}
-          <div>
-            <label className="block text-sm font-semibold text-gray-700 mb-2">
-              Titre du sous-dossier *
-            </label>
-            <input
-              type="text"
-              value={formData.titre}
-              onChange={(e) => handleChange("titre", e.target.value)}
-              className={`w-full text-black px-3 py-2.5 border rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500 ${
-                errors.titre ? "border-red-300" : "border-gray-300"
-              }`}
-              placeholder="Ex: Documents administratifs 2024"
-            />
-            {errors.titre && (
-              <p className="text-red-600 text-sm mt-1">{errors.titre}</p>
-            )}
-          </div>
+          <Input
+            label="Titre du sous-dossier"
+            value={formData.titre}
+            onChange={(e) => setValue("titre", e.target.value)}
+            onBlur={() => setFieldTouched("titre")}
+            error={errors.titre}
+            required
+            placeholder="Ex: Documents administratifs 2024"
+          />
 
           {/* Description */}
-          <div>
-            <label className="block text-sm font-semibold text-gray-700 mb-2">
-              Description *
-            </label>
-            <textarea
-              value={formData.description}
-              onChange={(e) => handleChange("description", e.target.value)}
-              rows={3}
-              className={`w-full text-black px-3 py-2.5 border rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500 resize-none ${
-                errors.description ? "border-red-300" : "border-gray-300"
-              }`}
-              placeholder="Décrivez le contenu de ce sous-dossier..."
-            />
-            {errors.description && (
-              <p className="text-red-600 text-sm mt-1">{errors.description}</p>
-            )}
-          </div>
+          <SecureTextarea
+            label="Description"
+            value={formData.description || ""}
+            onChange={(value) => {
+              setValue("description", value);
+              setFieldTouched("description");
+            }}
+            error={errors.description}
+            maxLength={1000}
+            sanitize={true}
+            rows={3}
+            placeholder="Décrivez le contenu de ce sous-dossier..."
+          />
 
           {/* Actions */}
           <div className="flex items-center justify-end gap-3 pt-4 border-t border-gray-200">

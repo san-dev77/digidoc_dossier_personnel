@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { protectRoute } from "@/lib/auth/routeProtection";
 import fs from "fs";
 import path from "path";
 
@@ -13,6 +14,12 @@ interface FileNode {
 }
 
 export async function GET(request: NextRequest) {
+  // Protection de la route
+  const authResult = await protectRoute(request);
+  if (!authResult.authorized) {
+    return authResult.response!;
+  }
+
   try {
     const uploadsPath = path.join(process.cwd(), "uploads");
 

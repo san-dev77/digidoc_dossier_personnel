@@ -9,9 +9,7 @@ import {
   ChevronRight,
   Database,
   Upload,
-  Eye,
   Calendar,
-  Building2,
 } from "lucide-react";
 import {
   agentDataService,
@@ -178,7 +176,7 @@ export default function AgentDataViewer({
                     Aucune rubrique avec des données
                   </p>
                   <p className="text-sm text-slate-600 font-medium">
-                    Cet agent n'a pas encore de données associées
+                    Cet agent n&apos;a pas encore de données associées
                   </p>
                 </div>
               ) : (
@@ -339,7 +337,7 @@ export default function AgentDataViewer({
             Aucune donnée trouvée
           </h3>
           <p className="text-slate-600">
-            Aucun agent n'a encore de données associées.
+            Aucun agent n&apos;a encore de données associées.
           </p>
         </div>
       )}

@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { protectRoute } from "@/lib/auth/routeProtection";
 
 // GET /api/pieces/[id]/metadata-models/[modelId] - Récupérer un modèle de métadonnée
 export async function GET(
@@ -33,7 +34,7 @@ export async function GET(
       obligatoire: model.obligatoire,
       description: model.description,
       piece_id: model.piece_id.toString(),
-      created_at: model.created_at.toISOString(),
+      created_at: model.created_at?.toISOString() ?? null,
     });
   } catch (error) {
     console.error(
@@ -49,6 +50,12 @@ export async function PUT(
   request: NextRequest,
   { params }: { params: Promise<{ id: string; modelId: string }> }
 ) {
+  // Protection de la route
+  const authResult = await protectRoute(request);
+  if (!authResult.authorized) {
+    return authResult.response!;
+  }
+
   try {
     const { id: idParam, modelId } = await params;
     const pieceId = parseInt(idParam);
@@ -99,8 +106,8 @@ export async function PUT(
       obligatoire: updatedModel.obligatoire,
       description: updatedModel.description,
       piece_id: updatedModel.piece_id.toString(),
-      created_at: updatedModel.created_at.toISOString(),
-      updated_at: updatedModel.updated_at.toISOString(),
+      created_at: updatedModel.created_at?.toISOString() ?? null,
+      updated_at: updatedModel.updated_at?.toISOString() ?? null,
     });
   } catch (error) {
     console.error(
@@ -116,6 +123,12 @@ export async function DELETE(
   request: NextRequest,
   { params }: { params: Promise<{ id: string; modelId: string }> }
 ) {
+  // Protection de la route
+  const authResult = await protectRoute(request);
+  if (!authResult.authorized) {
+    return authResult.response!;
+  }
+
   try {
     const { id: idParam, modelId } = await params;
     const pieceId = parseInt(idParam);

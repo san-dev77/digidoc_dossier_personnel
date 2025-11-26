@@ -42,12 +42,6 @@ export const CREDIT_METADATA_TYPES = [
   { value: "text", label: "Texte" },
   { value: "number", label: "Nombre" },
   { value: "date", label: "Date" },
-  { value: "currency", label: "Montant" },
-  { value: "percentage", label: "Pourcentage" },
-  { value: "boolean", label: "Oui/Non" },
-  { value: "select", label: "Liste déroulante" },
-  { value: "email", label: "Email" },
-  { value: "phone", label: "Téléphone" },
 ] as const;
 
 /**

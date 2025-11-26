@@ -1,7 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
 import { FileManager } from "@/services/storage/FileManager";
-import { FileValidator } from "@/services/validation/FileValidator";
+// FileValidator importé mais non utilisé - conservé pour usage futur
 import { prisma } from "@/lib/prisma";
+import { protectRoute } from "@/lib/auth/routeProtection";
+import { createErrorResponse } from "@/lib/errors/safeError";
 import path from "path";
 import fs from "fs";
 
@@ -13,14 +15,12 @@ export async function GET(
     const resolvedParams = await params;
     const pieceFileId = resolvedParams.id;
     const { searchParams } = new URL(request.url);
+    // Note: rubriqueId et sousDossierId peuvent être utilisés pour des validations futures
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
     const rubriqueId = searchParams.get("rubriqueId");
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
     const sousDossierId = searchParams.get("sousDossierId");
     const type = searchParams.get("type") || "original"; // original, thumbnail, metadata
-
-    // Si les paramètres ne sont pas fournis, essayer de les récupérer depuis la base de données
-    let finalRubriqueId = rubriqueId;
-    let finalSousDossierId = sousDossierId;
-    let pieceId = pieceFileId;
 
     // Récupérer les informations du fichier depuis la base de données
     const pieceFile = await prisma.piece_file.findUnique({
@@ -43,6 +43,11 @@ export async function GET(
 
     // Utiliser le chemin direct du fichier depuis la base de données
     let filePath: string;
+
+    // Déclarer les variables nécessaires
+    let pieceId: string;
+    let finalSousDossierId: string;
+    let finalRubriqueId: string;
 
     switch (type) {
       case "thumbnail":
@@ -108,7 +113,9 @@ export async function GET(
     const mimeType = getMimeType(filePath);
 
     // Retourner le fichier
-    return new NextResponse(fileBuffer, {
+    // Convertir Buffer en Uint8Array pour NextResponse
+    const fileArray = new Uint8Array(fileBuffer);
+    return new NextResponse(fileArray, {
       headers: {
         "Content-Type": mimeType,
         "Content-Length": fileBuffer.length.toString(),
@@ -119,13 +126,7 @@ export async function GET(
   } catch (error) {
     console.error("Erreur lors de la récupération du fichier:", error);
 
-    return NextResponse.json(
-      {
-        error: "Erreur lors de la récupération du fichier",
-        details: error instanceof Error ? error.message : "Erreur inconnue",
-      },
-      { status: 500 }
-    );
+    return createErrorResponse(error, "Erreur lors de la récupération du fichier", 500);
   }
 }
 
@@ -133,17 +134,21 @@ export async function DELETE(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
+  // Protection de la route
+  const authResult = await protectRoute(request);
+  if (!authResult.authorized) {
+    return authResult.response!;
+  }
+
   try {
     const resolvedParams = await params;
     const pieceFileId = resolvedParams.id;
     const { searchParams } = new URL(request.url);
+    // Note: rubriqueId et sousDossierId peuvent être utilisés pour des validations futures
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
     const rubriqueId = searchParams.get("rubriqueId");
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
     const sousDossierId = searchParams.get("sousDossierId");
-
-    // Si les paramètres ne sont pas fournis, essayer de les récupérer depuis la base de données
-    let finalRubriqueId = rubriqueId;
-    let finalSousDossierId = sousDossierId;
-    let pieceId = pieceFileId;
 
     // Récupérer les informations du fichier depuis la base de données
     const pieceFile = await prisma.piece_file.findUnique({
@@ -172,7 +177,7 @@ export async function DELETE(
     // Optionnel: Supprimer le fichier physique du système de fichiers
     try {
       const filePath = path.join(process.cwd(), pieceFile.file_path);
-      await fs.unlink(filePath);
+      await fs.promises.unlink(filePath);
     } catch (error) {
       console.warn("Impossible de supprimer le fichier physique:", error);
     }
@@ -184,13 +189,7 @@ export async function DELETE(
   } catch (error) {
     console.error("Erreur lors de la suppression du fichier:", error);
 
-    return NextResponse.json(
-      {
-        error: "Erreur lors de la suppression du fichier",
-        details: error instanceof Error ? error.message : "Erreur inconnue",
-      },
-      { status: 500 }
-    );
+    return createErrorResponse(error, "Erreur lors de la suppression du fichier", 500);
   }
 }
 

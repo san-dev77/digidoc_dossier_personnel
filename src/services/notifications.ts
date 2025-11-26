@@ -223,8 +223,18 @@ class NotificationService {
     try {
       const saved = localStorage.getItem("digidoc_notifications");
       if (saved) {
-        const parsed = JSON.parse(saved);
-        this.notifications = parsed.map((n: any) => ({
+        interface NotificationDataSerialized {
+          id: string;
+          title: string;
+          message: string;
+          type: string;
+          category: string;
+          read: boolean;
+          timestamp: string;
+        }
+
+        const parsed: NotificationDataSerialized[] = JSON.parse(saved);
+        this.notifications = parsed.map((n) => ({
           ...n,
           timestamp: new Date(n.timestamp),
         }));

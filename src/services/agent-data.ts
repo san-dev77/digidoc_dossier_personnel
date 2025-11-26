@@ -2,6 +2,7 @@ import { agentsService } from "./agents";
 import { rubriquesService } from "./rubriques";
 import { sousDossiersService } from "./sous-dossiers";
 import { piecesService } from "./pieces";
+import { fetchWithAuth } from "@/lib/api/fetchWithAuth";
 
 export interface AgentData {
   agent: {
@@ -203,7 +204,7 @@ export const agentDataService = {
       const piecesData: PieceData[] = await Promise.all(
         pieces.map(async (piece) => {
           // Récupérer les métadonnées
-          const metadataResponse = await fetch(
+          const metadataResponse = await fetchWithAuth(
             `/api/pieces/${piece.id}/metadata`
           );
           let metadata: MetaValueData[] = [];
@@ -212,7 +213,7 @@ export const agentDataService = {
           }
 
           // Récupérer les fichiers
-          const filesResponse = await fetch(`/api/pieces/${piece.id}/files`);
+          const filesResponse = await fetchWithAuth(`/api/pieces/${piece.id}/files`);
           let files: FileData[] = [];
           if (filesResponse.ok) {
             files = await filesResponse.json();
@@ -223,7 +224,7 @@ export const agentDataService = {
               id: piece.id,
               nom: piece.nom,
               description: piece.description,
-              has_meta: piece.has_meta,
+              has_meta: piece.aMetadonnees,
               createdAt: piece.createdAt,
               updatedAt: piece.updatedAt,
             },

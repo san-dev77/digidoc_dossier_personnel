@@ -1,20 +1,37 @@
 import { Rubrique } from "@/types";
+import { fetchWithAuth } from "@/lib/api/fetchWithAuth";
 
 export const rubriquesService = {
   async getAllRubriques(): Promise<Rubrique[]> {
     try {
-      const response = await fetch("/api/rubriques");
+      const response = await fetchWithAuth("/api/rubriques");
       if (!response.ok) {
         throw new Error("Erreur lors de la récupération des rubriques");
       }
 
-      const data = await response.json();
-      return data.map((rubrique: any) => ({
+      interface RubriqueRow {
+        id: number | string;
+        nom: string;
+        description?: string | null;
+        created_at?: string | Date;
+        updated_at?: string | Date;
+      }
+
+      const data: RubriqueRow[] = await response.json();
+      return data.map((rubrique) => ({
         id: rubrique.id.toString(),
         nom: rubrique.nom,
-        description: rubrique.description,
-        created_at: rubrique.created_at || "",
-        updatedAt: rubrique.updated_at || "",
+        description: rubrique.description || "",
+        created_at: rubrique.created_at
+          ? typeof rubrique.created_at === "string"
+            ? rubrique.created_at
+            : rubrique.created_at.toString()
+          : "",
+        updatedAt: rubrique.updated_at
+          ? typeof rubrique.updated_at === "string"
+            ? rubrique.updated_at
+            : rubrique.updated_at.toString()
+          : "",
       }));
     } catch (error) {
       console.error("Erreur lors de la récupération des rubriques:", error);
@@ -24,7 +41,7 @@ export const rubriquesService = {
 
   async getRubriqueById(id: string): Promise<Rubrique | null> {
     try {
-      const response = await fetch(`/api/rubriques/${id}`);
+      const response = await fetchWithAuth(`/api/rubriques/${id}`);
       if (!response.ok) {
         if (response.status === 404) return null;
         throw new Error("Erreur lors de la récupération de la rubrique");
@@ -48,7 +65,7 @@ export const rubriquesService = {
     rubriqueData: Omit<Rubrique, "id" | "created_at" | "updatedAt">
   ): Promise<Rubrique> {
     try {
-      const response = await fetch("/api/rubriques", {
+      const response = await fetchWithAuth("/api/rubriques", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -80,7 +97,7 @@ export const rubriquesService = {
     rubriqueData: Partial<Omit<Rubrique, "id" | "created_at" | "updatedAt">>
   ): Promise<Rubrique> {
     try {
-      const response = await fetch(`/api/rubriques/${id}`, {
+      const response = await fetchWithAuth(`/api/rubriques/${id}`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(rubriqueData),
@@ -106,7 +123,7 @@ export const rubriquesService = {
 
   async deleteRubrique(id: string): Promise<void> {
     try {
-      const response = await fetch(`/api/rubriques/${id}`, {
+      const response = await fetchWithAuth(`/api/rubriques/${id}`, {
         method: "DELETE",
       });
 
@@ -121,20 +138,36 @@ export const rubriquesService = {
 
   async searchRubriques(query: string): Promise<Rubrique[]> {
     try {
-      const response = await fetch(
+      const response = await fetchWithAuth(
         `/api/rubriques/search?q=${encodeURIComponent(query)}`
       );
       if (!response.ok) {
         throw new Error("Erreur lors de la recherche des rubriques");
       }
 
-      const data = await response.json();
-      return data.map((rubrique: any) => ({
+      interface RubriqueRow {
+        id: number | string;
+        nom: string;
+        description?: string | null;
+        created_at?: string | Date;
+        updated_at?: string | Date;
+      }
+
+      const data: RubriqueRow[] = await response.json();
+      return data.map((rubrique) => ({
         id: rubrique.id.toString(),
         nom: rubrique.nom,
-        description: rubrique.description,
-        created_at: rubrique.created_at || "",
-        updatedAt: rubrique.updated_at || "",
+        description: rubrique.description || "",
+        created_at: rubrique.created_at
+          ? typeof rubrique.created_at === "string"
+            ? rubrique.created_at
+            : rubrique.created_at.toString()
+          : "",
+        updatedAt: rubrique.updated_at
+          ? typeof rubrique.updated_at === "string"
+            ? rubrique.updated_at
+            : rubrique.updated_at.toString()
+          : "",
       }));
     } catch (error) {
       console.error("Erreur lors de la recherche des rubriques:", error);
@@ -148,7 +181,7 @@ export const rubriquesService = {
     piecesWithMetadataCount: number;
   }> {
     try {
-      const response = await fetch(`/api/rubriques/${rubriqueId}/stats`);
+      const response = await fetchWithAuth(`/api/rubriques/${rubriqueId}/stats`);
       if (!response.ok) {
         throw new Error("Erreur lors de la récupération des statistiques");
       }

@@ -1,8 +1,11 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useEffect, useState } from "react";
 import { X, Save, User } from "lucide-react";
 import { Agent, AgentFormData } from "@/types";
+import { Input, SecureTextarea, Select } from "@/components/forms";
+import { useFormValidation } from "@/hooks/useFormValidation";
+import { agentFormSchema, type AgentFormData as AgentFormDataZod } from "@/lib/validation/schemas";
 
 interface AgentFormProps {
   isOpen: boolean;
@@ -19,7 +22,9 @@ export default function AgentForm({
   agent,
   mode,
 }: AgentFormProps) {
-  const [formData, setFormData] = useState<AgentFormData>({
+  const [showOptionalFields, setShowOptionalFields] = useState(false);
+
+  const initialValues: AgentFormDataZod = {
     matricule: "",
     nom_complet: "",
     email: "",
@@ -31,79 +36,64 @@ export default function AgentForm({
     adresse: "",
     telephone: "",
     password: "",
-  });
+  };
 
-  const [errors, setErrors] = useState<Partial<AgentFormData>>({});
-  const [showOptionalFields, setShowOptionalFields] = useState(false);
+  const {
+    values: formData,
+    errors,
+    setValue,
+    setFieldTouched,
+    validateForm,
+    reset,
+  } = useFormValidation(agentFormSchema, initialValues);
 
   useEffect(() => {
     if (mode === "edit" && agent) {
       // Gérer nom_complet depuis la DB ou combiner nom + prenom
+      interface AgentWithNomComplet extends Agent {
+        nom_complet?: string;
+      }
+      const agentWithNomComplet = agent as AgentWithNomComplet;
       const nomComplet =
-        (agent as any).nom_complet || `${agent.prenom || ""} ${agent.nom || ""}`.trim();
+        agentWithNomComplet.nom_complet || `${agent.prenom || ""} ${agent.nom || ""}`.trim();
 
-      setFormData({
+      reset({
         matricule: agent.matricule || "",
         nom_complet: nomComplet,
         email: agent.email || "",
         fonction: agent.fonction || "",
         date_naissance: agent.date_naissance || "",
         lieu_naissance: agent.lieu_naissance || "",
-        sexe: agent.sexe || "M",
+        sexe: (agent.sexe as "M" | "F") || "M",
         situationMatrimoniale: agent.situationMatrimoniale || "Célibataire",
         adresse: agent.adresse || "",
         telephone: agent.telephone || "",
-      });
-    } else {
-      setFormData({
-        matricule: "",
-        nom_complet: "",
-        email: "",
-        fonction: "",
-        date_naissance: "",
-        lieu_naissance: "",
-        sexe: "M",
-        situationMatrimoniale: "Célibataire",
-        adresse: "",
-        telephone: "",
         password: "",
       });
+    } else {
+      reset(initialValues);
     }
-    setErrors({});
   }, [mode, agent, isOpen]);
-
-  const validateForm = (): boolean => {
-    const newErrors: Partial<AgentFormData> = {};
-
-    // Champs obligatoires
-    if (!formData.matricule.trim())
-      newErrors.matricule = "Le matricule est requis";
-    if (!formData.nom_complet.trim())
-      newErrors.nom_complet = "Le nom complet est requis";
-    if (!formData.fonction.trim())
-      newErrors.fonction = "La fonction est requise";
-    if (mode === "create" && !formData.password?.trim())
-      newErrors.password = "Le mot de passe est requis";
-
-    // Champs optionnels (masqués mais peuvent être remplis)
-    // Email, date de naissance, lieu, sexe, situation matrimoniale, adresse, téléphone
-    // sont maintenant optionnels
-
-    setErrors(newErrors);
-    return Object.keys(newErrors).length === 0;
-  };
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (validateForm()) {
-      onSubmit(formData);
-    }
-  };
-
-  const handleChange = (field: keyof AgentFormData, value: string) => {
-    setFormData((prev) => ({ ...prev, [field]: value }));
-    if (errors[field]) {
-      setErrors((prev) => ({ ...prev, [field]: undefined }));
+      // Convertir les valeurs pour correspondre au type AgentFormData attendu
+      const submitData: AgentFormData = {
+        matricule: formData.matricule,
+        nom_complet: formData.nom_complet,
+        email: formData.email || "", // Convertir undefined en chaîne vide
+        fonction: formData.fonction || "",
+        date_naissance: formData.date_naissance || "",
+        lieu_naissance: formData.lieu_naissance || "",
+        sexe: formData.sexe,
+        situationMatrimoniale: (formData.situationMatrimoniale ||
+          "Célibataire") as "Célibataire" | "Marié(e)" | "Divorcé(e)" | "Veuf/Veuve",
+        adresse: formData.adresse || "",
+        telephone: formData.telephone || "",
+        password: formData.password || undefined,
+      };
+      onSubmit(submitData);
     }
   };
 
@@ -140,86 +130,50 @@ export default function AgentForm({
               </h4>
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-sm font-semibold text-gray-700 mb-2">
-                    Matricule *
-                  </label>
-                  <input
-                    type="text"
-                    value={formData.matricule}
-                    onChange={(e) => handleChange("matricule", e.target.value)}
-                    className={`w-full text-black px-3 py-2.5 border rounded-lg focus:ring-2 focus:ring-slate-500 focus:border-slate-500 ${
-                      errors.matricule ? "border-red-300" : "border-gray-300"
-                    }`}
-                    placeholder="Ex: AG001"
-                  />
-                  {errors.matricule && (
-                    <p className="text-red-600 text-sm mt-1">
-                      {errors.matricule}
-                    </p>
-                  )}
-                </div>
+                <Input
+                  label="Matricule"
+                  value={formData.matricule}
+                  onChange={(e) => setValue("matricule", e.target.value)}
+                  onBlur={() => setFieldTouched("matricule")}
+                  error={errors.matricule}
+                  required
+                  placeholder="Ex: AG001"
+                />
 
-                <div>
-                  <label className="block text-sm font-semibold text-gray-700 mb-2">
-                    Fonction *
-                  </label>
-                  <input
-                    type="text"
-                    value={formData.fonction}
-                    onChange={(e) => handleChange("fonction", e.target.value)}
-                    className={`w-full text-black px-3 py-2.5 border rounded-lg focus:ring-2 focus:ring-slate-500 focus:border-slate-500 ${
-                      errors.fonction ? "border-red-300" : "border-gray-300"
-                    }`}
-                    placeholder="Ex: Manager, Développeur, Chef de projet..."
-                  />
-                  {errors.fonction && (
-                    <p className="text-red-600 text-sm mt-1">
-                      {errors.fonction}
-                    </p>
-                  )}
-                </div>
+                <Input
+                  label="Fonction"
+                  value={formData.fonction}
+                  onChange={(e) => setValue("fonction", e.target.value)}
+                  onBlur={() => setFieldTouched("fonction")}
+                  error={errors.fonction}
+                  required
+                  placeholder="Ex: Manager, Développeur, Chef de projet..."
+                />
 
                 <div className="md:col-span-2">
-                  <label className="block text-sm font-semibold text-gray-700 mb-2">
-                    Nom complet *
-                  </label>
-                  <input
-                    type="text"
+                  <Input
+                    label="Nom complet"
                     value={formData.nom_complet}
-                    onChange={(e) => handleChange("nom_complet", e.target.value)}
-                    className={`w-full text-black px-3 py-2.5 border rounded-lg focus:ring-2 focus:ring-slate-500 focus:border-slate-500 ${
-                      errors.nom_complet ? "border-red-300" : "border-gray-300"
-                    }`}
+                    onChange={(e) => setValue("nom_complet", e.target.value)}
+                    onBlur={() => setFieldTouched("nom_complet")}
+                    error={errors.nom_complet}
+                    required
                     placeholder="Ex: Jean Dupont"
                   />
-                  {errors.nom_complet && (
-                    <p className="text-red-600 text-sm mt-1">
-                      {errors.nom_complet}
-                    </p>
-                  )}
                 </div>
 
                 {mode === "create" && (
-                  <div>
-                    <label className="block text-sm font-semibold text-gray-700 mb-2">
-                      Mot de passe *
-                    </label>
-                    <input
-                      type="password"
-                      value={formData.password || ""}
-                      onChange={(e) => handleChange("password", e.target.value)}
-                      className={`w-full text-black px-3 py-2.5 border rounded-lg focus:ring-2 focus:ring-slate-500 focus:border-slate-500 ${
-                        errors.password ? "border-red-300" : "border-gray-300"
-                      }`}
-                      placeholder="Mot de passe"
-                    />
-                    {errors.password && (
-                      <p className="text-red-600 text-sm mt-1">
-                        {errors.password}
-                      </p>
-                    )}
-                  </div>
+                  <Input
+                    type="password"
+                    label="Mot de passe"
+                    value={formData.password || ""}
+                    onChange={(e) => setValue("password", e.target.value)}
+                    onBlur={() => setFieldTouched("password")}
+                    error={errors.password}
+                    required
+                    helperText="Minimum 6 caractères"
+                    placeholder="Mot de passe"
+                  />
                 )}
               </div>
             </div>
@@ -262,104 +216,82 @@ export default function AgentForm({
                 </h4>
 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div>
-                    <label className="block text-sm font-semibold text-gray-700 mb-2">
-                      Email
-                    </label>
-                    <input
-                      type="email"
-                      value={formData.email}
-                      onChange={(e) => handleChange("email", e.target.value)}
-                      className="w-full text-black px-3 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-slate-500 focus:border-slate-500"
-                      placeholder="Ex: jean.dupont@entreprise.com"
-                    />
-                  </div>
+                  <Input
+                    type="email"
+                    label="Email"
+                    value={formData.email || ""}
+                    onChange={(e) => setValue("email", e.target.value)}
+                    onBlur={() => setFieldTouched("email")}
+                    error={errors.email}
+                    placeholder="Ex: jean.dupont@entreprise.com"
+                  />
 
-                  <div>
-                    <label className="block text-sm font-semibold text-gray-700 mb-2">
-                      Téléphone
-                    </label>
-                    <input
-                      type="tel"
-                      value={formData.telephone}
-                      onChange={(e) => handleChange("telephone", e.target.value)}
-                      className="w-full text-black px-3 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-slate-500 focus:border-slate-500"
-                      placeholder="Ex: 01 23 45 67 89"
-                    />
-                  </div>
+                  <Input
+                    type="tel"
+                    label="Téléphone"
+                    value={formData.telephone || ""}
+                    onChange={(e) => setValue("telephone", e.target.value)}
+                    onBlur={() => setFieldTouched("telephone")}
+                    error={errors.telephone}
+                    placeholder="Ex: 01 23 45 67 89"
+                  />
 
-                  <div>
-                    <label className="block text-sm font-semibold text-gray-700 mb-2">
-                      Date de naissance
-                    </label>
-                    <input
-                      type="date"
-                      value={formData.date_naissance}
-                      onChange={(e) =>
-                        handleChange("date_naissance", e.target.value)
-                      }
-                      className="w-full text-white bg-gray-700 px-3 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-slate-500 focus:border-slate-500"
-                    />
-                  </div>
+                  <Input
+                    type="date"
+                    label="Date de naissance"
+                    value={formData.date_naissance || ""}
+                    onChange={(e) => setValue("date_naissance", e.target.value)}
+                    onBlur={() => setFieldTouched("date_naissance")}
+                    error={errors.date_naissance}
+                  />
 
-                  <div>
-                    <label className="block text-sm font-semibold text-gray-700 mb-2">
-                      Lieu de naissance
-                    </label>
-                    <input
-                      type="text"
-                      value={formData.lieu_naissance}
-                      onChange={(e) =>
-                        handleChange("lieu_naissance", e.target.value)
-                      }
-                      className="w-full text-black px-3 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-slate-500 focus:border-slate-500"
-                      placeholder="Ville de naissance"
-                    />
-                  </div>
+                  <Input
+                    label="Lieu de naissance"
+                    value={formData.lieu_naissance || ""}
+                    onChange={(e) => setValue("lieu_naissance", e.target.value)}
+                    onBlur={() => setFieldTouched("lieu_naissance")}
+                    error={errors.lieu_naissance}
+                    placeholder="Ville de naissance"
+                  />
 
-                  <div>
-                    <label className="block text-sm font-semibold text-gray-700 mb-2">
-                      Sexe
-                    </label>
-                    <select
-                      value={formData.sexe}
-                      onChange={(e) =>
-                        handleChange("sexe", e.target.value as "M" | "F")
-                      }
-                      className="w-full text-black px-3 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-slate-500 focus:border-slate-500"
-                    >
-                      <option value="M">Masculin</option>
-                      <option value="F">Féminin</option>
-                    </select>
-                  </div>
+                  <Select
+                    label="Sexe"
+                    value={formData.sexe}
+                    onChange={(e) => setValue("sexe", e.target.value as "M" | "F")}
+                    onBlur={() => setFieldTouched("sexe")}
+                    error={errors.sexe}
+                    options={[
+                      { value: "M", label: "Masculin" },
+                      { value: "F", label: "Féminin" },
+                    ]}
+                  />
 
-                  <div>
-                    <label className="block text-sm font-semibold text-gray-700 mb-2">
-                      Situation matrimoniale
-                    </label>
-                    <select
-                      value={formData.situationMatrimoniale}
-                      onChange={(e) =>
-                        handleChange("situationMatrimoniale", e.target.value)
-                      }
-                      className="w-full text-black px-3 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-slate-500 focus:border-slate-500"
-                    >
-                      <option value="Célibataire">Célibataire</option>
-                      <option value="Marié(e)">Marié(e)</option>
-                      <option value="Divorcé(e)">Divorcé(e)</option>
-                      <option value="Veuf/Veuve">Veuf/Veuve</option>
-                    </select>
-                  </div>
+                  <Select
+                    label="Situation matrimoniale"
+                    value={formData.situationMatrimoniale}
+                    onChange={(e) => setValue("situationMatrimoniale", e.target.value)}
+                    onBlur={() => setFieldTouched("situationMatrimoniale")}
+                    error={errors.situationMatrimoniale}
+                    options={[
+                      { value: "Célibataire", label: "Célibataire" },
+                      { value: "Marié(e)", label: "Marié(e)" },
+                      { value: "Divorcé(e)", label: "Divorcé(e)" },
+                      { value: "Veuf/Veuve", label: "Veuf/Veuve" },
+                    ]}
+                  />
 
                   <div className="md:col-span-2">
-                    <label className="block text-sm font-semibold text-gray-700 mb-2">
-                      Adresse
-                    </label>
-                    <textarea
-                      value={formData.adresse}
-                      onChange={(e) => handleChange("adresse", e.target.value)}
+                    <SecureTextarea
+                      label="Adresse"
+                      value={formData.adresse || ""}
+                      onChange={(value) => {
+                        setValue("adresse", value);
+                        setFieldTouched("adresse");
+                      }}
+                      error={errors.adresse}
+                      maxLength={500}
+                      sanitize={true}
                       rows={3}
-                      className="w-full text-black px-3 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-slate-500 focus:border-slate-500"
                       placeholder="Adresse complète"
                     />
                   </div>

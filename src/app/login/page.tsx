@@ -12,40 +12,84 @@ import {
   Shield,
   AlertCircle,
   Loader2,
+  AlertTriangle,
 } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
+import { Input } from "@/components/forms";
+import { useFormValidation } from "@/hooks/useFormValidation";
+import { z } from "zod";
+import RateLimitModal from "@/components/RateLimitModal";
+import type { RateLimitInfo, AuthError } from "@/services/auth";
+
+const loginSchema = z.object({
+  matricule: z.string().min(1, "Le matricule est requis"),
+  password: z.string().min(1, "Le mot de passe est requis"),
+});
 
 export default function LoginPage() {
   const [showPassword, setShowPassword] = useState(false);
-  const [formData, setFormData] = useState({
-    matricule: "",
-    password: "",
-  });
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [rateLimitInfo, setRateLimitInfo] = useState<RateLimitInfo | null>(
+    null
+  );
+  const [showRateLimitModal, setShowRateLimitModal] = useState(false);
+  const [rateLimitError, setRateLimitError] = useState<string>("");
 
   const { login, error: authError, loading } = useAuth();
   const router = useRouter();
+
+  const {
+    values: formData,
+    errors,
+    setValue,
+    setFieldTouched,
+    validateForm,
+  } = useFormValidation(loginSchema, {
+    matricule: "",
+    password: "",
+  });
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (isSubmitting) return;
 
+    if (!validateForm()) return;
+
     try {
       setIsSubmitting(true);
-      await login(formData.matricule, formData.password);
+      setRateLimitError("");
+      const result = await login(formData.matricule, formData.password);
+
+      // Mettre à jour les infos de rate limit si disponibles (même en cas de succès)
+      if (result && "rateLimitInfo" in result && result.rateLimitInfo) {
+        setRateLimitInfo(result.rateLimitInfo);
+      }
+
       router.push("/dashboard"); // Redirection vers le tableau de bord
     } catch (error) {
       console.error("Erreur de connexion:", error);
+
+      // Vérifier si c'est une erreur avec rate limit info
+      const authError = error as AuthError;
+
+      // Toujours mettre à jour les infos de rate limit si disponibles
+      if (authError?.rateLimitInfo) {
+        setRateLimitInfo(authError.rateLimitInfo);
+
+        // Si c'est une erreur 429 (rate limit atteint), afficher la modale
+        if (
+          authError.message?.includes("Trop de tentatives") ||
+          authError.message?.includes("Réessayez")
+        ) {
+          setRateLimitError(
+            authError.message || "Trop de tentatives de connexion"
+          );
+          setShowRateLimitModal(true);
+        }
+      }
     } finally {
       setIsSubmitting(false);
     }
-  };
-
-  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    setFormData({
-      ...formData,
-      [e.target.name]: e.target.value,
-    });
   };
 
   return (
@@ -104,10 +148,42 @@ export default function LoginPage() {
           <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/10 to-transparent -skew-x-12 -translate-x-full group-hover:translate-x-full transition-transform duration-1000"></div>
 
           {/* Affichage des erreurs */}
-          {authError && (
+          {authError && !rateLimitError && (
             <div className="mb-6 p-4 bg-red-50 border border-red-200 rounded-xl flex items-center space-x-3">
               <AlertCircle className="w-5 h-5 text-red-600" />
               <span className="text-red-700 font-medium">{authError}</span>
+            </div>
+          )}
+
+          {/* Compteur de tentatives restantes */}
+          {rateLimitInfo && rateLimitInfo.remaining < rateLimitInfo.limit && (
+            <div className="mb-6 p-4 bg-amber-50 border border-amber-200 rounded-xl">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center space-x-3">
+                  <AlertTriangle className="w-5 h-5 text-amber-600" />
+                  <div>
+                    <p className="text-amber-800 font-semibold text-sm">
+                      Tentatives restantes
+                    </p>
+                    <p className="text-amber-700 text-xs">
+                      {rateLimitInfo.remaining} / {rateLimitInfo.limit}{" "}
+                      tentatives
+                    </p>
+                  </div>
+                </div>
+                <div className="flex items-center space-x-2">
+                  <div className="w-24 h-2 bg-amber-200 rounded-full overflow-hidden">
+                    <div
+                      className="h-full bg-amber-600 transition-all duration-300"
+                      style={{
+                        width: `${
+                          (rateLimitInfo.remaining / rateLimitInfo.limit) * 100
+                        }%`,
+                      }}
+                    />
+                  </div>
+                </div>
+              </div>
             </div>
           )}
 
@@ -121,18 +197,21 @@ export default function LoginPage() {
                 Matricule
               </label>
               <div className="relative group">
-                <input
+                <Input
                   type="text"
                   id="matricule"
-                  name="matricule"
                   value={formData.matricule}
-                  onChange={handleChange}
+                  onChange={(e) => setValue("matricule", e.target.value)}
+                  onBlur={() => setFieldTouched("matricule")}
+                  error={errors.matricule}
                   required
                   disabled={isSubmitting || loading}
                   className="w-full px-5 py-5 pl-14 border-2 border-slate-200 rounded-2xl focus:ring-4 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all duration-300 bg-white/80 backdrop-blur-sm hover:bg-white hover:border-primary-300 text-primary-900 placeholder-slate-500 font-medium shadow-sm hover:shadow-md disabled:opacity-50 disabled:cursor-not-allowed"
                   placeholder="Entrez votre matricule"
+                  fullWidth={false}
+                  label=""
                 />
-                <User className="absolute left-5 top-1/2 transform -translate-y-1/2 w-5 h-5 text-slate-400 group-hover:text-indigo-500 transition-colors duration-300" />
+                <User className="absolute left-5 top-1/2 transform -translate-y-1/2 w-5 h-5 text-slate-400 group-hover:text-indigo-500 transition-colors duration-300 pointer-events-none" />
               </div>
             </div>
 
@@ -145,23 +224,26 @@ export default function LoginPage() {
                 Mot de passe
               </label>
               <div className="relative group">
-                <input
+                <Input
                   type={showPassword ? "text" : "password"}
                   id="password"
-                  name="password"
                   value={formData.password}
-                  onChange={handleChange}
+                  onChange={(e) => setValue("password", e.target.value)}
+                  onBlur={() => setFieldTouched("password")}
+                  error={errors.password}
                   required
                   disabled={isSubmitting || loading}
                   className="w-full px-5 py-5 pl-14 pr-14 border-2 border-slate-200 rounded-2xl focus:ring-4 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all duration-300 bg-white/80 backdrop-blur-sm hover:bg-white hover:border-primary-300 text-primary-900 placeholder-slate-500 font-medium shadow-sm hover:shadow-md disabled:opacity-50 disabled:cursor-not-allowed"
                   placeholder="Entrez votre mot de passe"
+                  fullWidth={false}
+                  label=""
                 />
-                <Lock className="absolute left-5 top-1/2 transform -translate-y-1/2 w-5 h-5 text-slate-400 group-hover:text-indigo-500 transition-colors duration-300" />
+                <Lock className="absolute left-5 top-1/2 transform -translate-y-1/2 w-5 h-5 text-slate-400 group-hover:text-indigo-500 transition-colors duration-300 pointer-events-none" />
                 <button
                   type="button"
                   onClick={() => setShowPassword(!showPassword)}
                   disabled={isSubmitting || loading}
-                  className="absolute right-4 top-1/2 transform -translate-y-1/2 text-slate-400 hover:text-indigo-600 transition-all duration-300 p-2 hover:bg-indigo-50 rounded-xl hover:scale-110 disabled:opacity-50 disabled:cursor-not-allowed"
+                  className="absolute right-4 top-1/2 transform -translate-y-1/2 text-slate-400 hover:text-indigo-600 transition-all duration-300 p-2 hover:bg-indigo-50 rounded-xl hover:scale-110 disabled:opacity-50 disabled:cursor-not-allowed z-10"
                 >
                   {showPassword ? (
                     <EyeOff className="w-5 h-5" />
@@ -208,6 +290,17 @@ export default function LoginPage() {
           </div>
         </div>
       </div>
+
+      {/* Modale de rate limiting */}
+      <RateLimitModal
+        isOpen={showRateLimitModal}
+        onClose={() => setShowRateLimitModal(false)}
+        message={
+          rateLimitError ||
+          "Trop de tentatives de connexion. Réessayez dans quelques minutes."
+        }
+        retryAfter={rateLimitInfo?.retryAfter}
+      />
     </div>
   );
 }

@@ -1,7 +1,14 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { protectRoute } from "@/lib/auth/routeProtection";
 
 export async function GET(req: NextRequest) {
+  // Protection de la route
+  const authResult = await protectRoute(req);
+  if (!authResult.authorized) {
+    return authResult.response!;
+  }
+
   try {
     // Récupérer tous les agents qui n'ont pas de relation dans agent_rubriques
     const agents = await prisma.agents.findMany({

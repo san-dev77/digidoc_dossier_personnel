@@ -1,11 +1,18 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { protectRoute } from "@/lib/auth/routeProtection";
 
 // GET /api/pieces/[id]
 export async function GET(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
+  // Protection de la route
+  const authResult = await protectRoute(request);
+  if (!authResult.authorized) {
+    return authResult.response!;
+  }
+
   try {
     const { id: idParam } = await params;
     const id = parseInt(idParam);
@@ -57,6 +64,12 @@ export async function PUT(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
+  // Protection de la route
+  const authResult = await protectRoute(request);
+  if (!authResult.authorized) {
+    return authResult.response!;
+  }
+
   try {
     const { id: idParam } = await params;
     const id = parseInt(idParam);
@@ -71,14 +84,31 @@ export async function PUT(
     console.log("🔧 Mise à jour de la pièce ID:", id);
     console.log("📝 Données reçues:", body);
 
+    // Construire l'objet de mise à jour de manière explicite
+    const updateData: {
+      nom?: string;
+      description?: string | null;
+      has_meta?: boolean;
+      updated_at: Date;
+    } = {
+      updated_at: new Date(),
+    };
+
+    if (nom !== undefined) {
+      updateData.nom = nom;
+    }
+    if (description !== undefined) {
+      updateData.description = description || null;
+    }
+    if (aMetadonnees !== undefined) {
+      updateData.has_meta = aMetadonnees;
+    }
+
+    console.log("📦 Données de mise à jour:", updateData);
+
     const piece = await prisma.pieces.update({
       where: { id },
-      data: {
-        nom: nom || undefined,
-        description: description !== undefined ? description : undefined,
-        has_meta: aMetadonnees !== undefined ? aMetadonnees : undefined,
-        updated_at: new Date(),
-      },
+      data: updateData,
     });
 
     console.log("✅ Pièce mise à jour en base:", piece);
@@ -103,6 +133,12 @@ export async function DELETE(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
+  // Protection de la route
+  const authResult = await protectRoute(request);
+  if (!authResult.authorized) {
+    return authResult.response!;
+  }
+
   try {
     const { id: idParam } = await params;
     const id = parseInt(idParam);

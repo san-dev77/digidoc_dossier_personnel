@@ -1,14 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import {
-  Bell,
-  Search,
-  User,
-  LogOut,
-  Settings,
-  ChevronDown,
-} from "lucide-react";
+import { Search, User, LogOut, Settings, ChevronDown } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 import { useUser } from "@/hooks/useUser";
 import ThemeSwitcher from "./ThemeSwitcher";
@@ -17,7 +10,6 @@ export default function TopBar() {
   const { logout } = useAuth();
   const { user, fullName, fonction } = useUser();
   const [isProfileOpen, setIsProfileOpen] = useState(false);
-  const [isNotificationsOpen, setIsNotificationsOpen] = useState(false);
 
   // Débogage: afficher les infos utilisateur dans la console
   // Décommentez ce code pour déboguer les problèmes de session utilisateur
@@ -54,32 +46,6 @@ export default function TopBar() {
       console.error("Erreur lors de la déconnexion:", error);
     }
   };
-
-  const notifications = [
-    {
-      id: 1,
-      title: "Nouveau dossier créé",
-      message: "Le dossier de Jean Dupont a été créé avec succès",
-      time: "Il y a 5 minutes",
-      unread: true,
-    },
-    {
-      id: 2,
-      title: "Document validé",
-      message: "Le document CNI-001 a été validé",
-      time: "Il y a 1 heure",
-      unread: true,
-    },
-    {
-      id: 3,
-      title: "Rapport mensuel",
-      message: "Le rapport mensuel est disponible",
-      time: "Il y a 2 heures",
-      unread: false,
-    },
-  ];
-
-  const unreadCount = notifications.filter((n) => n.unread).length;
 
   return (
     <header className="bg-white border-b border-primary-300 shadow-primary">

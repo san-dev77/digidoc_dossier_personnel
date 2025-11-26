@@ -32,15 +32,28 @@ export class EncryptionService {
     tag: Buffer;
   } {
     const iv = this.generateIV();
-    const cipher = crypto.createCipher(this.ALGORITHM, key);
-    cipher.setAAD(Buffer.from("file-encryption"));
+    // Utiliser createCipheriv pour les algorithmes GCM qui supportent setAAD et getAuthTag
+    const keyBuffer = Buffer.from(key, "hex").slice(0, 32); // Prendre les 32 premiers bytes pour AES-256
+    const cipher = crypto.createCipheriv(
+      this.ALGORITHM,
+      keyBuffer,
+      iv
+    ) as crypto.CipherGCM;
+
+    // setAAD et getAuthTag sont disponibles uniquement pour les algorithmes GCM
+    if (this.ALGORITHM.includes("gcm")) {
+      cipher.setAAD(Buffer.from("file-encryption"));
+    }
 
     const encrypted = Buffer.concat([
       cipher.update(fileBuffer),
       cipher.final(),
     ]);
 
-    const tag = cipher.getAuthTag();
+    // getAuthTag est disponible uniquement pour les algorithmes GCM
+    const tag = this.ALGORITHM.includes("gcm")
+      ? cipher.getAuthTag()
+      : Buffer.alloc(0);
 
     return {
       encryptedData: encrypted,
@@ -58,9 +71,19 @@ export class EncryptionService {
     iv: Buffer,
     tag: Buffer
   ): Buffer {
-    const decipher = crypto.createDecipher(this.ALGORITHM, key);
-    decipher.setAAD(Buffer.from("file-encryption"));
-    decipher.setAuthTag(tag);
+    // Utiliser createDecipheriv pour les algorithmes GCM qui supportent setAAD et setAuthTag
+    const keyBuffer = Buffer.from(key, "hex").slice(0, 32); // Prendre les 32 premiers bytes pour AES-256
+    const decipher = crypto.createDecipheriv(
+      this.ALGORITHM,
+      keyBuffer,
+      iv
+    ) as crypto.DecipherGCM;
+
+    // setAAD et setAuthTag sont disponibles uniquement pour les algorithmes GCM
+    if (this.ALGORITHM.includes("gcm")) {
+      decipher.setAAD(Buffer.from("file-encryption"));
+      decipher.setAuthTag(tag);
+    }
 
     const decrypted = Buffer.concat([
       decipher.update(encryptedData),
@@ -87,7 +110,8 @@ export class EncryptionService {
 
     // Sauvegarder le fichier chiffré
     const encryptedPath = outputPath + ".enc";
-    await require("fs-extra").writeFile(encryptedPath, encryptedData);
+    const fsExtra = await import("fs-extra");
+    await fsExtra.writeFile(encryptedPath, encryptedData);
 
     // Sauvegarder les métadonnées de chiffrement
     const metadataPath = outputPath + ".meta";
@@ -98,10 +122,7 @@ export class EncryptionService {
       timestamp: new Date().toISOString(),
     };
 
-    await require("fs-extra").writeFile(
-      metadataPath,
-      JSON.stringify(metadata, null, 2)
-    );
+    await fsExtra.writeFile(metadataPath, JSON.stringify(metadata, null, 2));
 
     return {
       encryptedPath,
@@ -121,12 +142,11 @@ export class EncryptionService {
     const metadataPath = encryptedPath + ".meta";
 
     // Charger les métadonnées
-    const metadata = JSON.parse(
-      await require("fs-extra").readFile(metadataPath, "utf8")
-    );
+    const fsExtra = await import("fs-extra");
+    const metadata = JSON.parse(await fsExtra.readFile(metadataPath, "utf8"));
 
     // Charger le fichier chiffré
-    const encryptedData = await require("fs-extra").readFile(encryptedPath);
+    const encryptedData = await fsExtra.readFile(encryptedPath);
 
     // Déchiffrer
     const iv = Buffer.from(metadata.iv, "hex");
@@ -153,7 +173,10 @@ export class EncryptionService {
   /**
    * Chiffre les métadonnées sensibles
    */
-  static encryptMetadata(metadata: any, key: string): string {
+  static encryptMetadata(
+    metadata: Record<string, unknown>,
+    key: string
+  ): string {
     const cipher = crypto.createCipher("aes-256-cbc", key);
     let encrypted = cipher.update(JSON.stringify(metadata), "utf8", "hex");
     encrypted += cipher.final("hex");
@@ -163,7 +186,10 @@ export class EncryptionService {
   /**
    * Déchiffre les métadonnées sensibles
    */
-  static decryptMetadata(encryptedMetadata: string, key: string): any {
+  static decryptMetadata(
+    encryptedMetadata: string,
+    key: string
+  ): Record<string, unknown> {
     const decipher = crypto.createDecipher("aes-256-cbc", key);
     let decrypted = decipher.update(encryptedMetadata, "hex", "utf8");
     decrypted += decipher.final("utf8");

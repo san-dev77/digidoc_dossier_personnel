@@ -1,7 +1,14 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { protectRoute } from "@/lib/auth/routeProtection";
 
 export async function POST(req: NextRequest) {
+  // Protection de la route
+  const authResult = await protectRoute(req);
+  if (!authResult.authorized) {
+    return authResult.response!;
+  }
+
   try {
     const { piece_id, disponible, agent_id } = await req.json();
 
@@ -52,7 +59,7 @@ export async function POST(req: NextRequest) {
         id: result.id.toString(),
         piece_id: result.piece_id.toString(),
         disponible: result.disponible,
-        date_check: result.date_check.toISOString(),
+        date_check: result.date_check?.toISOString() ?? null,
         agent_id: result.agent_id.toString(),
       },
     });
@@ -66,12 +73,22 @@ export async function POST(req: NextRequest) {
 }
 
 export async function GET(req: NextRequest) {
+  // Protection de la route
+  const authResult = await protectRoute(req);
+  if (!authResult.authorized) {
+    return authResult.response!;
+  }
+
   try {
     const { searchParams } = new URL(req.url);
     const agentId = searchParams.get("agent_id");
     const pieceId = searchParams.get("piece_id");
 
-    let whereClause: any = {};
+    interface WhereClause {
+      agent_id?: number;
+      piece_id?: number;
+    }
+    const whereClause: WhereClause = {};
     if (agentId) {
       whereClause.agent_id = parseInt(agentId);
     }
@@ -94,7 +111,7 @@ export async function GET(req: NextRequest) {
       id: check.id.toString(),
       piece_id: check.piece_id.toString(),
       disponible: check.disponible,
-      date_check: check.date_check.toISOString(),
+      date_check: check.date_check?.toISOString() ?? null,
       agent_id: check.agent_id.toString(),
       piece: {
         id: check.pieces.id.toString(),

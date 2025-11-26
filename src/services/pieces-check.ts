@@ -1,4 +1,5 @@
 import type { PieceCheck } from "@/types";
+import { fetchWithAuth } from "@/lib/api/fetchWithAuth";
 
 export interface PieceCheckFormData {
   piece_id: string;
@@ -9,7 +10,7 @@ export interface PieceCheckFormData {
 export const piecesCheckService = {
   async updatePieceAvailability(data: PieceCheckFormData): Promise<PieceCheck> {
     try {
-      const response = await fetch("/api/pieces-check", {
+      const response = await fetchWithAuth("/api/pieces-check", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(data),
@@ -39,7 +40,7 @@ export const piecesCheckService = {
       if (agentId) params.append("agent_id", agentId);
       if (pieceId) params.append("piece_id", pieceId);
 
-      const response = await fetch(`/api/pieces-check?${params.toString()}`);
+      const response = await fetchWithAuth(`/api/pieces-check?${params.toString()}`);
       if (!response.ok) {
         throw new Error("Erreur lors de la récupération des vérifications");
       }

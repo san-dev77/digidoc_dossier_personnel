@@ -34,6 +34,7 @@ export default function NotificationsPage() {
   const {
     notifications,
     unreadCount,
+    addNotification,
     markAsRead,
     markAllAsRead,
     deleteNotification,
@@ -201,7 +202,7 @@ export default function NotificationsPage() {
                 ].map((filterOption) => (
                   <button
                     key={filterOption.key}
-                    onClick={() => setFilter(filterOption.key as any)}
+                    onClick={() => setFilter(filterOption.key as "all" | "unread" | "login" | "system")}
                     className={`px-4 py-2 rounded-xl font-medium transition-all duration-300 ${
                       filter === filterOption.key
                         ? "bg-primary-600 text-white shadow-lg"

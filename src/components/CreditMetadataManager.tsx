@@ -3,10 +3,7 @@
 import { useState, useEffect, useCallback } from "react";
 import { Plus, Edit, Trash2, Save, X, Database } from "lucide-react";
 import { MetadataService } from "@/services/metadata";
-import {
-  CREDIT_METADATA_TYPES,
-  DEFAULT_CREDIT_METADATA,
-} from "@/utils/rubrique-utils";
+import { CREDIT_METADATA_TYPES } from "@/utils/rubrique-utils";
 
 interface CreditMetadata {
   id?: number;

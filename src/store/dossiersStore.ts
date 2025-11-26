@@ -50,6 +50,7 @@ export interface SousDossierWithStats {
   piecesWithMetadataCount: number;
   totalMetadataCount: number;
   lastActivity: string;
+  agentDossierId?: number; // ID de l'agent_dossier pour la suppression
 }
 
 export interface DossierData {

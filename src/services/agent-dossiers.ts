@@ -1,3 +1,5 @@
+import { fetchWithAuth } from "@/lib/api/fetchWithAuth";
+
 export interface AgentDossier {
   id: string;
   agent_id: string;
@@ -16,7 +18,7 @@ export const agentDossiersService = {
     sousDossierId: string
   ): Promise<AgentDossier> {
     try {
-      const response = await fetch("/api/agent-dossiers", {
+      const response = await fetchWithAuth("/api/agent-dossiers", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -43,7 +45,7 @@ export const agentDossiersService = {
    */
   async getAllAgentDossiers(): Promise<AgentDossier[]> {
     try {
-      const response = await fetch("/api/agent-dossiers");
+      const response = await fetchWithAuth("/api/agent-dossiers");
       if (!response.ok) {
         throw new Error("Erreur lors de la récupération des agent_dossiers");
       }
@@ -62,7 +64,7 @@ export const agentDossiersService = {
    */
   async getAgentDossiersByAgent(agentId: string): Promise<AgentDossier[]> {
     try {
-      const response = await fetch(`/api/agent-dossiers?agentId=${agentId}`);
+      const response = await fetchWithAuth(`/api/agent-dossiers?agentId=${agentId}`);
       if (!response.ok) {
         throw new Error(
           "Erreur lors de la récupération des dossiers de l'agent"
@@ -83,7 +85,7 @@ export const agentDossiersService = {
    */
   async deleteAgentDossier(id: string): Promise<void> {
     try {
-      const response = await fetch(`/api/agent-dossiers/${id}`, {
+      const response = await fetchWithAuth(`/api/agent-dossiers/${id}`, {
         method: "DELETE",
       });
 

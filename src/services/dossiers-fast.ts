@@ -3,6 +3,7 @@ import { rubriquesService } from "./rubriques";
 import { sousDossiersService } from "./sous-dossiers";
 import { piecesService } from "./pieces";
 import { agentsService } from "./agents";
+import { fetchWithAuth } from "@/lib/api/fetchWithAuth";
 import type { MetaValue } from "@/types";
 
 interface MetadataModel {
@@ -242,13 +243,13 @@ export class DossiersFastService {
       // Charger les données complètes en parallèle
       const [metadataResponse, metadataModelsResponse, filesResponse] =
         await Promise.all([
-          fetch(`/api/pieces/${pieceId}/metadata`).then((res) =>
+          fetchWithAuth(`/api/pieces/${pieceId}/metadata`).then((res) =>
             res.ok ? res.json() : []
           ),
-          fetch(`/api/pieces/${pieceId}/metadata-models`).then((res) =>
+          fetchWithAuth(`/api/pieces/${pieceId}/metadata-models`).then((res) =>
             res.ok ? res.json() : []
           ),
-          fetch(`/api/pieces/${pieceId}/files`).then((res) =>
+          fetchWithAuth(`/api/pieces/${pieceId}/files`).then((res) =>
             res.ok ? res.json() : []
           ),
         ]);

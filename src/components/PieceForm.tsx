@@ -3,6 +3,9 @@
 import { useState, useEffect } from "react";
 import { X, FileText, AlertCircle, Plus, Trash2 } from "lucide-react";
 import type { PieceFormData, MetadataModel } from "@/types";
+import { Input, SecureTextarea } from "@/components/forms";
+import { useFormValidation } from "@/hooks/useFormValidation";
+import { pieceFormSchema, type PieceFormData as PieceFormDataZod } from "@/lib/validation/schemas";
 
 interface PieceFormProps {
   isOpen: boolean;
@@ -23,17 +26,27 @@ export default function PieceForm({
   rubriqueId,
   sousDossierId,
 }: PieceFormProps) {
-  const [formData, setFormData] = useState({
-    nom: "",
-    description: "",
-    has_meta: false,
-  });
+  const [isSubmitting, setIsSubmitting] = useState(false);
   // selectedFile supprimé - Pas de chargement au niveau des rubriques
   const [metadonnees, setMetadonnees] = useState<
     Omit<MetadataModel, "id" | "createdAt" | "updatedAt">[]
   >([]);
-  const [errors, setErrors] = useState<Record<string, string>>({});
-  const [isSubmitting, setIsSubmitting] = useState(false);
+
+  const initialValues: PieceFormDataZod = {
+    nom: "",
+    description: "",
+    has_meta: false,
+    sous_dossier_id: sousDossierId || "",
+  };
+
+  const {
+    values: formData,
+    errors,
+    setValue,
+    setFieldTouched,
+    validateForm,
+    reset,
+  } = useFormValidation(pieceFormSchema, initialValues);
 
   // Mettre à jour les données du formulaire quand la pièce change
   useEffect(() => {
@@ -42,24 +55,24 @@ export default function PieceForm({
         "📝 Chargement des données de la pièce dans le formulaire:",
         piece
       );
-      setFormData({
+      reset({
         nom: piece.nom || "",
         description: piece.description || "",
         has_meta: piece.has_meta || false,
+        sous_dossier_id: sousDossierId || "",
       });
       setMetadonnees(piece.metadonnees || []);
     } else {
       // Réinitialiser pour le mode création
-      setFormData({
+      reset({
         nom: "",
         description: "",
         has_meta: false,
+        sous_dossier_id: sousDossierId || "",
       });
       setMetadonnees([]);
     }
-    // setSelectedFile supprimé
-    setErrors({});
-  }, [piece, mode, isOpen]);
+  }, [piece, mode, isOpen, sousDossierId]);
 
   const addMetadata = () => {
     setMetadonnees([
@@ -96,37 +109,29 @@ export default function PieceForm({
 
     if (isSubmitting) return;
 
-    // Validation
-    const newErrors: Record<string, string> = {};
-
-    if (!formData.nom.trim()) {
-      newErrors.nom = "Le nom de la pièce est requis";
-    }
-
-    // Validations de fichier supprimées - Pas de chargement au niveau des rubriques
-
-    if (Object.keys(newErrors).length > 0) {
-      setErrors(newErrors);
+    if (!validateForm()) {
       return;
     }
 
     setIsSubmitting(true);
-    setErrors({});
 
     try {
-      if (mode === "create") {
-        await onSubmit({
-          nom: formData.nom,
-          description: formData.description,
-          has_meta: formData.has_meta,
-          metadonnees: formData.has_meta ? metadonnees : undefined,
-          // fichier supprimé - Pas de chargement au niveau des rubriques
-          rubriqueId: rubriqueId!,
-        });
-      }
+      console.log("📤 Soumission du formulaire - Mode:", mode);
+      console.log("📋 Données du formulaire:", formData);
+
+      const submitData: PieceFormData = {
+        nom: formData.nom,
+        description: formData.description || "",
+        has_meta: formData.has_meta,
+        metadonnees: formData.has_meta ? metadonnees : undefined,
+        rubriqueId: rubriqueId!,
+      };
+
+      await onSubmit(submitData);
+      console.log("✅ Soumission réussie - Fermeture du formulaire");
       onClose();
     } catch (error) {
-      console.error("Erreur lors de la soumission:", error);
+      console.error("❌ Erreur lors de la soumission:", error);
     } finally {
       setIsSubmitting(false);
     }
@@ -165,64 +170,30 @@ export default function PieceForm({
         {/* Form */}
         <form onSubmit={handleSubmit} className="p-6 space-y-6">
           {/* Nom de la pièce */}
-          <div className="space-y-2">
-            <label className="block text-sm font-semibold text-gray-700 mb-2">
-              Nom de la pièce *
-            </label>
-            <div className="relative">
-              <input
-                type="text"
-                value={formData.nom}
-                onChange={(e) => {
-                  setFormData((prev) => ({ ...prev, nom: e.target.value }));
-                  setErrors((prev) => ({ ...prev, nom: "" }));
-                }}
-                className={`w-full text-black px-4 py-3 border rounded-xl focus:ring-2 focus:ring-accent-green focus:border-accent-green transition-all duration-200 hover:border-accent-green/50 ${
-                  errors.nom
-                    ? "border-red-300 bg-red-50"
-                    : "border-gray-300 hover:shadow-sm"
-                }`}
-                placeholder="Ex: CNI, Passeport, Diplôme..."
-              />
-              {formData.nom && (
-                <div className="absolute right-3 top-1/2 transform -translate-y-1/2">
-                  <div className="w-2 h-2 bg-accent-green rounded-full animate-pulse"></div>
-                </div>
-              )}
-            </div>
-            {errors.nom && (
-              <p className="text-red-600 text-sm mt-1 flex items-center gap-1 transform transition-all duration-200 ease-out">
-                <AlertCircle className="w-4 h-4" />
-                {errors.nom}
-              </p>
-            )}
-          </div>
+          <Input
+            label="Nom de la pièce"
+            value={formData.nom}
+            onChange={(e) => setValue("nom", e.target.value)}
+            onBlur={() => setFieldTouched("nom")}
+            error={errors.nom}
+            required
+            placeholder="Ex: CNI, Passeport, Diplôme..."
+          />
 
           {/* Description */}
-          <div className="space-y-2">
-            <label className="block text-sm font-semibold text-gray-700 mb-2">
-              Description (optionnel)
-            </label>
-            <div className="relative">
-              <textarea
-                value={formData.description}
-                onChange={(e) =>
-                  setFormData((prev) => ({
-                    ...prev,
-                    description: e.target.value,
-                  }))
-                }
-                className="w-full text-black px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-accent-green focus:border-accent-green transition-all duration-200 hover:border-accent-green/50 hover:shadow-sm resize-none"
-                rows={3}
-                placeholder="Description du document..."
-              />
-              {formData.description && (
-                <div className="absolute right-3 top-3">
-                  <div className="w-2 h-2 bg-accent-green rounded-full animate-pulse"></div>
-                </div>
-              )}
-            </div>
-          </div>
+          <SecureTextarea
+            label="Description (optionnel)"
+            value={formData.description || ""}
+            onChange={(value) => {
+              setValue("description", value);
+              setFieldTouched("description");
+            }}
+            error={errors.description}
+            maxLength={1000}
+            sanitize={true}
+            rows={3}
+            placeholder="Description du document..."
+          />
 
           {/* Upload de fichier supprimé - Pas de chargement au niveau des rubriques */}
 
@@ -234,10 +205,7 @@ export default function PieceForm({
                   type="checkbox"
                   checked={formData.has_meta}
                   onChange={(e) =>
-                    setFormData((prev) => ({
-                      ...prev,
-                      has_meta: e.target.checked,
-                    }))
+                    setValue("has_meta", e.target.checked)
                   }
                   className="w-5 h-5 text-black bg-white border-gray-300 rounded focus:ring-accent-green focus:ring-2 transition-all duration-200"
                 />
@@ -268,9 +236,9 @@ export default function PieceForm({
                 <button
                   type="button"
                   onClick={addMetadata}
-                  className="flex items-center gap-2 bg-gradient-to-r from-accent-green to-green-600 hover:from-green-600 hover:to-green-700 text-white px-4 py-2.5 rounded-xl text-sm font-semibold transition-all duration-200 hover:scale-105 shadow-md hover:shadow-lg"
+                  className="flex items-center gap-2 bg-primary-600 text-white px-4 py-2.5 rounded-xl text-sm font-semibold transition-all duration-200 hover:scale-105 shadow-md hover:shadow-lg"
                 >
-                  <Plus className="w-4 h-4" />
+                  <Plus className="w-4 h-4 text-white" />
                   Ajouter un champ
                 </button>
               </div>
@@ -297,8 +265,8 @@ export default function PieceForm({
                     >
                       <div className="flex items-center justify-between mb-4">
                         <div className="flex items-center gap-3">
-                          <div className="w-8 h-8 bg-gradient-to-br from-accent-green to-green-600 rounded-lg flex items-center justify-center">
-                            <span className="text-xs font-bold text-white">
+                          <div className="w-8 h-8 bg-primary-600 rounded-lg flex items-center justify-center">
+                            <span className="text-xs font-bold text-primary-200">
                               {index + 1}
                             </span>
                           </div>
@@ -393,6 +361,16 @@ export default function PieceForm({
                   ))}
                 </div>
               )}
+            </div>
+          )}
+
+          {/* Message d'erreur de soumission */}
+          {errors.submit && (
+            <div className="p-4 bg-red-50 border border-red-200 rounded-xl">
+              <p className="text-red-600 text-sm flex items-center gap-2">
+                <AlertCircle className="w-4 h-4" />
+                {errors.submit}
+              </p>
             </div>
           )}
 

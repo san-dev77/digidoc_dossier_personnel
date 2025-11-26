@@ -65,33 +65,39 @@ body {
   border: 2px solid var(--color-primary-800);
 }
 
-/* Scrollbar ultra-discrète pour les éléments de contenu */
+/* Scrollbar visible pour les éléments de contenu */
 .content-scrollbar {
   scrollbar-width: thin;
-  scrollbar-color: var(--color-primary-200) transparent;
+  scrollbar-color: var(--color-primary-500) var(--color-primary-100);
 }
 
 .content-scrollbar::-webkit-scrollbar {
-  width: 8px;
+  width: 10px;
+  height: 10px;
 }
 
 .content-scrollbar::-webkit-scrollbar-track {
-  background: transparent;
+  background: var(--color-primary-100);
   border-radius: 10px;
+  margin: 2px;
 }
 
 .content-scrollbar::-webkit-scrollbar-thumb {
-  background: var(--color-primary-200);
+  background: var(--color-primary-500);
   border-radius: 10px;
-  border: 2px solid transparent;
-  background-clip: content-box;
+  border: 2px solid var(--color-primary-100);
+  background-clip: padding-box;
   transition: all 0.2s ease;
 }
 
 .content-scrollbar::-webkit-scrollbar-thumb:hover {
-  background: var(--color-primary-400);
-  border: 1px solid transparent;
-  background-clip: content-box;
+  background: var(--color-primary-600);
+  border: 2px solid var(--color-primary-200);
+  background-clip: padding-box;
+}
+
+.content-scrollbar::-webkit-scrollbar-thumb:active {
+  background: var(--color-primary-700);
 }
 
 /* Scrollbar invisible par défaut, visible au hover */

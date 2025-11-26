@@ -7,30 +7,57 @@ import {
   FileText,
   ChevronDown,
   ChevronRight,
-  Database,
   Upload,
-  Eye,
-  Calendar,
-  CreditCard,
+  Mail,
+  FolderOpen,
 } from "lucide-react";
 import { useDossiersStore } from "@/store/dossiersStore";
-import { isDossierCredit } from "@/utils/rubrique-utils";
 import type { PieceData } from "@/services/agent-data";
+import type { Agent } from "@/types";
+import QuickUploadModal from "@/components/dossiers/QuickUploadModal";
+import QuickCreateDossierModal from "@/components/dossiers/QuickCreateDossierModal";
+import { DossiersOptimizedService } from "@/services/dossiers-optimized";
+import RubriqueCard from "./AgentDataViewerOptimized/RubriqueCard";
 
 interface AgentDataViewerOptimizedProps {
   onPieceClick?: (piece: PieceData) => void;
   onCreditDossierClick?: (sousDossierId: number, rubriqueId: number) => void;
+  onDeleteDossier?: (agentDossierId: number, sousDossierTitre: string) => void;
 }
 
 export default function AgentDataViewerOptimized({
   onPieceClick,
   onCreditDossierClick,
+  onDeleteDossier,
 }: AgentDataViewerOptimizedProps) {
-  const { agentsWithDossiers, loading } = useDossiersStore();
+  // Utiliser des sélecteurs explicites pour forcer le re-render
+  const agentsWithDossiers = useDossiersStore(
+    (state) => state.agentsWithDossiers
+  );
+  const loading = useDossiersStore((state) => state.loading);
   const [expandedAgents, setExpandedAgents] = useState<Set<string>>(new Set());
   const [expandedRubriques, setExpandedRubriques] = useState<Set<string>>(
     new Set()
   );
+  const [showQuickUpload, setShowQuickUpload] = useState(false);
+  const [selectedPieceForUpload, setSelectedPieceForUpload] = useState<{
+    pieceData: PieceData;
+    agentId: string;
+    agentName: string;
+    rubriqueId: string;
+    rubriqueName: string;
+    sousDossierId: string;
+    sousDossierName: string;
+    agentDossierId?: number;
+  } | null>(null);
+  // État pour suivre les pièces en cours de rafraîchissement
+  const [refreshingPieces, setRefreshingPieces] = useState<Set<string>>(
+    new Set()
+  );
+  // État pour la modale de création rapide
+  const [showQuickCreate, setShowQuickCreate] = useState(false);
+  const [selectedAgentForCreate, setSelectedAgentForCreate] =
+    useState<Agent | null>(null);
 
   const toggleAgentExpansion = (agentId: string) => {
     setExpandedAgents((prev) => {
@@ -56,376 +83,364 @@ export default function AgentDataViewerOptimized({
     });
   };
 
-  const getStatusColor = (statut?: string) => {
-    switch (statut) {
-      case "ouvert":
-        return "bg-green-100 text-green-800 border-green-200";
-      case "ferme":
-        return "bg-red-100 text-red-800 border-red-200";
-      case "archive":
-        return "bg-gray-100 text-gray-800 border-gray-200";
-      default:
-        return "bg-slate-100 text-slate-800 border-slate-200";
-    }
-  };
-
   if (loading) {
     return (
-      <div className="flex items-center justify-center py-12">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-slate-600"></div>
-        <span className="ml-2 text-slate-600">Chargement des données...</span>
+      <div className="flex items-center justify-center py-20">
+        <div className="text-center">
+          <div className="relative w-16 h-16 mx-auto mb-4">
+            <div className="absolute inset-0 border-4 border-primary-200 rounded-full"></div>
+            <div className="absolute inset-0 border-4 border-primary-600 border-t-transparent rounded-full animate-spin"></div>
+          </div>
+          <p className="text-primary-800 font-semibold text-lg">
+            Chargement des données...
+          </p>
+        </div>
       </div>
     );
   }
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-8">
       {/* Liste des agents */}
-      {agentsWithDossiers.map((agentData) => (
-        <div
-          key={agentData.agent.id}
-          className="bg-white rounded-xl shadow-md border-2 border-slate-200"
-        >
-          {/* Header Agent */}
-          <div
-            className="p-6 cursor-pointer hover:bg-slate-100 transition-colors border-b-2 border-slate-200"
-            onClick={() => toggleAgentExpansion(agentData.agent.id)}
-          >
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-4">
-                <div className="w-12 h-12 bg-gradient-to-br from-blue-500 to-blue-600 rounded-xl flex items-center justify-center shadow-lg">
-                  <User className="w-6 h-6 text-white" />
-                </div>
-                <div>
-                  <h3 className="text-xl font-bold text-slate-900">
-                    {agentData.agent.prenom} {agentData.agent.nom}
-                  </h3>
-                  <p className="text-slate-700 font-medium">
-                    {agentData.agent.email}
-                  </p>
-                  <div className="flex items-center gap-4 mt-2 text-sm text-slate-600 font-medium">
-                    <div className="flex items-center gap-1">
-                      <Folder className="w-4 h-4" />
-                      <span>{agentData.dossiers.length} rubrique(s)</span>
-                    </div>
-                    <div className="flex items-center gap-1">
-                      <FileText className="w-4 h-4" />
-                      <span>
-                        {agentData.dossiers.reduce(
-                          (sum, d) => sum + d.totalPieces,
-                          0
-                        )}{" "}
-                        pièce(s)
-                      </span>
-                    </div>
-                    <div className="flex items-center gap-1">
-                      <Upload className="w-4 h-4" />
-                      <span>
-                        {agentData.dossiers.reduce(
-                          (sum, d) => sum + d.totalSousDossiers,
-                          0
-                        )}{" "}
-                        sous-dossier(s)
-                      </span>
-                    </div>
-                  </div>
-                </div>
-              </div>
-              <div className="w-10 h-10 bg-slate-200 rounded-xl flex items-center justify-center border-2 border-slate-300">
-                {expandedAgents.has(agentData.agent.id) ? (
-                  <ChevronDown className="w-5 h-5 text-slate-800" />
-                ) : (
-                  <ChevronRight className="w-5 h-5 text-slate-800" />
-                )}
-              </div>
-            </div>
-          </div>
+      {agentsWithDossiers.map((agentData) => {
+        const totalPieces = agentData.dossiers.reduce(
+          (sum, d) => sum + d.totalPieces,
+          0
+        );
+        const totalSousDossiers = agentData.dossiers.reduce(
+          (sum, d) => sum + d.totalSousDossiers,
+          0
+        );
+        const isExpanded = expandedAgents.has(agentData.agent.id);
 
-          {/* Rubriques de l'agent */}
-          {expandedAgents.has(agentData.agent.id) && (
-            <div className="border-t-2 border-slate-200 p-6 space-y-4">
-              {agentData.dossiers.length === 0 ? (
-                <div className="text-center py-8">
-                  <div className="w-16 h-16 bg-slate-200 rounded-xl flex items-center justify-center mx-auto mb-4 border-2 border-slate-300">
-                    <Folder className="w-8 h-8 text-slate-600" />
-                  </div>
-                  <p className="text-slate-700 font-semibold">
-                    Aucune rubrique avec des données
-                  </p>
-                  <p className="text-sm text-slate-600 font-medium">
-                    Cet agent n&apos;a pas encore de données associées
-                  </p>
-                </div>
-              ) : (
-                agentData.dossiers.map((dossier) => (
-                  <div
-                    key={dossier.rubrique.id}
-                    className="bg-slate-50 rounded-lg p-4 border-2 border-slate-200 shadow-sm"
-                  >
-                    {/* Header Rubrique */}
-                    <div
-                      className="cursor-pointer hover:bg-slate-200 rounded-lg p-3 transition-colors border-2 border-slate-300"
-                      onClick={() =>
-                        toggleRubriqueExpansion(dossier.rubrique.id)
-                      }
-                    >
-                      <div className="flex items-center justify-between">
-                        <div className="flex items-center gap-3">
-                          <div className="w-8 h-8 bg-gradient-to-br from-purple-500 to-purple-600 rounded-lg flex items-center justify-center">
-                            {isDossierCredit(dossier.rubrique) ? (
-                              <CreditCard className="w-4 h-4 text-white" />
-                            ) : (
-                              <Folder className="w-4 h-4 text-white" />
-                            )}
+        return (
+          <div
+            key={agentData.agent.id}
+            className="group bg-white rounded-2xl shadow-lg border border-primary-200/80 overflow-hidden transition-all duration-300 hover:shadow-2xl hover:border-primary-300"
+          >
+            {/* Header Agent - Design Premium */}
+            <div
+              className="relative cursor-pointer transition-all duration-300 hover:bg-gradient-to-r hover:from-primary-50 hover:to-white"
+              onClick={() => toggleAgentExpansion(agentData.agent.id)}
+            >
+              {/* Gradient Accent Line */}
+              <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-[var(--color-accent-blue)] via-[var(--color-accent-purple)] to-[var(--color-accent-red)]"></div>
+
+              <div className="p-8">
+                <div className="flex items-start justify-between gap-6">
+                  {/* Left Section - Agent Info */}
+                  <div className="flex items-start gap-6 flex-1">
+                    {/* Avatar Container */}
+                    <div className="relative flex-shrink-0">
+                      <div className="w-20 h-20 bg-gradient-to-br from-[var(--color-accent-blue)] via-[var(--color-primary-600)] to-[var(--color-primary-700)] rounded-2xl flex items-center justify-center shadow-xl shadow-[var(--color-accent-blue)]/30 transform transition-transform duration-300 group-hover:scale-105 group-hover:rotate-3">
+                        <User className="w-10 h-10 text-white" />
+                      </div>
+                      <div className="absolute -bottom-1 -right-1 w-6 h-6 bg-success-500 rounded-full border-4 border-white shadow-lg flex items-center justify-center">
+                        <div className="w-2 h-2 bg-white rounded-full"></div>
+                      </div>
+                    </div>
+
+                    {/* Agent Details */}
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-3 mb-2">
+                        <h3 className="text-2xl font-bold text-primary-900 tracking-tight">
+                          {agentData.agent.prenom} {agentData.agent.nom}
+                        </h3>
+                      </div>
+
+                      {/* Email */}
+                      <div className="flex items-center gap-2 mb-4">
+                        <Mail className="w-4 h-4 text-primary-700 flex-shrink-0" />
+                        <p className="text-primary-800 font-semibold text-sm truncate">
+                          {agentData.agent.email || "Aucun email"}
+                        </p>
+                      </div>
+
+                      {/* Stats Grid */}
+                      <div className="grid grid-cols-3 gap-4">
+                        <div className="flex items-center gap-2 px-4 py-2.5 bg-gradient-to-br from-[var(--color-accent-purple-light)] to-[var(--color-accent-purple-light)]/50 rounded-xl border border-[var(--color-accent-purple)]/20">
+                          <div className="w-8 h-8 bg-gradient-to-br from-[var(--color-accent-purple)] to-[var(--color-primary-600)] rounded-lg flex items-center justify-center shadow-md">
+                            <FolderOpen className="w-4 h-4 text-white" />
                           </div>
                           <div>
-                            <h4 className="font-bold text-slate-900">
-                              {dossier.rubrique.nom}
-                            </h4>
-                            <p className="text-sm text-slate-700 font-medium">
-                              {dossier.rubrique.description}
+                            <p className="text-xs text-primary-800 font-semibold">
+                              Rubriques
                             </p>
-                            <div className="flex items-center gap-3 mt-1 text-xs text-slate-600 font-medium">
-                              <span>
-                                {dossier.sousDossiers.length} sous-dossier(s)
-                              </span>
-                              <span>{dossier.totalPieces} pièce(s)</span>
-                              {isDossierCredit(dossier.rubrique) && (
-                                <span className="px-2 py-1 bg-emerald-100 text-emerald-800 text-xs font-medium rounded-full">
-                                  Dossier de crédit
-                                </span>
-                              )}
-                            </div>
+                            <p className="text-lg font-bold text-primary-900">
+                              {agentData.dossiers.length}
+                            </p>
                           </div>
                         </div>
-                        <div className="w-8 h-8 bg-slate-300 rounded-lg flex items-center justify-center border-2 border-slate-400">
-                          {expandedRubriques.has(dossier.rubrique.id) ? (
-                            <ChevronDown className="w-4 h-4 text-slate-800" />
-                          ) : (
-                            <ChevronRight className="w-4 h-4 text-slate-800" />
-                          )}
+
+                        <div className="flex items-center gap-2 px-4 py-2.5 bg-gradient-to-br from-[var(--color-accent-blue-light)] to-[var(--color-accent-blue-light)]/50 rounded-xl border border-[var(--color-accent-blue)]/20">
+                          <div className="w-8 h-8 bg-gradient-to-br from-[var(--color-accent-blue)] to-[var(--color-primary-600)] rounded-lg flex items-center justify-center shadow-md">
+                            <FileText className="w-4 h-4 text-white" />
+                          </div>
+                          <div>
+                            <p className="text-xs text-primary-800 font-semibold">
+                              Pièces
+                            </p>
+                            <p className="text-lg font-bold text-primary-900">
+                              {totalPieces}
+                            </p>
+                          </div>
+                        </div>
+
+                        <div className="flex items-center gap-2 px-4 py-2.5  bg-primary-500 rounded-xl border border-success-200/50">
+                          <div className="w-8 h-8 bg-primary-100 rounded-lg flex items-center justify-center shadow-md">
+                            <Folder className="w-4 h-4 text-primary-700" />
+                          </div>
+                          <div>
+                            <p className="text-xs text-primary-100 font-semibold">
+                              Sous-dossiers
+                            </p>
+                            <p className="text-lg font-bold text-primary-100">
+                              {totalSousDossiers}
+                            </p>
+                          </div>
                         </div>
                       </div>
                     </div>
-
-                    {/* Sous-dossiers de la rubrique */}
-                    {expandedRubriques.has(dossier.rubrique.id) && (
-                      <div className="mt-3 space-y-2">
-                        {dossier.sousDossiers.map((sousDossier) => (
-                          <div
-                            key={sousDossier.id}
-                            className={`bg-white rounded-lg p-3 border-2 border-slate-300 shadow-sm ${
-                              isDossierCredit(dossier.rubrique)
-                                ? "cursor-pointer hover:border-emerald-400 hover:shadow-md transition-all duration-200"
-                                : ""
-                            }`}
-                            onClick={() => {
-                              if (isDossierCredit(dossier.rubrique)) {
-                                onCreditDossierClick?.(
-                                  parseInt(sousDossier.id),
-                                  parseInt(dossier.rubrique.id)
-                                );
-                              }
-                            }}
-                          >
-                            {/* Header Sous-dossier */}
-                            <div className="flex items-center justify-between mb-3">
-                              <div className="flex items-center gap-2">
-                                <div className="w-6 h-6 bg-gradient-to-br from-emerald-500 to-emerald-600 rounded-md flex items-center justify-center">
-                                  {isDossierCredit(dossier.rubrique) ? (
-                                    <CreditCard className="w-3 h-3 text-white" />
-                                  ) : (
-                                    <FileText className="w-3 h-3 text-white" />
-                                  )}
-                                </div>
-                                <div>
-                                  <h5 className="font-semibold text-slate-900">
-                                    {sousDossier.titre}
-                                  </h5>
-                                  <p className="text-xs text-slate-700 font-medium">
-                                    {sousDossier.description}
-                                  </p>
-                                </div>
-                              </div>
-                              <div className="flex items-center gap-2">
-                                {sousDossier.statut && (
-                                  <span
-                                    className={`px-3 py-1 rounded-full text-xs font-bold border-2 ${getStatusColor(
-                                      sousDossier.statut
-                                    )}`}
-                                  >
-                                    {sousDossier.statut}
-                                  </span>
-                                )}
-                                {isDossierCredit(dossier.rubrique) ? (
-                                  <div className="flex items-center gap-1 px-3 py-1 bg-emerald-100 text-emerald-700 rounded-lg text-xs">
-                                    <Eye className="w-3 h-3" />
-                                    Cliquer pour voir
-                                  </div>
-                                ) : (
-                                  <button
-                                    onClick={(e) => {
-                                      e.stopPropagation();
-                                      onPieceClick?.({
-                                        piece: {
-                                          id: sousDossier.id,
-                                          nom: sousDossier.titre,
-                                          description: sousDossier.description,
-                                          has_meta:
-                                            sousDossier.piecesWithMetadataCount >
-                                            0,
-                                          createdAt: sousDossier.createdAt,
-                                          updatedAt: sousDossier.updatedAt,
-                                        },
-                                        metadata: [],
-                                        files: [],
-                                        hasFiles: sousDossier.pieces.some(
-                                          (p) => p.files && p.files.length > 0
-                                        ),
-                                      });
-                                    }}
-                                    className="flex items-center gap-1 px-3 py-1 bg-slate-600 text-white rounded-lg hover:bg-slate-700 transition-colors text-xs"
-                                  >
-                                    <Eye className="w-3 h-3" />
-                                    Voir contenu
-                                  </button>
-                                )}
-                              </div>
-                            </div>
-
-                            {/* Pièces du sous-dossier */}
-                            {!isDossierCredit(dossier.rubrique) && (
-                              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-2">
-                                {sousDossier.pieces.map((piece) => (
-                                  <div
-                                    key={piece.id}
-                                    className={`p-3 rounded-lg border-2 cursor-pointer transition-all hover:shadow-md ${
-                                      piece.files && piece.files.length > 0
-                                        ? "border-green-300 bg-green-50 hover:bg-green-100"
-                                        : "border-slate-300 bg-slate-50 hover:bg-slate-100"
-                                    }`}
-                                    onClick={() =>
-                                      onPieceClick?.({
-                                        piece: {
-                                          id: piece.id,
-                                          nom: piece.nom,
-                                          description: piece.description,
-                                          has_meta: piece.aMetadonnees,
-                                          createdAt: piece.createdAt,
-                                          updatedAt: piece.updatedAt,
-                                        },
-                                        metadata: (piece.metadata || []).map(
-                                          (meta) => ({
-                                            id: meta.id,
-                                            meta_model_id: meta.meta_model_id,
-                                            valeur: meta.valeur,
-                                            metadataModel:
-                                              meta.metadataModel || null,
-                                            created_at: meta.created_at,
-                                          })
-                                        ),
-                                        files: (piece.files || []).map(
-                                          (file) => ({
-                                            id: file.id,
-                                            id_piece: file.piece_id,
-                                            file_path: file.file_path,
-                                            created_at: file.created_at,
-                                          })
-                                        ),
-                                        hasFiles:
-                                          piece.files && piece.files.length > 0,
-                                      })
-                                    }
-                                  >
-                                    <div className="flex items-center gap-2 mb-2">
-                                      <div
-                                        className={`w-4 h-4 rounded-full flex items-center justify-center ${
-                                          piece.files && piece.files.length > 0
-                                            ? "bg-green-500"
-                                            : "bg-slate-400"
-                                        }`}
-                                      >
-                                        {piece.files &&
-                                        piece.files.length > 0 ? (
-                                          <Upload className="w-2 h-2 text-white" />
-                                        ) : (
-                                          <FileText className="w-2 h-2 text-white" />
-                                        )}
-                                      </div>
-                                      <h6 className="font-semibold text-slate-900 text-sm">
-                                        {piece.nom}
-                                      </h6>
-                                    </div>
-                                    {piece.description && (
-                                      <p className="text-xs text-slate-700 mb-2 font-medium">
-                                        {piece.description}
-                                      </p>
-                                    )}
-                                    <div className="flex items-center gap-2 text-xs text-slate-600 font-medium">
-                                      {piece.metadata &&
-                                        piece.metadata.length > 0 && (
-                                          <div className="flex items-center gap-1">
-                                            <Database className="w-3 h-3" />
-                                            <span>{piece.metadata.length}</span>
-                                          </div>
-                                        )}
-                                      {piece.files &&
-                                        piece.files.length > 0 && (
-                                          <div className="flex items-center gap-1">
-                                            <Upload className="w-3 h-3" />
-                                            <span>{piece.files.length}</span>
-                                          </div>
-                                        )}
-                                      <div className="flex items-center gap-1">
-                                        <Calendar className="w-3 h-3" />
-                                        <span>
-                                          {new Date(
-                                            piece.createdAt
-                                          ).toLocaleDateString()}
-                                        </span>
-                                      </div>
-                                    </div>
-                                  </div>
-                                ))}
-                              </div>
-                            )}
-
-                            {/* Pour les dossiers de crédit, afficher un message informatif */}
-                            {isDossierCredit(dossier.rubrique) && (
-                              <div className="p-4 bg-emerald-50 rounded-lg border border-emerald-200">
-                                <div className="flex items-center gap-2">
-                                  <CreditCard className="w-4 h-4 text-emerald-600" />
-                                  <p className="text-sm text-emerald-800 font-medium">
-                                    Dossier de crédit - Cliquez sur &quot;Voir
-                                    données&quot; pour consulter les métadonnées
-                                  </p>
-                                </div>
-                              </div>
-                            )}
-                          </div>
-                        ))}
-                      </div>
-                    )}
                   </div>
-                ))
-              )}
-            </div>
-          )}
-        </div>
-      ))}
 
-      {agentsWithDossiers.length === 0 && !loading && (
-        <div className="text-center py-12">
-          <div className="w-24 h-24 bg-slate-100 rounded-2xl flex items-center justify-center mx-auto mb-4">
-            <User className="w-12 h-12 text-slate-400" />
+                  {/* Right Section - Actions */}
+                  <div className="flex-shrink-0 flex items-center gap-3">
+                    {/* Bouton Créer rapidement */}
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setSelectedAgentForCreate(agentData.agent);
+                        setShowQuickCreate(true);
+                      }}
+                      className="flex items-center gap-2 px-5 py-3 bg-primary-600 text-white rounded-xl hover:bg-primary-700 transition-all duration-300 shadow-lg hover:shadow-xl transform hover:scale-105 text-sm font-bold border-2 border-primary-700"
+                      title="Créer rapidement un dossier"
+                    >
+                      <Upload className="w-4 h-4 text-white" /> Créer
+                    </button>
+                    {/* Expand Button */}
+                    <div className="w-12 h-12 bg-primary-600 rounded-xl flex items-center justify-center border-2 border-primary-700 shadow-lg transition-all duration-300 hover:bg-primary-700 hover:shadow-xl hover:scale-110">
+                      {isExpanded ? (
+                        <ChevronDown className="w-6 h-6 text-white transition-transform duration-300" />
+                      ) : (
+                        <ChevronRight className="w-6 h-6 text-white transition-transform duration-300" />
+                      )}
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Rubriques de l'agent - Expanded Content */}
+            {isExpanded && (
+              <div className="border-t border-primary-200 bg-gradient-to-br from-primary-50/50 to-white">
+                <div className="p-8 space-y-6">
+                  {agentData.dossiers.length === 0 ? (
+                    <div className="text-center py-16">
+                      <div className="w-24 h-24 bg-gradient-to-br from-primary-100 to-primary-200 rounded-3xl flex items-center justify-center mx-auto mb-6 shadow-lg border border-primary-300/50">
+                        <Folder className="w-12 h-12 text-primary-400" />
+                      </div>
+                      <h4 className="text-xl font-bold text-primary-900 mb-2">
+                        Aucune rubrique avec des données
+                      </h4>
+                      <p className="text-primary-800 font-semibold">
+                        Cet agent n&apos;a pas encore de données associées
+                      </p>
+                    </div>
+                  ) : (
+                    agentData.dossiers.map((dossier) => {
+                      const isRubriqueExpanded = expandedRubriques.has(
+                        dossier.rubrique.id
+                      );
+
+                      return (
+                        <RubriqueCard
+                          key={dossier.rubrique.id}
+                          dossier={dossier}
+                          isExpanded={isRubriqueExpanded}
+                          onToggleExpansion={() =>
+                            toggleRubriqueExpansion(dossier.rubrique.id)
+                          }
+                          onCreditDossierClick={onCreditDossierClick}
+                          onPieceClick={onPieceClick}
+                          onDeleteDossier={onDeleteDossier}
+                          refreshingPieces={refreshingPieces}
+                          onUploadClick={({
+                            piece,
+                            sousDossier,
+                            rubriqueId,
+                          }) => {
+                            const hasFiles =
+                              piece.files && piece.files.length > 0;
+                            setSelectedPieceForUpload({
+                              pieceData: {
+                                piece: {
+                                  id: piece.id,
+                                  nom: piece.nom,
+                                  description: piece.description,
+                                  has_meta: piece.aMetadonnees,
+                                  createdAt: piece.createdAt,
+                                  updatedAt: piece.updatedAt,
+                                },
+                                metadata: (piece.metadata || []).map(
+                                  (meta: {
+                                    id: string;
+                                    meta_model_id: string;
+                                    valeur: string;
+                                    metadataModel?: {
+                                      libelle: string;
+                                      obligatoire: boolean;
+                                    } | null;
+                                    created_at: string;
+                                  }) => ({
+                                    id: meta.id,
+                                    meta_model_id: meta.meta_model_id,
+                                    valeur: meta.valeur,
+                                    metadataModel: meta.metadataModel || null,
+                                    created_at: meta.created_at,
+                                  })
+                                ),
+                                files: (piece.files || []).map(
+                                  (file: {
+                                    id: string;
+                                    piece_id: string;
+                                    file_path: string;
+                                    created_at: string;
+                                  }) => ({
+                                    id: file.id,
+                                    id_piece: file.piece_id,
+                                    file_path: file.file_path,
+                                    created_at: file.created_at,
+                                  })
+                                ),
+                                hasFiles: hasFiles,
+                              },
+                              agentId: agentData.agent.id,
+                              agentName: `${agentData.agent.prenom} ${agentData.agent.nom}`,
+                              rubriqueId: rubriqueId,
+                              rubriqueName: dossier.rubrique.nom,
+                              sousDossierId: sousDossier.id,
+                              sousDossierName: sousDossier.titre,
+                              agentDossierId: sousDossier.agentDossierId,
+                            });
+                            setShowQuickUpload(true);
+                          }}
+                        />
+                      );
+                    })
+                  )}
+                </div>
+              </div>
+            )}
           </div>
-          <h3 className="text-xl font-semibold text-slate-800 mb-2">
+        );
+      })}
+
+      {/* Empty State */}
+      {agentsWithDossiers.length === 0 && !loading && (
+        <div className="text-center py-20">
+          <div className="w-32 h-32 bg-gradient-to-br from-primary-100 to-primary-200 rounded-3xl flex items-center justify-center mx-auto mb-6 shadow-xl border border-primary-300/50">
+            <User className="w-16 h-16 text-primary-400" />
+          </div>
+          <h3 className="text-2xl font-bold text-primary-800 mb-3">
             Aucune donnée trouvée
           </h3>
-          <p className="text-slate-600">
+          <p className="text-primary-800 font-semibold text-lg">
             Aucun agent n&apos;a encore de données associées.
           </p>
         </div>
+      )}
+
+      {/* Modal d'upload rapide */}
+      {selectedPieceForUpload && (
+        <QuickUploadModal
+          isOpen={showQuickUpload}
+          onClose={() => {
+            setShowQuickUpload(false);
+            setSelectedPieceForUpload(null);
+          }}
+          pieceData={selectedPieceForUpload.pieceData}
+          agentId={selectedPieceForUpload.agentId}
+          agentName={selectedPieceForUpload.agentName}
+          rubriqueId={selectedPieceForUpload.rubriqueId}
+          rubriqueName={selectedPieceForUpload.rubriqueName}
+          sousDossierId={selectedPieceForUpload.sousDossierId}
+          sousDossierName={selectedPieceForUpload.sousDossierName}
+          agentDossierId={selectedPieceForUpload.agentDossierId}
+          onUploadSuccess={async () => {
+            // Rafraîchir uniquement les données de cette rubrique sans recharger toute la page
+            const pieceId = selectedPieceForUpload.pieceData.piece.id;
+            const rubriqueId = selectedPieceForUpload.rubriqueId;
+            const agentId = selectedPieceForUpload.agentId;
+
+            try {
+              // Marquer la pièce comme en cours de rafraîchissement
+              setRefreshingPieces((prev) => new Set(prev).add(pieceId));
+
+              // S'assurer que la rubrique et l'agent sont ouverts pour voir la mise à jour
+              // Mais seulement si ce n'était pas déjà le cas
+              const wasRubriqueExpanded = expandedRubriques.has(rubriqueId);
+              const wasAgentExpanded = expandedAgents.has(agentId);
+
+              // Ouvrir l'agent et la rubrique si ce n'était pas déjà fait
+              if (!wasAgentExpanded) {
+                setExpandedAgents((prev) => new Set(prev).add(agentId));
+              }
+              if (!wasRubriqueExpanded) {
+                setExpandedRubriques((prev) => new Set(prev).add(rubriqueId));
+              }
+
+              console.log("🔄 Début du rafraîchissement après upload...");
+              await DossiersOptimizedService.reloadRubrique(rubriqueId);
+              console.log("✅ Rafraîchissement terminé");
+
+              // Forcer un re-render en récupérant les nouvelles données du store
+              // Cela déclenchera un re-render car on utilise un sélecteur
+              const { agentsWithDossiers: updated } =
+                useDossiersStore.getState();
+              console.log(
+                "📊 agentsWithDossiers après mise à jour:",
+                updated.length
+              );
+
+              // Attendre un peu pour laisser le temps au store de se mettre à jour
+              await new Promise((resolve) => setTimeout(resolve, 100));
+
+              // Retirer la pièce de la liste des pièces en cours de rafraîchissement
+              setRefreshingPieces((prev) => {
+                const newSet = new Set(prev);
+                newSet.delete(pieceId);
+                return newSet;
+              });
+            } catch (error) {
+              console.error(
+                "Erreur lors du rafraîchissement des données:",
+                error
+              );
+              // Retirer la pièce même en cas d'erreur
+              setRefreshingPieces((prev) => {
+                const newSet = new Set(prev);
+                newSet.delete(pieceId);
+                return newSet;
+              });
+            }
+          }}
+        />
+      )}
+
+      {/* Modal de création rapide */}
+      {selectedAgentForCreate && (
+        <QuickCreateDossierModal
+          isOpen={showQuickCreate}
+          onClose={() => {
+            setShowQuickCreate(false);
+            setSelectedAgentForCreate(null);
+          }}
+          agent={selectedAgentForCreate}
+          onSuccess={async () => {
+            // Recharger tous les dossiers pour inclure les nouveaux agents
+            await DossiersOptimizedService.loadDossiers(true);
+          }}
+        />
       )}
     </div>
   );

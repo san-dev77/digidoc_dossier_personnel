@@ -4,11 +4,12 @@ import type {
   PieceWithMetadata,
   MetadataModel,
 } from "@/types";
+import { fetchWithAuth } from "@/lib/api/fetchWithAuth";
 
 export const piecesService = {
   async getAllPiecesBySousDossier(sousDossierId: string): Promise<Piece[]> {
     try {
-      const response = await fetch(
+      const response = await fetchWithAuth(
         `/api/pieces?sousDossierId=${sousDossierId}`
       );
       if (!response.ok) {
@@ -33,9 +34,48 @@ export const piecesService = {
 
   async getAllPiecesByRubrique(rubriqueId: string): Promise<Piece[]> {
     try {
-      // Pour l'instant, on retourne un tableau vide car cette fonctionnalité
-      // nécessiterait une jointure complexe. On peut l'implémenter plus tard si nécessaire.
-      return [];
+      // Récupérer tous les sous-dossiers de la rubrique
+      const { sousDossiersService } = await import("./sous-dossiers");
+      const sousDossiers = await sousDossiersService.getAllSousDossiersByRubrique(
+        rubriqueId
+      );
+
+      // Récupérer toutes les pièces de chaque sous-dossier
+      const allPieces: Piece[] = [];
+      for (const sousDossier of sousDossiers) {
+        try {
+          // Appel direct à l'API pour éviter la référence circulaire
+          const response = await fetchWithAuth(
+            `/api/pieces?sousDossierId=${sousDossier.id}`
+          );
+          if (!response.ok) {
+            throw new Error(
+              `Erreur lors de la récupération des pièces pour le sous-dossier ${sousDossier.id}`
+            );
+          }
+
+          const data = await response.json();
+          const pieces = data.map((piece: Piece) => ({
+            id: piece.id.toString(),
+            sousDossierId: piece.sousDossierId,
+            nom: piece.nom,
+            description: piece.description,
+            aMetadonnees: piece.aMetadonnees,
+            createdAt: piece.createdAt,
+            updatedAt: piece.updatedAt,
+          }));
+
+          allPieces.push(...pieces);
+        } catch (error) {
+          console.error(
+            `Erreur lors du chargement des pièces pour le sous-dossier ${sousDossier.id}:`,
+            error
+          );
+          // Continuer avec les autres sous-dossiers même si l'un échoue
+        }
+      }
+
+      return allPieces;
     } catch (error) {
       console.error("Erreur lors du chargement des pièces:", error);
       throw error;
@@ -48,7 +88,7 @@ export const piecesService = {
   ): Promise<Piece> {
     try {
       // Créer l'enregistrement en base via l'API pieces (sans fichier)
-      const response = await fetch("/api/pieces", {
+      const response = await fetchWithAuth("/api/pieces", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -90,7 +130,7 @@ export const piecesService = {
       console.log("🔧 Service updatePiece - ID:", id);
       console.log("📝 Service updatePiece - Updates:", updates);
 
-      const response = await fetch(`/api/pieces/${id}`, {
+      const response = await fetchWithAuth(`/api/pieces/${id}`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(updates),
@@ -122,19 +162,30 @@ export const piecesService = {
     sousDossierId: string
   ): Promise<PieceWithMetadata[]> {
     try {
-      const response = await fetch(
+      const response = await fetchWithAuth(
         `/api/pieces?sousDossierId=${sousDossierId}`
       );
       if (!response.ok) {
         throw new Error("Erreur lors de la récupération des pièces");
       }
 
-      const data = await response.json();
-      return data.map((piece: any) => ({
+      interface PieceRow {
+        id: number | string;
+        sousDossierId: string;
+        nom: string;
+        description?: string | null;
+        aMetadonnees: boolean;
+        createdAt: string;
+        updatedAt: string;
+        metadonnees?: MetadataModel[];
+      }
+
+      const data: PieceRow[] = await response.json();
+      return data.map((piece) => ({
         id: piece.id.toString(),
         sousDossierId: piece.sousDossierId,
         nom: piece.nom,
-        description: piece.description,
+        description: piece.description || "",
         aMetadonnees: piece.aMetadonnees,
         createdAt: piece.createdAt,
         updatedAt: piece.updatedAt,
@@ -151,7 +202,7 @@ export const piecesService = {
 
   async deletePiece(id: string): Promise<void> {
     try {
-      const response = await fetch(`/api/pieces/${id}`, {
+      const response = await fetchWithAuth(`/api/pieces/${id}`, {
         method: "DELETE",
       });
 

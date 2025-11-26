@@ -1,7 +1,17 @@
 import { NextRequest, NextResponse } from "next/server";
 import { query } from "@/lib/db";
+import { hashPassword } from "@/lib/auth/password";
+import { generateToken } from "@/lib/auth/jwt";
+import { createErrorResponse } from "@/lib/errors/safeError";
+import { checkRateLimit, rateLimitConfigs } from "@/lib/rateLimit";
 
 export async function POST(req: NextRequest) {
+  // Vérifier le rate limiting AVANT de traiter la requête
+  const rateLimitResult = checkRateLimit(req, rateLimitConfigs.register);
+  if (!rateLimitResult.allowed) {
+    return rateLimitResult.response!;
+  }
+
   try {
     const body = await req.json();
     // Log des données reçues
@@ -44,9 +54,12 @@ export async function POST(req: NextRequest) {
         "telephone",
       ];
 
+      // Hasher le mot de passe avant de l'enregistrer
+      const hashedPassword = await hashPassword(password);
+
       const values = [
         matricule,
-        password,
+        hashedPassword, // Mot de passe hashé
         body.email ?? null,
         body.nom_complet ?? null,
         body.fonction ?? null,
@@ -71,20 +84,60 @@ export async function POST(req: NextRequest) {
         values
       );
 
-      console.log("[REGISTER] created agent id:", rows[0]?.id);
-      return NextResponse.json(rows[0], { status: 201 });
-    } catch (sqlErr: any) {
-      console.error("[REGISTER] SQL error:", sqlErr?.message || sqlErr);
-      return NextResponse.json(
-        { message: "Erreur serveur", detail: sqlErr?.message || "SQL error" },
-        { status: 500 }
+      const createdAgent = rows[0] as {
+        id: number;
+        matricule: string;
+        password: string | null;
+        email?: string | null;
+        role?: string | null;
+        [key: string]: unknown;
+      };
+      console.log("[REGISTER] created agent id:", createdAgent?.id);
+
+      // Générer un token JWT
+      const token = generateToken({
+        agentId: createdAgent.id,
+        matricule: createdAgent.matricule,
+        email: createdAgent.email ?? undefined, // Convertir null en undefined
+        role: (createdAgent.role ?? "user") as string, // Convertir null en "user" par défaut
+      });
+
+      // Retourner l'agent avec le token (sans le mot de passe)
+      const { password: _, ...agentWithoutPassword } = createdAgent;
+      
+      const response = NextResponse.json(
+        {
+          ...agentWithoutPassword,
+          token,
+        },
+        { status: 201 }
+      );
+
+      // Ajouter les headers de rate limit
+      response.headers.set(
+        "X-RateLimit-Limit",
+        rateLimitConfigs.register.maxRequests.toString()
+      );
+      response.headers.set(
+        "X-RateLimit-Remaining",
+        rateLimitResult.remaining.toString()
+      );
+      response.headers.set(
+        "X-RateLimit-Reset",
+        new Date(rateLimitResult.resetTime).toISOString()
+      );
+
+      return response;
+    } catch (sqlErr) {
+      console.error("[REGISTER] SQL error:", sqlErr);
+      return createErrorResponse(
+        sqlErr,
+        "Erreur lors de l'inscription",
+        500
       );
     }
-  } catch (e: any) {
-    console.error("[REGISTER] error:", e?.message || e);
-    return NextResponse.json(
-      { message: "Erreur serveur", detail: e?.message || "Unknown" },
-      { status: 500 }
-    );
+  } catch (e) {
+    console.error("[REGISTER] error:", e);
+    return createErrorResponse(e, "Erreur lors de l'inscription", 500);
   }
 }

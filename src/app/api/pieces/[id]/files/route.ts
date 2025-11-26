@@ -1,10 +1,17 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { protectRoute } from "@/lib/auth/routeProtection";
 
 export async function GET(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
+  // Protection de la route
+  const authResult = await protectRoute(request);
+  if (!authResult.authorized) {
+    return authResult.response!;
+  }
+
   try {
     const resolvedParams = await params;
     const pieceId = parseInt(resolvedParams.id);
@@ -20,8 +27,13 @@ export async function GET(
     const agentDossierId = searchParams.get("agentDossierId");
 
     // Récupérer les fichiers de la pièce avec filtre optionnel par agent_dossier_id
-    const whereClause: any = { id_piece: pieceId };
-    
+    interface WhereClause {
+      id_piece: number;
+      agent_dossier_id?: number;
+    }
+
+    const whereClause: WhereClause = { id_piece: pieceId };
+
     if (agentDossierId) {
       whereClause.agent_dossier_id = parseInt(agentDossierId);
     }
@@ -47,6 +59,12 @@ export async function POST(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
+  // Protection de la route
+  const authResult = await protectRoute(request);
+  if (!authResult.authorized) {
+    return authResult.response!;
+  }
+
   try {
     const resolvedParams = await params;
     const pieceId = parseInt(resolvedParams.id);
@@ -84,7 +102,13 @@ export async function POST(
     }
 
     // Créer l'enregistrement de fichier avec agent_dossier_id
-    const dataToCreate: any = {
+    interface PieceFileCreateData {
+      id_piece: number;
+      file_path: string;
+      agent_dossier_id?: number;
+    }
+
+    const dataToCreate: PieceFileCreateData = {
       id_piece: pieceId,
       file_path: file_path,
     };

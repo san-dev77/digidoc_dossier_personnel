@@ -1,7 +1,15 @@
 import { NextRequest, NextResponse } from "next/server";
 import { FileManager } from "@/services/storage/FileManager";
+import { protectRoute } from "@/lib/auth/routeProtection";
+import { createErrorResponse } from "@/lib/errors/safeError";
 
 export async function POST(request: NextRequest) {
+  // Protection de la route
+  const authResult = await protectRoute(request);
+  if (!authResult.authorized) {
+    return authResult.response!;
+  }
+
   try {
     // Nettoyer les fichiers temporaires
     await FileManager.cleanupTempFiles();
@@ -14,17 +22,17 @@ export async function POST(request: NextRequest) {
   } catch (error) {
     console.error("Erreur lors du nettoyage:", error);
 
-    return NextResponse.json(
-      {
-        error: "Erreur lors du nettoyage",
-        details: error instanceof Error ? error.message : "Erreur inconnue",
-      },
-      { status: 500 }
-    );
+    return createErrorResponse(error, "Erreur lors du nettoyage", 500);
   }
 }
 
 export async function GET(request: NextRequest) {
+  // Protection de la route
+  const authResult = await protectRoute(request);
+  if (!authResult.authorized) {
+    return authResult.response!;
+  }
+
   try {
     // Retourner des informations sur l'état du stockage
     const tempDir = process.cwd() + "/uploads/temp";
@@ -44,12 +52,6 @@ export async function GET(request: NextRequest) {
   } catch (error) {
     console.error("Erreur lors de la récupération des informations:", error);
 
-    return NextResponse.json(
-      {
-        error: "Erreur lors de la récupération des informations",
-        details: error instanceof Error ? error.message : "Erreur inconnue",
-      },
-      { status: 500 }
-    );
+    return createErrorResponse(error, "Erreur lors de la récupération des informations", 500);
   }
 }

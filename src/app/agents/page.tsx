@@ -595,6 +595,49 @@ export default function AgentsPage() {
     }));
   };
 
+  // Fonction pour tronquer le nom si trop long
+  const truncateName = (name: string, maxLength: number = 25) => {
+    if (name.length <= maxLength) return name;
+    return name.substring(0, maxLength - 3) + "...";
+  };
+
+  // Fonction pour tronquer l'adresse si trop longue
+  const truncateAddress = (address: string, maxLength: number = 30) => {
+    if (address.length <= maxLength) return address;
+    return address.substring(0, maxLength - 3) + "...";
+  };
+
+  // Fonction pour surligner les correspondances dans le texte
+  const highlightMatch = (text: string, query: string) => {
+    if (!query.trim()) {
+      return <span>{text}</span>;
+    }
+
+    // Échapper les caractères spéciaux de regex
+    const escapedQuery = query.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+    const regex = new RegExp(`(${escapedQuery})`, "gi");
+    const parts = text.split(regex);
+
+    return (
+      <span>
+        {parts.map((part, index) => {
+          // Vérifier si cette partie correspond à la requête (insensible à la casse)
+          if (part.toLowerCase() === query.toLowerCase()) {
+            return (
+              <span
+                key={index}
+                className="bg-blue-500 text-white font-semibold px-0.5 rounded"
+              >
+                {part}
+              </span>
+            );
+          }
+          return <span key={index}>{part}</span>;
+        })}
+      </span>
+    );
+  };
+
   // Filtrage des agents
   const filteredAgents = agents.filter((agent) => {
     const searchLower = searchQuery.toLowerCase();
@@ -988,193 +1031,232 @@ export default function AgentsPage() {
 
         {/* Tableau des agents */}
         <div className="bg-white rounded-xl shadow-md border border-gray-300 overflow-hidden">
-          <div className="overflow-x-auto">
-            <table className="min-w-full divide-y divide-slate-200">
-              <thead className="bg-gradient-to-r from-primary-50 to-primary-100">
-                <tr>
-                  <th className="px-6 py-5 text-left text-sm font-bold text-primary-800 uppercase tracking-wider">
-                    Agent
-                  </th>
-                  <th className="px-6 py-5 text-left text-sm font-bold text-primary-800 uppercase tracking-wider">
-                    Matricule
-                  </th>
-                  <th className="px-6 py-5 text-left text-sm font-bold text-primary-800 uppercase tracking-wider">
-                    Fonction
-                  </th>
-                  <th className="px-6 py-5 text-left text-sm font-bold text-primary-800 uppercase tracking-wider">
-                    Contact
-                  </th>
-                  <th className="px-6 py-5 text-left text-sm font-bold text-primary-800 uppercase tracking-wider">
-                    Affectation
-                  </th>
-                  <th className="px-6 py-5 text-right text-sm font-bold text-primary-800 uppercase tracking-wider">
-                    Actions
-                  </th>
-                </tr>
-              </thead>
-              <tbody className="bg-white divide-y divide-slate-200">
-                {filteredAgents.length === 0 ? (
+          {loading ? (
+            <div className="flex items-center justify-center py-24">
+              <div className="text-center">
+                <div className="w-20 h-20 bg-gradient-to-br from-primary-500 to-primary-600 rounded-2xl flex items-center justify-center mx-auto mb-6 shadow-lg">
+                  <Loader2 className="w-10 h-10 text-primary-700 animate-spin" />
+                </div>
+                <h3 className="text-xl font-bold text-gray-900 mb-2">
+                  Chargement des agents...
+                </h3>
+                <p className="text-gray-600">
+                  Veuillez patienter pendant que nous récupérons les données.
+                </p>
+              </div>
+            </div>
+          ) : (
+            <div className="overflow-x-auto">
+              <table className="min-w-full divide-y divide-slate-200">
+                <thead className="bg-gradient-to-r from-primary-50 to-primary-100">
                   <tr>
-                    <td colSpan={6} className="px-6 py-12 text-center">
-                      <div className="flex flex-col items-center space-y-4">
-                        <div className="w-16 h-16 bg-primary-100 rounded-full flex items-center justify-center">
-                          <Users className="w-8 h-8 text-slate-400" />
-                        </div>
-                        <div>
-                          <h3 className="text-lg font-medium text-gray-900">
-                            {searchQuery
-                              ? "Aucun agent trouvé"
-                              : "Aucun agent enregistré"}
-                          </h3>
-                          <p className="text-gray-500 mt-1">
-                            {searchQuery
-                              ? "Aucun agent ne correspond à vos critères de recherche."
-                              : "Commencez par ajouter votre premier agent."}
-                          </p>
-                        </div>
-                        {!searchQuery && (
-                          <button
-                            onClick={() => setShowCreateForm(true)}
-                            className="mt-2 bg-primary-700 hover:bg-primary-800 text-white px-4 py-2 rounded-lg flex items-center space-x-2 transition-colors"
-                          >
-                            <UserPlus className="w-4 h-4" />
-                            <span>Ajouter un agent</span>
-                          </button>
-                        )}
-                      </div>
-                    </td>
+                    <th className="px-4 py-3 text-left text-xs font-semibold text-primary-800 uppercase tracking-wider">
+                      Agent
+                    </th>
+                    <th className="px-4 py-3 text-left text-xs font-semibold text-primary-800 uppercase tracking-wider">
+                      Matricule
+                    </th>
+                    <th className="px-4 py-3 text-left text-xs font-semibold text-primary-800 uppercase tracking-wider">
+                      Fonction
+                    </th>
+                    <th className="px-4 py-3 text-left text-xs font-semibold text-primary-800 uppercase tracking-wider">
+                      Adresse
+                    </th>
+                    <th className="px-4 py-3 text-left text-xs font-semibold text-primary-800 uppercase tracking-wider">
+                      Affectation
+                    </th>
+                    <th className="px-4 py-3 text-right text-xs font-semibold text-primary-800 uppercase tracking-wider">
+                      Actions
+                    </th>
                   </tr>
-                ) : (
-                  filteredAgents.map((agent) => {
-                    const hasRubriques = getAgentRubriques(agent.id).length > 0;
-                    return (
-                      <tr
-                        key={agent.id}
-                        className={`${
-                          hasRubriques
-                            ? "bg-accent-green-light/10 hover:bg-accent-green-light/20 border-l-4 border-accent-green"
-                            : "bg-warning-50/30 hover:bg-warning-100/50 border-l-4 border-warning-500"
-                        } transition-all duration-200`}
-                      >
-                        <td className="px-6 py-4 whitespace-nowrap">
-                          <div className="flex items-center">
-                            <div
-                              className={`w-12 h-12 rounded-full flex items-center justify-center shadow-lg border-2 ${
-                                hasRubriques
-                                  ? "bg-accent-green text-white border-accent-green"
-                                  : "bg-warning-600 text-white border-gray-600"
-                              }`}
+                </thead>
+                <tbody className="bg-white divide-y divide-slate-200">
+                  {filteredAgents.length === 0 ? (
+                    <tr>
+                      <td colSpan={6} className="px-6 py-12 text-center">
+                        <div className="flex flex-col items-center space-y-4">
+                          <div className="w-16 h-16 bg-primary-100 rounded-full flex items-center justify-center">
+                            <Users className="w-8 h-8 text-slate-400" />
+                          </div>
+                          <div>
+                            <h3 className="text-lg font-medium text-gray-900">
+                              {searchQuery
+                                ? "Aucun agent trouvé"
+                                : "Aucun agent enregistré"}
+                            </h3>
+                            <p className="text-gray-500 mt-1">
+                              {searchQuery
+                                ? "Aucun agent ne correspond à vos critères de recherche."
+                                : "Commencez par ajouter votre premier agent."}
+                            </p>
+                          </div>
+                          {!searchQuery && (
+                            <button
+                              onClick={() => setShowCreateForm(true)}
+                              className="mt-2 bg-primary-700 hover:bg-primary-800 text-white px-4 py-2 rounded-lg flex items-center space-x-2 transition-colors"
                             >
-                              <span
-                                className={`text-sm font-bold text-white 
-                              `}
+                              <UserPlus className="w-4 h-4" />
+                              <span>Ajouter un agent</span>
+                            </button>
+                          )}
+                        </div>
+                      </td>
+                    </tr>
+                  ) : (
+                    filteredAgents.map((agent) => {
+                      const hasRubriques =
+                        getAgentRubriques(agent.id).length > 0;
+                      return (
+                        <tr
+                          key={agent.id}
+                          className={`${
+                            hasRubriques
+                              ? "bg-accent-green-light/5 hover:bg-accent-green-light/15 border-l-2 border-accent-green"
+                              : "bg-warning-50/20 hover:bg-warning-100/40 border-l-2 border-warning-500"
+                          } transition-all duration-200`}
+                        >
+                          <td className="px-4 py-3">
+                            <div className="flex items-center gap-3 min-w-0">
+                              <div
+                                className={`w-10 h-10 rounded-lg flex items-center justify-center shadow-sm border flex-shrink-0 ${
+                                  hasRubriques
+                                    ? "bg-accent-green text-white border-accent-green"
+                                    : "bg-warning-600 text-white border-warning-700"
+                                }`}
                               >
-                                {agent.nom.charAt(0)}
-                                {agent.nom.charAt(1)}
+                                <span className="text-xs font-bold text-white">
+                                  {agent.nom.charAt(0).toUpperCase()}
+                                  {agent.nom
+                                    .split(" ")[1]
+                                    ?.charAt(0)
+                                    .toUpperCase() ||
+                                    agent.nom.charAt(1)?.toUpperCase() ||
+                                    ""}
+                                </span>
+                              </div>
+                              <div className="min-w-0 flex-1">
+                                <div
+                                  className="text-sm font-semibold text-gray-900 truncate"
+                                  title={agent.nom}
+                                >
+                                  {highlightMatch(
+                                    truncateName(agent.nom, 22),
+                                    searchQuery
+                                  )}
+                                </div>
+                                <div className="text-xs text-gray-500 mt-0.5 flex items-center gap-1">
+                                  <Phone className="w-3 h-3" />
+                                  <span className="truncate">
+                                    {highlightMatch(
+                                      agent.telephone,
+                                      searchQuery
+                                    )}
+                                  </span>
+                                </div>
+                              </div>
+                            </div>
+                          </td>
+                          <td className="px-4 py-3">
+                            <div className="flex flex-col gap-1">
+                              <span className="inline-flex items-center px-2 py-1 rounded-md text-xs font-semibold bg-primary-100 text-primary-700 border border-primary-200 w-fit">
+                                <BadgeCheck className="w-3 h-3 mr-1" />
+                                {highlightMatch(agent.matricule, searchQuery)}
                               </span>
                             </div>
-                            <div className="ml-4">
-                              <div className="text-base font-bold text-gray-900">
-                                {agent.nom}
-                              </div>
-                              <div className="text-sm text-gray-600 mt-1">
-                                {agent.date_naissance} • {agent.lieu_naissance}
-                              </div>
-                            </div>
-                          </div>
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap">
-                          <span className="inline-flex items-center px-3 py-1.5 rounded-full text-sm font-bold bg-primary-600 text-white shadow-md border border-primary-700">
-                            <BadgeCheck className="w-4 h-4 mr-2" />
-                            {agent.matricule}
-                          </span>
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap">
-                          <span className="inline-flex items-center px-3 py-1 rounded-lg text-sm font-medium bg-gray-100 text-gray-800 border border-gray-200">
-                            {agent.fonction}
-                          </span>
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap">
-                          <div className="space-y-1">
-                            <div className="text-sm font-medium text-gray-900">
-                              {agent.telephone}
-                            </div>
-                            <div className="text-xs text-gray-500 bg-gray-50 px-2 py-1 rounded-md border border-gray-200">
-                              {agent.adresse}
-                            </div>
-                          </div>
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap">
-                          {getAgentRubriques(agent.id).length > 0 ? (
-                            <span className="inline-flex items-center px-3 py-1.5 rounded-full text-sm font-bold bg-accent-green text-white border border-accent-green shadow-md">
-                              <Building2 className="w-4 h-4 mr-2" />
-                              {getAgentRubriques(agent.id).length} rubrique
-                              {getAgentRubriques(agent.id).length > 1
-                                ? "s"
-                                : ""}
+                          </td>
+                          <td className="px-4 py-3">
+                            <span className="inline-flex items-center px-2.5 py-1 rounded-md text-xs font-medium bg-slate-100 text-slate-700 border border-slate-200">
+                              {highlightMatch(
+                                agent.fonction.length > 20
+                                  ? truncateName(agent.fonction, 20)
+                                  : agent.fonction,
+                                searchQuery
+                              )}
                             </span>
-                          ) : (
-                            <span className="inline-flex items-center px-3 py-1.5 rounded-full text-sm font-bold bg-warning-600 text-white border border-warning-700 shadow-md">
-                              <AlertCircle className="w-4 h-4 mr-2" />
-                              Non affecté
-                            </span>
-                          )}
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                          <div className="flex items-center justify-end space-x-2">
-                            <button
-                              onClick={() => handleAgentSelect(agent)}
-                              className="p-2.5 text-primary-600 bg-primary-50 hover:text-primary-700 hover:bg-primary-100 rounded-lg transition-all duration-200 group border border-primary-200 hover:border-primary-300 shadow-sm hover:shadow-md"
-                              title="Voir les détails"
-                            >
-                              <Info className="w-4 h-4 group-hover:scale-110 transition-transform" />
-                            </button>
-                            <button
-                              onClick={() => handleEditAgent(agent)}
-                              className="p-2.5 text-blue-600 bg-blue-50 hover:text-blue-700 hover:bg-blue-100 rounded-lg transition-all duration-200 group border border-blue-200 hover:border-blue-300 shadow-sm hover:shadow-md"
-                              title="Modifier"
-                            >
-                              <Edit className="w-4 h-4 group-hover:scale-110 transition-transform" />
-                            </button>
-                            <button
-                              onClick={() => handleDeleteAgent(agent)}
-                              className="p-2.5 text-red-600 bg-red-50 hover:text-red-700 hover:bg-red-100 rounded-lg transition-all duration-200 group border border-red-200 hover:border-red-300 shadow-sm hover:shadow-md"
-                              title="Supprimer"
-                            >
-                              <Trash2 className="w-4 h-4 group-hover:scale-110 transition-transform" />
-                            </button>
-                          </div>
-                        </td>
-                      </tr>
-                    );
-                  })
-                )}
-              </tbody>
-            </table>
-          </div>
+                          </td>
+                          <td className="px-4 py-3">
+                            <div className="text-xs text-gray-600 max-w-[180px]">
+                              <div className="truncate" title={agent.adresse}>
+                                {highlightMatch(
+                                  truncateAddress(agent.adresse, 25),
+                                  searchQuery
+                                )}
+                              </div>
+                            </div>
+                          </td>
+                          <td className="px-4 py-3">
+                            {getAgentRubriques(agent.id).length > 0 ? (
+                              <div className="flex flex-col gap-1">
+                                <span className="inline-flex items-center px-2.5 py-1 rounded-md text-xs font-semibold bg-accent-green/10 text-accent-green border border-accent-green/30 w-fit">
+                                  <Building2 className="w-3 h-3 mr-1" />
+                                  {getAgentRubriques(agent.id).length}
+                                </span>
+                              </div>
+                            ) : (
+                              <span className="inline-flex text-primary-700 items-center px-2.5 py-1 rounded-md text-xs font-semibold bg-warning-100 text-warning-700 border border-warning-300 w-fit">
+                                <AlertCircle className="w-3 h-3 mr-1" />
+                                Non affecté
+                              </span>
+                            )}
+                          </td>
+                          <td className="px-4 py-3">
+                            <div className="flex items-center justify-end gap-1.5">
+                              <button
+                                onClick={() => handleAgentSelect(agent)}
+                                className="p-2 text-primary-600 bg-primary-50 hover:text-primary-700 hover:bg-primary-100 rounded-md transition-all duration-200 group border border-primary-200 hover:border-primary-300"
+                                title={`Voir les détails de ${agent.nom}`}
+                              >
+                                <Info className="w-4 h-4 group-hover:scale-110 transition-transform" />
+                              </button>
+                              <button
+                                onClick={() => handleEditAgent(agent)}
+                                className="p-2 text-blue-600 bg-blue-50 hover:text-blue-700 hover:bg-blue-100 rounded-md transition-all duration-200 group border border-blue-200 hover:border-blue-300"
+                                title={`Modifier ${agent.nom}`}
+                              >
+                                <Edit className="w-4 h-4 group-hover:scale-110 transition-transform" />
+                              </button>
+                              <button
+                                onClick={() => handleDeleteAgent(agent)}
+                                className="p-2 text-red-600 bg-red-50 hover:text-red-700 hover:bg-red-100 rounded-md transition-all duration-200 group border border-red-200 hover:border-red-300"
+                                title={`Supprimer ${agent.nom}`}
+                              >
+                                <Trash2 className="w-4 h-4 group-hover:scale-110 transition-transform" />
+                              </button>
+                            </div>
+                          </td>
+                        </tr>
+                      );
+                    })
+                  )}
+                </tbody>
+              </table>
+            </div>
+          )}
         </div>
 
         {/* Pagination */}
-        <div className="flex items-center justify-between mt-6">
-          <div className="text-sm text-gray-600">
-            Affichage de 1 à {Math.min(filteredAgents.length, 10)} sur{" "}
-            {filteredAgents.length} résultats
+        {!loading && (
+          <div className="flex items-center justify-between mt-6">
+            <div className="text-sm text-gray-600">
+              Affichage de 1 à {Math.min(filteredAgents.length, 10)} sur{" "}
+              {filteredAgents.length} résultats
+            </div>
+            <div className="flex space-x-2">
+              <button
+                className="px-3 py-2 border border-gray-300 rounded-lg text-sm text-gray-600 hover:bg-gray-50 transition-colors"
+                disabled
+              >
+                Précédent
+              </button>
+              <button
+                className="px-3 py-2 border border-gray-300 rounded-lg text-sm text-gray-600 hover:bg-gray-50 transition-colors"
+                disabled
+              >
+                Suivant
+              </button>
+            </div>
           </div>
-          <div className="flex space-x-2">
-            <button
-              className="px-3 py-2 border border-gray-300 rounded-lg text-sm text-gray-600 hover:bg-gray-50 transition-colors"
-              disabled
-            >
-              Précédent
-            </button>
-            <button
-              className="px-3 py-2 border border-gray-300 rounded-lg text-sm text-gray-600 hover:bg-gray-50 transition-colors"
-              disabled
-            >
-              Suivant
-            </button>
-          </div>
-        </div>
+        )}
 
         {/* Modal de détail de l'agent avec onglets */}
         {selectedAgent && (
@@ -1308,7 +1390,9 @@ export default function AgentsPage() {
                               <p className="text-slate-900 font-semibold mt-1">
                                 {selectedAgent.sexe === "M"
                                   ? "Masculin"
-                                  : "Féminin"}
+                                  : selectedAgent.sexe === "F"
+                                  ? "Féminin"
+                                  : "Non renseigné"}
                               </p>
                             </div>
                             <div>

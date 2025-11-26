@@ -64,10 +64,7 @@ interface SousDossierCardProps {
   onPieceCreated?: (piece: Piece) => void;
 }
 
-export default function SousDossierCard({
-  sousDossier,
-  onPieceCreated,
-}: SousDossierCardProps) {
+export default function SousDossierCard({ sousDossier }: SousDossierCardProps) {
   const [isExpanded, setIsExpanded] = useState(false);
   const [hasLoadedOnce, setHasLoadedOnce] = useState(false);
 
@@ -78,7 +75,6 @@ export default function SousDossierCard({
   );
   const isLoading = usePiecesStore((state) => state.isLoading(sousDossier.id));
   const setPieces = usePiecesStore((state) => state.setPieces);
-  const addPiece = usePiecesStore((state) => state.addPiece);
   const setLoading = usePiecesStore((state) => state.setLoading);
   const setError = usePiecesStore((state) => state.setError);
 
