@@ -166,8 +166,6 @@ export default function MetadataForm({
                       { value: "text", label: "Texte" },
                       { value: "number", label: "Nombre" },
                       { value: "date", label: "Date" },
-                      { value: "email", label: "Email" },
-                      { value: "url", label: "URL" },
                     ]}
                   />
 

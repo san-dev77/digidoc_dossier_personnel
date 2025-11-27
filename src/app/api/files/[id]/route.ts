@@ -11,9 +11,30 @@ export async function GET(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
+  // Protection de la route
+  const authResult = await protectRoute(request);
+  if (!authResult.authorized) {
+    return authResult.response!;
+  }
+
   try {
     const resolvedParams = await params;
     const pieceFileId = resolvedParams.id;
+    
+    // Vérifier que l'ID est un nombre valide
+    // Si ce n'est pas un nombre, c'est probablement un chemin de fichier
+    // qui devrait être géré par la route [...path]
+    const numericId = parseInt(pieceFileId, 10);
+    if (isNaN(numericId)) {
+      // Ce n'est pas un ID numérique, retourner 404 pour que Next.js
+      // puisse essayer la route [...path] (mais en fait Next.js ne le fera pas automatiquement)
+      // Donc on retourne une erreur claire
+      return NextResponse.json(
+        { error: "ID de fichier invalide. Utilisez un ID numérique ou un chemin de fichier via /api/files/[...path]" },
+        { status: 400 }
+      );
+    }
+    
     const { searchParams } = new URL(request.url);
     // Note: rubriqueId et sousDossierId peuvent être utilisés pour des validations futures
     // eslint-disable-next-line @typescript-eslint/no-unused-vars
@@ -24,7 +45,7 @@ export async function GET(
 
     // Récupérer les informations du fichier depuis la base de données
     const pieceFile = await prisma.piece_file.findUnique({
-      where: { id: parseInt(pieceFileId) },
+      where: { id: numericId },
       include: {
         pieces: {
           include: {

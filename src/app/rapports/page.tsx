@@ -422,7 +422,7 @@ export default function RapportsPage() {
                   placeholder="Rechercher un agent..."
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
-                  className="block w-full pl-10 pr-3 py-3.5 border border-gray-500 rounded-lg text-sm placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-primary-500 bg-white"
+                  className="block text-black w-full pl-10 pr-3 py-3.5 border border-gray-500 rounded-lg text-sm placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-primary-500 bg-white"
                 />
               </div>
             </div>

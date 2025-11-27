@@ -95,8 +95,13 @@ export default function PieceFileUpload({
                     ) : (
                       <File className="w-12 h-12 text-primary-500 mb-2" />
                     )}
-                    <p className="text-xs text-center text-primary-700 font-medium truncate w-full px-2">
-                      {file.name}
+                    <p
+                      className="text-xs text-center text-primary-700 font-medium truncate w-full px-2"
+                      title={file.name}
+                    >
+                      {file.name.length > 20
+                        ? `${file.name.substring(0, 17)}...`
+                        : file.name}
                     </p>
                     <p className="text-xs text-primary-500 mt-1">
                       {formatFileSize(file.size)}

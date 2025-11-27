@@ -43,10 +43,9 @@ export default function DossiersSearchBar({
           className="group flex items-center gap-3 px-6 py-4 bg-gradient-primary text-white rounded-2xl hover:bg-gradient-to-r hover:from-primary-700 hover:to-primary-800 transition-all duration-300 shadow-lg hover:shadow-xl transform hover:scale-105"
         >
           <Plus className="w-5 h-5 group-hover:rotate-90 transition-transform duration-300" />
-          <span className="font-semibold">Nouveau sous-dossier</span>
+          <span className="font-semibold">Nouveau dossier</span>
         </button>
       </div>
     </div>
   );
 }
-

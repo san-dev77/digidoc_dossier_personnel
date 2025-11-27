@@ -7,6 +7,12 @@ export async function GET(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
+  // Protection de la route
+  const authResult = await protectRoute(request);
+  if (!authResult.authorized) {
+    return authResult.response!;
+  }
+
   try {
     const { id: idParam } = await params;
     const pieceId = parseInt(idParam);

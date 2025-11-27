@@ -195,8 +195,8 @@ export default function NouveauSousDossierModal({
           const piecesWithDetails = await Promise.all(
             piecesData.map(async (piece) => {
               const [metadataModels, files] = await Promise.all([
-                fetchWithAuth(`/api/pieces/${piece.id}/metadata-models`).then((res) =>
-                  res.ok ? res.json() : []
+                fetchWithAuth(`/api/pieces/${piece.id}/metadata-models`).then(
+                  (res) => (res.ok ? res.json() : [])
                 ),
                 fetchWithAuth(`/api/pieces/${piece.id}/files`).then((res) =>
                   res.ok ? res.json() : []
@@ -313,64 +313,91 @@ export default function NouveauSousDossierModal({
   return (
     <div className="fixed inset-0 bg-black/70 transition-all duration-300 backdrop-blur-md flex items-center justify-center z-50 p-4">
       <div className="bg-white rounded-2xl shadow-2xl max-w-6xl w-full max-h-[90vh] overflow-hidden">
-        {/* Header du modal */}
-        <div className="relative bg-gradient-to-r from-primary-50 to-white p-8 border-b border-primary-200">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-4">
+        {/* Header du modal - Réduit */}
+        <div className="relative bg-primary-800 p-4 border-b-2 border-primary-900">
+          <div className="flex items-center justify-between gap-4">
+            <div className="flex items-center gap-3 flex-shrink-0">
               <div className="relative">
-                <div className="w-16 h-16 bg-gradient-primary rounded-2xl flex items-center justify-center shadow-lg">
-                  <Plus className="w-8 h-8 text-white" />
-                </div>
-                <div className="absolute -top-2 -right-2 w-6 h-6 bg-gradient-to-r from-emerald-400 to-emerald-500 rounded-full flex items-center justify-center shadow-lg">
-                  <div className="w-2 h-2 bg-white rounded-full animate-pulse"></div>
+                <div className="w-10 h-10 bg-primary-600 rounded-lg flex items-center justify-center shadow-md border-2 border-primary-700">
+                  <Plus className="w-5 h-5 text-white" />
                 </div>
               </div>
               <div>
-                <h2 className="text-2xl font-bold text-primary-800 mb-1">
-                  Gestion des Dossiers
+                <h2 className="text-lg font-bold text-white">
+                  Nouveau Dossier
                 </h2>
-                <p className="text-primary-600">
-                  Étape {step}/4 -{" "}
-                  {step === 1
-                    ? "Sélection de l'agent"
-                    : step === 2
-                    ? "Sélection de la rubrique"
-                    : step === 3
-                    ? "Sélection du sous-dossier"
-                    : "Gestion des pièces"}
-                </p>
-                <div className="mt-3 w-64 bg-primary-200 rounded-full h-2">
+                <div className="flex items-center gap-2 mt-1">
+                  <span className="text-xs text-primary-200 font-semibold">
+                    Étape {step}/4
+                  </span>
+                  <span className="text-primary-300">•</span>
+                  <span className="text-xs text-primary-200">
+                    {step === 1
+                      ? "Agent"
+                      : step === 2
+                      ? "Rubrique"
+                      : step === 3
+                      ? "Sous-dossier"
+                      : "Pièces"}
+                  </span>
+                </div>
+                <div className="mt-2 w-48 bg-primary-700 rounded-full h-1.5 border border-primary-600">
                   <div
-                    className="bg-gradient-primary h-2 rounded-full transition-all duration-500"
+                    className="bg-primary-400 h-1.5 rounded-full transition-all duration-500 shadow-sm"
                     style={{ width: `${(step / 4) * 100}%` }}
                   ></div>
                 </div>
               </div>
             </div>
-            <button
-              onClick={handleClose}
-              className="w-12 h-12 bg-primary-100 hover:bg-primary-200 rounded-2xl flex items-center justify-center transition-all duration-300 hover:scale-110"
-            >
-              <X className="w-6 h-6 text-primary-600" />
-            </button>
+            {/* Boutons de navigation dans le header à l'étape 4 */}
+            {step === 4 ? (
+              <div className="flex items-center gap-3 flex-shrink-0">
+                <button
+                  type="button"
+                  onClick={() => setStep(step - 1)}
+                  className="group flex items-center gap-2 px-4 py-2 bg-primary-600 text-white font-bold rounded-lg hover:bg-primary-700 transition-all duration-200 shadow-md border-2 border-primary-700"
+                >
+                  <ChevronLeft className="w-4 h-4 group-hover:-translate-x-1 transition-transform duration-200" />
+                  Précédent
+                </button>
+                <button
+                  type="button"
+                  onClick={handleClose}
+                  className="px-4 py-2 text-primary-200 hover:text-white font-semibold transition-all duration-200 hover:bg-primary-700 rounded-lg border-2 border-primary-600"
+                >
+                  Annuler
+                </button>
+              </div>
+            ) : (
+              <button
+                onClick={handleClose}
+                className="w-9 h-9 bg-primary-700 hover:bg-primary-600 rounded-lg flex items-center justify-center transition-all duration-200 border-2 border-primary-600 hover:border-primary-500 flex-shrink-0"
+              >
+                <X className="w-5 h-5 text-white" />
+              </button>
+            )}
           </div>
         </div>
 
         {/* Contenu du modal */}
-        <div className="p-6 overflow-y-auto max-h-[calc(85vh-200px)]">
+        <div
+          className={`p-5 overflow-y-auto ${
+            step === 4 ? "max-h-[calc(90vh-100px)]" : "max-h-[calc(90vh-200px)]"
+          }`}
+        >
           {step === 1 && (
             <div>
               <h3 className="text-lg font-semibold text-primary-800 mb-4">
                 Sélectionner un agent
               </h3>
               <div className="relative mb-4">
-                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-primary-400" />
+                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-primary-600 z-10" />
                 <input
                   type="text"
                   placeholder="Rechercher un agent..."
                   value={searchAgent}
                   onChange={(e) => setSearchAgent(e.target.value)}
-                  className="w-full pl-10 pr-4 py-2 border border-primary-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500 text-black"
+                  className="w-full pl-11 pr-4 py-2.5 border-2 border-primary-400 bg-white rounded-lg focus:ring-2 focus:ring-primary-600 focus:border-primary-600 text-primary-900 font-medium shadow-sm"
                 />
               </div>
               <div className="space-y-3 max-h-60 overflow-y-auto">
@@ -378,18 +405,18 @@ export default function NouveauSousDossierModal({
                   <div
                     key={agent.id}
                     onClick={() => setSelectedAgent(agent)}
-                    className={`group p-4 border-2 rounded-2xl cursor-pointer transition-all duration-300 transform ${
+                    className={`group p-4 border-2 rounded-xl cursor-pointer transition-all duration-300 transform ${
                       selectedAgent?.id === agent.id
-                        ? "border-blue-700 bg-gradient-to-r from-primary-50 to-primary-100 shadow-lg"
-                        : "border-primary-200 hover:border-primary-500 hover:shadow-md"
+                        ? "border-primary-700 bg-primary-100 shadow-lg ring-2 ring-primary-500"
+                        : "border-primary-300 bg-white hover:border-primary-600 hover:shadow-md hover:bg-primary-50"
                     }`}
                   >
                     <div className="flex items-center gap-4">
                       <div
-                        className={`w-12 h-12 rounded-xl flex items-center justify-center transition-all duration-300 ${
+                        className={`w-12 h-12 rounded-xl flex items-center justify-center transition-all duration-300 border-2 ${
                           selectedAgent?.id === agent.id
-                            ? "bg-gradient-primary"
-                            : "bg-primary-100 group-hover:bg-primary-200"
+                            ? "bg-primary-700 border-primary-800"
+                            : "bg-primary-100 border-primary-300 group-hover:bg-primary-200 group-hover:border-primary-400"
                         }`}
                       >
                         <User
@@ -409,8 +436,8 @@ export default function NouveauSousDossierModal({
                         </div>
                       </div>
                       {selectedAgent?.id === agent.id && (
-                        <div className="w-6 h-6 bg-gradient-to-r from-emerald-400 to-emerald-500 rounded-full flex items-center justify-center">
-                          <CheckCircle className="w-4 h-4 text-white" />
+                        <div className="w-7 h-7 bg-emerald-600 border-2 border-emerald-700 rounded-full flex items-center justify-center shadow-md">
+                          <CheckCircle className="w-5 h-5 text-white" />
                         </div>
                       )}
                     </div>
@@ -426,13 +453,13 @@ export default function NouveauSousDossierModal({
                 Sélectionner une rubrique
               </h3>
               <div className="relative mb-4">
-                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-primary-400" />
+                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-primary-600 z-10" />
                 <input
                   type="text"
                   placeholder="Rechercher une rubrique..."
                   value={searchRubrique}
                   onChange={(e) => setSearchRubrique(e.target.value)}
-                  className="w-full pl-10 pr-4 py-2 border border-primary-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500 text-black"
+                  className="w-full pl-11 pr-4 py-2.5 border-2 border-primary-400 bg-white rounded-lg focus:ring-2 focus:ring-primary-600 focus:border-primary-600 text-primary-900 font-medium shadow-sm"
                 />
               </div>
               <div className="space-y-3 max-h-60 overflow-y-auto">
@@ -440,18 +467,18 @@ export default function NouveauSousDossierModal({
                   <div
                     key={rubrique.id}
                     onClick={() => setSelectedRubrique(rubrique)}
-                    className={`group p-4 border-2 rounded-2xl cursor-pointer transition-all duration-300 transform hover:scale-[1] ${
+                    className={`group p-4 border-2 rounded-xl cursor-pointer transition-all duration-300 transform hover:scale-[1] ${
                       selectedRubrique?.id === rubrique.id
-                        ? "border-primary-500 bg-gradient-to-r from-primary-50 to-primary-100 shadow-lg"
-                        : "border-primary-200 hover:border-primary-700 hover:shadow-md"
+                        ? "border-primary-700 bg-primary-100 shadow-lg ring-2 ring-primary-500"
+                        : "border-primary-300 bg-white hover:border-primary-600 hover:shadow-md hover:bg-primary-50"
                     }`}
                   >
                     <div className="flex items-center gap-4">
                       <div
-                        className={`w-12 h-12 rounded-xl flex items-center justify-center transition-all duration-300 ${
+                        className={`w-12 h-12 rounded-xl flex items-center justify-center transition-all duration-300 border-2 ${
                           selectedRubrique?.id === rubrique.id
-                            ? "bg-gradient-primary"
-                            : "bg-primary-100 group-hover:bg-primary-200"
+                            ? "bg-primary-700 border-primary-800"
+                            : "bg-primary-100 border-primary-300 group-hover:bg-primary-200 group-hover:border-primary-400"
                         }`}
                       >
                         <Building2
@@ -473,8 +500,8 @@ export default function NouveauSousDossierModal({
                         )}
                       </div>
                       {selectedRubrique?.id === rubrique.id && (
-                        <div className="w-6 h-6 bg-gradient-to-r from-emerald-400 to-emerald-500 rounded-full flex items-center justify-center">
-                          <CheckCircle className="w-4 h-4 text-white" />
+                        <div className="w-7 h-7 bg-emerald-600 border-2 border-emerald-700 rounded-full flex items-center justify-center shadow-md">
+                          <CheckCircle className="w-5 h-5 text-white" />
                         </div>
                       )}
                     </div>
@@ -486,33 +513,33 @@ export default function NouveauSousDossierModal({
 
           {step === 3 && (
             <div>
-              <div className="relative mb-4 border border-primary-500 text-black rounded-lg">
-                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-primary-400" />
+              <div className="relative mb-4">
+                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-primary-600 z-10" />
                 <input
                   type="text"
                   placeholder="Rechercher un sous-dossier..."
                   value={searchSousDossier}
                   onChange={(e) => setSearchSousDossier(e.target.value)}
-                  className="w-full pl-10 pr-4 py-2 border border-primary-500 text-black rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
+                  className="w-full pl-11 pr-4 py-2.5 border-2 border-primary-400 bg-white text-primary-900 rounded-lg focus:ring-2 focus:ring-primary-600 focus:border-primary-600 font-medium shadow-sm"
                 />
               </div>
-              <div className="space-y-3 p-3 border-2 border-primary-500 text-black rounded-lg max-h-60 overflow-y-auto">
+              <div className="space-y-3 p-3 border-2 border-primary-300 bg-primary-50 rounded-lg max-h-60 overflow-y-auto">
                 {filteredSousDossiers.map((sousDossier) => (
                   <div
                     key={sousDossier.id}
                     onClick={() => setSelectedSousDossier(sousDossier)}
-                    className={`group p-4 border-2  rounded-2xl cursor-pointer transition-all duration-300 transform hover:scale-[1] ${
+                    className={`group p-4 border-2 rounded-xl cursor-pointer transition-all duration-300 transform hover:scale-[1] ${
                       selectedSousDossier?.id === sousDossier.id
-                        ? "border-primary-500 bg-gradient-to-r from-primary-50 to-primary-100 shadow-lg"
-                        : "border-primary-200 hover:border-primary-700 hover:shadow-md"
+                        ? "border-primary-700 bg-primary-200 shadow-lg ring-2 ring-primary-500"
+                        : "border-primary-300 bg-white hover:border-primary-600 hover:shadow-md hover:bg-primary-50"
                     }`}
                   >
                     <div className="flex items-center gap-4">
                       <div
-                        className={`w-12 h-12 rounded-xl flex items-center justify-center transition-all duration-300 ${
+                        className={`w-12 h-12 rounded-xl flex items-center justify-center transition-all duration-300 border-2 ${
                           selectedSousDossier?.id === sousDossier.id
-                            ? "bg-gradient-primary"
-                            : "bg-primary-100 group-hover:bg-primary-200"
+                            ? "bg-primary-700 border-primary-800"
+                            : "bg-primary-100 border-primary-300 group-hover:bg-primary-200 group-hover:border-primary-400"
                         }`}
                       >
                         <FileText
@@ -534,8 +561,8 @@ export default function NouveauSousDossierModal({
                         )}
                       </div>
                       {selectedSousDossier?.id === sousDossier.id && (
-                        <div className="w-6 h-6 bg-gradient-to-r from-emerald-400 to-emerald-500 rounded-full flex items-center justify-center">
-                          <CheckCircle className="w-4 h-4 text-white" />
+                        <div className="w-7 h-7 bg-emerald-600 border-2 border-emerald-700 rounded-full flex items-center justify-center shadow-md">
+                          <CheckCircle className="w-5 h-5 text-white" />
                         </div>
                       )}
                     </div>
@@ -611,18 +638,26 @@ export default function NouveauSousDossierModal({
                                     onBlur={async () => {
                                       if (creditValues[metadata.id]) {
                                         try {
-                                          await fetch("/api/meta-credit-values", {
-                                            method: "POST",
-                                            headers: {
-                                              "Content-Type": "application/json",
-                                            },
-                                            body: JSON.stringify({
-                                              metadata_credit_id: metadata.id,
-                                              valeur: creditValues[metadata.id],
-                                            }),
-                                          });
+                                          await fetch(
+                                            "/api/meta-credit-values",
+                                            {
+                                              method: "POST",
+                                              headers: {
+                                                "Content-Type":
+                                                  "application/json",
+                                              },
+                                              body: JSON.stringify({
+                                                metadata_credit_id: metadata.id,
+                                                valeur:
+                                                  creditValues[metadata.id],
+                                              }),
+                                            }
+                                          );
                                         } catch (error) {
-                                          console.error("❌ Erreur sauvegarde:", error);
+                                          console.error(
+                                            "❌ Erreur sauvegarde:",
+                                            error
+                                          );
                                         }
                                       }
                                     }}
@@ -642,18 +677,26 @@ export default function NouveauSousDossierModal({
                                     onBlur={async () => {
                                       if (creditValues[metadata.id]) {
                                         try {
-                                          await fetch("/api/meta-credit-values", {
-                                            method: "POST",
-                                            headers: {
-                                              "Content-Type": "application/json",
-                                            },
-                                            body: JSON.stringify({
-                                              metadata_credit_id: metadata.id,
-                                              valeur: creditValues[metadata.id],
-                                            }),
-                                          });
+                                          await fetch(
+                                            "/api/meta-credit-values",
+                                            {
+                                              method: "POST",
+                                              headers: {
+                                                "Content-Type":
+                                                  "application/json",
+                                              },
+                                              body: JSON.stringify({
+                                                metadata_credit_id: metadata.id,
+                                                valeur:
+                                                  creditValues[metadata.id],
+                                              }),
+                                            }
+                                          );
                                         } catch (error) {
-                                          console.error("❌ Erreur sauvegarde:", error);
+                                          console.error(
+                                            "❌ Erreur sauvegarde:",
+                                            error
+                                          );
                                         }
                                       }
                                     }}
@@ -673,18 +716,26 @@ export default function NouveauSousDossierModal({
                                     onBlur={async () => {
                                       if (creditValues[metadata.id]) {
                                         try {
-                                          await fetch("/api/meta-credit-values", {
-                                            method: "POST",
-                                            headers: {
-                                              "Content-Type": "application/json",
-                                            },
-                                            body: JSON.stringify({
-                                              metadata_credit_id: metadata.id,
-                                              valeur: creditValues[metadata.id],
-                                            }),
-                                          });
+                                          await fetch(
+                                            "/api/meta-credit-values",
+                                            {
+                                              method: "POST",
+                                              headers: {
+                                                "Content-Type":
+                                                  "application/json",
+                                              },
+                                              body: JSON.stringify({
+                                                metadata_credit_id: metadata.id,
+                                                valeur:
+                                                  creditValues[metadata.id],
+                                              }),
+                                            }
+                                          );
                                         } catch (error) {
-                                          console.error("❌ Erreur sauvegarde:", error);
+                                          console.error(
+                                            "❌ Erreur sauvegarde:",
+                                            error
+                                          );
                                         }
                                       }
                                     }}
@@ -702,18 +753,26 @@ export default function NouveauSousDossierModal({
                                     onBlur={async () => {
                                       if (creditValues[metadata.id]) {
                                         try {
-                                          await fetch("/api/meta-credit-values", {
-                                            method: "POST",
-                                            headers: {
-                                              "Content-Type": "application/json",
-                                            },
-                                            body: JSON.stringify({
-                                              metadata_credit_id: metadata.id,
-                                              valeur: creditValues[metadata.id],
-                                            }),
-                                          });
+                                          await fetch(
+                                            "/api/meta-credit-values",
+                                            {
+                                              method: "POST",
+                                              headers: {
+                                                "Content-Type":
+                                                  "application/json",
+                                              },
+                                              body: JSON.stringify({
+                                                metadata_credit_id: metadata.id,
+                                                valeur:
+                                                  creditValues[metadata.id],
+                                              }),
+                                            }
+                                          );
                                         } catch (error) {
-                                          console.error("❌ Erreur sauvegarde:", error);
+                                          console.error(
+                                            "❌ Erreur sauvegarde:",
+                                            error
+                                          );
                                         }
                                       }
                                     }}
@@ -740,60 +799,63 @@ export default function NouveauSousDossierModal({
                         </div>
                       </div>
 
-                      {selectedRubrique && isDossierCredit(selectedRubrique) && (
-                        <div className="mt-6 flex justify-center">
-                          <button
-                            onClick={async () => {
-                              setIsUploading(true);
-                              if (
-                                selectedAgent &&
-                                selectedRubrique &&
-                                selectedSousDossier
-                              ) {
-                                try {
-                                  await fetchWithAuth("/api/agent-dossiers", {
-                                    method: "POST",
-                                    headers: {
-                                      "Content-Type": "application/json",
-                                    },
-                                    body: JSON.stringify({
-                                      agent_id: selectedAgent.id,
-                                      rubrique_id: selectedRubrique.id,
-                                      sous_dossier_id: selectedSousDossier.id,
-                                    }),
-                                  });
-                                } catch (error) {
-                                  console.log(
-                                    "agent_dossiers déjà existant ou erreur:",
-                                    error
-                                  );
+                      {selectedRubrique &&
+                        isDossierCredit(selectedRubrique) && (
+                          <div className="mt-6 flex justify-center">
+                            <button
+                              onClick={async () => {
+                                setIsUploading(true);
+                                if (
+                                  selectedAgent &&
+                                  selectedRubrique &&
+                                  selectedSousDossier
+                                ) {
+                                  try {
+                                    await fetchWithAuth("/api/agent-dossiers", {
+                                      method: "POST",
+                                      headers: {
+                                        "Content-Type": "application/json",
+                                      },
+                                      body: JSON.stringify({
+                                        agent_id: selectedAgent.id,
+                                        rubrique_id: selectedRubrique.id,
+                                        sous_dossier_id: selectedSousDossier.id,
+                                      }),
+                                    });
+                                  } catch (error) {
+                                    console.log(
+                                      "agent_dossiers déjà existant ou erreur:",
+                                      error
+                                    );
+                                  }
                                 }
-                              }
-                              setSuccessMessage(
-                                "✅ Dossier de crédit créé avec succès !"
-                              );
-                              setTimeout(async () => {
-                                try {
-                                  // Recharger tous les dossiers pour inclure les nouveaux agents
-                                  await DossiersOptimizedService.loadDossiers(true);
-                                  handleClose();
-                                } catch (error) {
-                                  console.error(
-                                    "Erreur lors du rafraîchissement:",
-                                    error
-                                  );
-                                  // En cas d'erreur, recharger la page
-                                  window.location.reload();
-                                }
-                              }, 1500);
-                            }}
-                            className="group flex items-center gap-2 px-8 py-4 bg-gradient-to-r from-emerald-500 to-emerald-600 text-white rounded-xl hover:from-emerald-600 hover:to-emerald-700 transition-all duration-300 shadow-lg hover:shadow-xl transform hover:scale-105 font-semibold text-lg"
-                          >
-                            <CheckCircle className="w-5 h-5 group-hover:scale-110 transition-transform duration-300" />
-                            Terminer la création du dossier
-                          </button>
-                        </div>
-                      )}
+                                setSuccessMessage(
+                                  "✅ Dossier de crédit créé avec succès !"
+                                );
+                                setTimeout(async () => {
+                                  try {
+                                    // Recharger tous les dossiers pour inclure les nouveaux agents
+                                    await DossiersOptimizedService.loadDossiers(
+                                      true
+                                    );
+                                    handleClose();
+                                  } catch (error) {
+                                    console.error(
+                                      "Erreur lors du rafraîchissement:",
+                                      error
+                                    );
+                                    // En cas d'erreur, recharger la page
+                                    window.location.reload();
+                                  }
+                                }, 1500);
+                              }}
+                              className="group flex items-center gap-2 px-8 py-4 bg-emerald-700 text-white rounded-lg hover:bg-emerald-800 transition-all duration-200 shadow-md border-2 border-emerald-800 font-bold text-lg"
+                            >
+                              <CheckCircle className="w-5 h-5 group-hover:scale-110 transition-transform duration-300" />
+                              Terminer la création du dossier
+                            </button>
+                          </div>
+                        )}
                     </div>
                   ) : (
                     <div className="space-y-3 max-h-96 overflow-y-auto">
@@ -803,8 +865,8 @@ export default function NouveauSousDossierModal({
                           className="border border-primary-600 bg-primary-100 rounded-lg p-3"
                         >
                           <div className="flex items-center justify-between mb-3">
-                            <h4 className="font-semibold flex gap-2 justify-between bg-gradient-primary text-white px-2 py-1 rounded-lg items-center text-lg">
-                              <FileText className="w-4 h-4 text-white" />
+                            <h4 className="font-bold flex gap-2 justify-between bg-primary-700 text-white px-3 py-1.5 rounded-lg items-center text-lg border-2 border-primary-800">
+                              <FileText className="w-5 h-5 text-white" />
                               {piece.nom}
                             </h4>
                             <div className="flex items-center gap-2">
@@ -831,17 +893,20 @@ export default function NouveauSousDossierModal({
                           {piece.metadataModels &&
                             piece.metadataModels.length > 0 && (
                               <div className="mb-3">
-                                <h5 className="text-md font-medium text-primary-700 mb-2">
+                                <h5 className="text-md font-bold text-primary-900 mb-3 border-b-2 border-primary-300 pb-2">
                                   Métadonnées:
                                 </h5>
-                                <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                                   {piece.metadataModels.map(
                                     (model: MetadataModel) => (
-                                      <div key={model.id} className="space-y-1">
-                                        <label className="text-sm font-medium text-primary-700">
+                                      <div
+                                        key={model.id}
+                                        className="space-y-2 bg-primary-50 p-3 rounded-lg border-2 border-primary-200"
+                                      >
+                                        <label className="text-sm font-bold text-primary-900">
                                           {model.libelle}
                                           {model.obligatoire && (
-                                            <span className="text-red-500 ml-1">
+                                            <span className="text-red-600 ml-1 font-bold">
                                               *
                                             </span>
                                           )}
@@ -862,7 +927,7 @@ export default function NouveauSousDossierModal({
                                                   e.target.value,
                                               }));
                                             }}
-                                            className="w-full px-3 py-2 border border-primary-600 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500 text-black"
+                                            className="w-full px-3 py-2.5 border-2 border-primary-400 bg-white rounded-lg focus:ring-2 focus:ring-primary-600 focus:border-primary-600 text-primary-900 font-medium shadow-sm"
                                           />
                                         )}
                                         {model.type === "number" && (
@@ -881,7 +946,7 @@ export default function NouveauSousDossierModal({
                                                   e.target.value,
                                               }))
                                             }
-                                            className="w-full px-3 py-2 border border-primary-600 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500 text-black"
+                                            className="w-full px-3 py-2.5 border-2 border-primary-400 bg-white rounded-lg focus:ring-2 focus:ring-primary-600 focus:border-primary-600 text-primary-900 font-medium shadow-sm"
                                           />
                                         )}
                                         {model.type === "date" && (
@@ -900,7 +965,7 @@ export default function NouveauSousDossierModal({
                                                   e.target.value,
                                               }))
                                             }
-                                            className="w-full px-3 bg-gray-700 text-white py-2 border border-primary-600 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
+                                            className="w-full px-3 py-2.5 border-2 border-primary-400 bg-white text-primary-900 rounded-lg focus:ring-2 focus:ring-primary-600 focus:border-primary-600 font-medium shadow-sm"
                                           />
                                         )}
                                         {model.type === "boolean" && (
@@ -918,7 +983,7 @@ export default function NouveauSousDossierModal({
                                                   e.target.value,
                                               }))
                                             }
-                                            className="w-full px-3 py-2 border border-primary-600 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500 text-black"
+                                            className="w-full px-3 py-2.5 border-2 border-primary-400 bg-white rounded-lg focus:ring-2 focus:ring-primary-600 focus:border-primary-600 text-primary-900 font-medium shadow-sm"
                                           >
                                             <option value="">
                                               Sélectionner...
@@ -935,14 +1000,14 @@ export default function NouveauSousDossierModal({
                             )}
 
                           <div>
-                            <h5 className="text-sm font-medium text-primary-700 mb-2">
+                            <h5 className="text-sm font-bold text-primary-900 mb-3 border-b-2 border-primary-300 pb-2">
                               Fichiers pour cette pièce:
                             </h5>
 
                             {pieceFiles[piece.id] &&
                               pieceFiles[piece.id].length > 0 && (
-                                <div className="mb-3 p-3 bg-primary-50 rounded-lg border border-primary-200">
-                                  <h6 className="text-xs font-semibold text-primary-600 mb-2">
+                                <div className="mb-3 p-4 bg-primary-100 rounded-lg border-2 border-primary-300 shadow-sm">
+                                  <h6 className="text-sm font-bold text-primary-900 mb-3">
                                     Fichiers sélectionnés (
                                     {pieceFiles[piece.id].length}):
                                   </h6>
@@ -950,27 +1015,40 @@ export default function NouveauSousDossierModal({
                                     {pieceFiles[piece.id].map((file, index) => (
                                       <div
                                         key={index}
-                                        className="flex items-center justify-between p-2 bg-white rounded border border-primary-200"
+                                        className="flex items-center justify-between p-3 bg-white rounded-lg border-2 border-primary-400 shadow-sm hover:border-primary-500 transition-all"
                                       >
-                                        <div className="flex items-center gap-2">
-                                          <File className="w-4 h-4 text-primary-500" />
-                                          <span className="text-sm text-primary-700">
-                                            {file.name}
-                                          </span>
-                                          <span className="text-xs text-primary-500">
-                                            (
-                                            {(file.size / 1024 / 1024).toFixed(
-                                              2
-                                            )}{" "}
-                                            MB)
-                                          </span>
+                                        <div className="flex items-center gap-3 min-w-0 flex-1">
+                                          <div className="w-8 h-8 bg-primary-600 rounded-lg flex items-center justify-center flex-shrink-0">
+                                            <File className="w-5 h-5 text-white" />
+                                          </div>
+                                          <div className="min-w-0 flex-1">
+                                            <span
+                                              className="text-sm font-semibold text-primary-900 truncate block"
+                                              title={file.name}
+                                            >
+                                              {file.name.length > 30
+                                                ? `${file.name.substring(
+                                                    0,
+                                                    27
+                                                  )}...`
+                                                : file.name}
+                                            </span>
+                                            <span className="text-xs font-medium text-primary-600 flex-shrink-0 whitespace-nowrap">
+                                              {(
+                                                file.size /
+                                                1024 /
+                                                1024
+                                              ).toFixed(2)}{" "}
+                                              MB
+                                            </span>
+                                          </div>
                                         </div>
-                                        <div className="flex items-center gap-1">
+                                        <div className="flex items-center gap-2">
                                           <button
                                             onClick={() =>
                                               createFilePreview(file)
                                             }
-                                            className="text-blue-500 hover:text-blue-700 p-1"
+                                            className="p-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700 transition-colors shadow-sm border-2 border-primary-700"
                                             title="Aperçu"
                                           >
                                             <Eye className="w-4 h-4" />
@@ -985,7 +1063,7 @@ export default function NouveauSousDossierModal({
                                                   ) || [],
                                               }));
                                             }}
-                                            className="text-red-500 hover:text-red-700 p-1"
+                                            className="p-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors shadow-sm border-2 border-red-700"
                                             title="Supprimer"
                                           >
                                             <X className="w-4 h-4" />
@@ -997,9 +1075,9 @@ export default function NouveauSousDossierModal({
                                 </div>
                               )}
 
-                            <div className="border-2 border-dashed border-primary-600 rounded-lg p-3 text-center">
-                              <Upload className="w-8 h-8 text-primary-400 mx-auto mb-2" />
-                              <p className="text-sm text-primary-600 mb-2">
+                            <div className="border-2 border-dashed border-primary-500 bg-primary-50 rounded-lg p-4 text-center hover:border-primary-600 hover:bg-primary-100 transition-all">
+                              <Upload className="w-10 h-10 text-primary-700 mx-auto mb-3" />
+                              <p className="text-sm font-semibold text-primary-800 mb-3">
                                 Glissez-déposez vos fichiers ici ou cliquez pour
                                 sélectionner
                               </p>
@@ -1023,9 +1101,9 @@ export default function NouveauSousDossierModal({
                               />
                               <label
                                 htmlFor={`file-upload-${piece.id}`}
-                                className="inline-flex items-center gap-2 px-4 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700 transition-colors cursor-pointer"
+                                className="inline-flex items-center gap-2 px-6 py-2.5 bg-primary-700 text-white font-bold rounded-lg hover:bg-primary-800 transition-colors cursor-pointer shadow-md border-2 border-primary-800"
                               >
-                                <Upload className="w-4 h-4" />
+                                <Upload className="w-5 h-5" />
                                 {pieceFiles[piece.id] &&
                                 pieceFiles[piece.id].length > 0
                                   ? "Ajouter des fichiers"
@@ -1082,7 +1160,10 @@ export default function NouveauSousDossierModal({
 
                                         if (!response.ok) {
                                           const error = await response.json();
-                                          console.error("Erreur upload:", error);
+                                          console.error(
+                                            "Erreur upload:",
+                                            error
+                                          );
                                           setValidationError(
                                             `❌ Erreur lors de l'upload de ${file.name}`
                                           );
@@ -1100,23 +1181,24 @@ export default function NouveauSousDossierModal({
                                           selectedSousDossier
                                         ) {
                                           try {
-                                            const adResponse = await fetchWithAuth(
-                                              "/api/agent-dossiers",
-                                              {
-                                                method: "POST",
-                                                headers: {
-                                                  "Content-Type":
-                                                    "application/json",
-                                                },
-                                                body: JSON.stringify({
-                                                  agent_id: selectedAgent.id,
-                                                  rubrique_id:
-                                                    selectedRubrique.id,
-                                                  sous_dossier_id:
-                                                    selectedSousDossier.id,
-                                                }),
-                                              }
-                                            );
+                                            const adResponse =
+                                              await fetchWithAuth(
+                                                "/api/agent-dossiers",
+                                                {
+                                                  method: "POST",
+                                                  headers: {
+                                                    "Content-Type":
+                                                      "application/json",
+                                                  },
+                                                  body: JSON.stringify({
+                                                    agent_id: selectedAgent.id,
+                                                    rubrique_id:
+                                                      selectedRubrique.id,
+                                                    sous_dossier_id:
+                                                      selectedSousDossier.id,
+                                                  }),
+                                                }
+                                              );
 
                                             if (adResponse.ok) {
                                               const adData =
@@ -1124,9 +1206,10 @@ export default function NouveauSousDossierModal({
                                               agentDossierId =
                                                 adData.id.toString();
                                             } else {
-                                              const getResponse = await fetchWithAuth(
-                                                `/api/agent-dossiers?sousDossierId=${selectedSousDossier.id}`
-                                              );
+                                              const getResponse =
+                                                await fetchWithAuth(
+                                                  `/api/agent-dossiers?sousDossierId=${selectedSousDossier.id}`
+                                                );
                                               if (getResponse.ok) {
                                                 const existingData =
                                                   await getResponse.json();
@@ -1145,22 +1228,23 @@ export default function NouveauSousDossierModal({
                                         }
 
                                         try {
-                                          const fileResponse = await fetchWithAuth(
-                                            `/api/pieces/${piece.id}/files`,
-                                            {
-                                              method: "POST",
-                                              headers: {
-                                                "Content-Type":
-                                                  "application/json",
-                                              },
-                                              body: JSON.stringify({
-                                                file_path:
-                                                  uploadResult.data.filePath,
-                                                agent_dossier_id:
-                                                  agentDossierId,
-                                              }),
-                                            }
-                                          );
+                                          const fileResponse =
+                                            await fetchWithAuth(
+                                              `/api/pieces/${piece.id}/files`,
+                                              {
+                                                method: "POST",
+                                                headers: {
+                                                  "Content-Type":
+                                                    "application/json",
+                                                },
+                                                body: JSON.stringify({
+                                                  file_path:
+                                                    uploadResult.data.filePath,
+                                                  agent_dossier_id:
+                                                    agentDossierId,
+                                                }),
+                                              }
+                                            );
 
                                           if (!fileResponse.ok) {
                                             console.error(
@@ -1237,7 +1321,9 @@ export default function NouveauSousDossierModal({
                                           setTimeout(async () => {
                                             try {
                                               // Recharger tous les dossiers pour inclure les nouveaux agents
-                                              await DossiersOptimizedService.loadDossiers(true);
+                                              await DossiersOptimizedService.loadDossiers(
+                                                true
+                                              );
                                               handleClose();
                                             } catch (error) {
                                               console.error(
@@ -1269,9 +1355,9 @@ export default function NouveauSousDossierModal({
                                         setIsUploading(false);
                                       }
                                     }}
-                                    className="inline-flex items-center gap-2 px-4 py-2 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 transition-colors"
+                                    className="inline-flex items-center gap-2 px-6 py-2.5 bg-emerald-700 text-white font-bold rounded-lg hover:bg-emerald-800 transition-colors shadow-md border-2 border-emerald-800"
                                   >
-                                    <CheckCircle className="w-4 h-4" />
+                                    <CheckCircle className="w-5 h-5" />
                                     Charger pour {piece.nom}
                                   </button>
                                 </div>
@@ -1298,28 +1384,29 @@ export default function NouveauSousDossierModal({
           </div>
         )}
 
-        <div className="flex items-center justify-between p-8 border-t border-primary-200 bg-gradient-to-r from-primary-50 to-white">
-          <div className="flex items-center gap-3">
-            {step > 1 && (
+        {/* Footer avec boutons de navigation - Masqué à l'étape 4 */}
+        {step < 4 && (
+          <div className="flex items-center justify-between p-5 border-t-2 border-primary-300 bg-primary-50">
+            <div className="flex items-center gap-3">
+              {step > 1 && (
+                <button
+                  type="button"
+                  onClick={() => setStep(step - 1)}
+                  className="group flex items-center gap-2 px-6 py-2.5 bg-primary-700 text-white font-bold rounded-lg hover:bg-primary-800 transition-all duration-200 shadow-md border-2 border-primary-800"
+                >
+                  <ChevronLeft className="w-5 h-5 group-hover:-translate-x-1 transition-transform duration-200" />
+                  Précédent
+                </button>
+              )}
+            </div>
+            <div className="flex items-center gap-4">
               <button
                 type="button"
-                onClick={() => setStep(step - 1)}
-                className="group flex items-center gap-2 px-6 py-3 bg-gradient-primary text-white rounded-xl hover:bg-gradient-to-r hover:from-primary-600 hover:to-primary-700 transition-all duration-300 shadow-lg hover:shadow-xl transform hover:scale-105"
+                onClick={handleClose}
+                className="px-6 py-2.5 text-primary-800 hover:text-primary-900 font-semibold transition-all duration-200 hover:bg-primary-200 rounded-lg border-2 border-primary-300"
               >
-                <ChevronLeft className="w-4 h-4 group-hover:-translate-x-1 transition-transform duration-300" />
-                Précédent
+                Annuler
               </button>
-            )}
-          </div>
-          <div className="flex items-center gap-4">
-            <button
-              type="button"
-              onClick={handleClose}
-              className="px-6 py-3 text-primary-600 hover:text-primary-800 transition-all duration-300 hover:bg-primary-100 rounded-xl font-medium"
-            >
-              Annuler
-            </button>
-            {step < 4 ? (
               <button
                 type="button"
                 onClick={() => setStep(step + 1)}
@@ -1328,21 +1415,14 @@ export default function NouveauSousDossierModal({
                   (step === 2 && !selectedRubrique) ||
                   (step === 3 && !selectedSousDossier)
                 }
-                className="group flex items-center gap-2 px-6 py-3 bg-gradient-primary text-white rounded-xl hover:bg-gradient-to-r hover:from-primary-700 hover:to-primary-800 transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed shadow-lg hover:shadow-xl transform hover:scale-105 disabled:hover:scale-100"
+                className="group flex items-center gap-2 px-6 py-2.5 bg-primary-700 text-white font-bold rounded-lg hover:bg-primary-800 transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed shadow-md border-2 border-primary-800 disabled:border-primary-400"
               >
                 Suivant
-                <ChevronRight className="w-4 h-4 group-hover:translate-x-1 transition-transform duration-300" />
+                <ChevronRight className="w-5 h-5 group-hover:translate-x-1 transition-transform duration-200" />
               </button>
-            ) : (
-              <div className="text-center">
-                <p className="text-sm text-primary-600">
-                  Utilisez les boutons &quot;Charger&quot; individuels pour
-                  chaque pièce
-                </p>
-              </div>
-            )}
+            </div>
           </div>
-        </div>
+        )}
       </div>
 
       <SuccessNotification
@@ -1356,26 +1436,31 @@ export default function NouveauSousDossierModal({
       {previewFile && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
           <div className="bg-white rounded-2xl shadow-2xl w-full max-w-4xl max-h-[90vh] overflow-hidden">
-            <div className="flex items-center justify-between p-6 border-b border-gray-200 bg-gradient-to-r from-blue-500/5 to-blue-500/10">
+            <div className="flex items-center justify-between p-4 border-b-2 border-primary-300 bg-primary-800">
               <div className="flex items-center gap-4">
-                <div className="w-12 h-12 bg-gradient-to-br from-blue-500 to-blue-600 rounded-xl flex items-center justify-center shadow-lg">
-                  <File className="w-6 h-6 text-white" />
+                <div className="w-10 h-10 bg-primary-600 rounded-lg flex items-center justify-center shadow-md border-2 border-primary-700">
+                  <File className="w-5 h-5 text-white" />
                 </div>
                 <div>
-                  <h2 className="text-2xl font-bold text-gray-900">
+                  <h2 className="text-lg font-bold text-white">
                     Aperçu du fichier
                   </h2>
-                  <p className="text-sm text-gray-600 mt-1">
-                    {previewFile.name} (
-                    {(previewFile.size / 1024 / 1024).toFixed(2)} MB)
+                  <p
+                    className="text-xs text-primary-200 mt-1 truncate max-w-md font-medium"
+                    title={previewFile.name}
+                  >
+                    {previewFile.name.length > 50
+                      ? `${previewFile.name.substring(0, 47)}...`
+                      : previewFile.name}{" "}
+                    ({(previewFile.size / 1024 / 1024).toFixed(2)} MB)
                   </p>
                 </div>
               </div>
               <button
                 onClick={closePreview}
-                className="p-3 hover:bg-gray-100 rounded-xl transition-all duration-200 hover:scale-105"
+                className="p-2 bg-primary-700 hover:bg-primary-600 rounded-lg transition-all duration-200 border-2 border-primary-600 hover:border-primary-500"
               >
-                <X className="w-5 h-5 text-gray-500" />
+                <X className="w-5 h-5 text-white" />
               </button>
             </div>
 
@@ -1444,4 +1529,3 @@ export default function NouveauSousDossierModal({
     </div>
   );
 }
-

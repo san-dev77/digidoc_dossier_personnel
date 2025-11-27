@@ -13,6 +13,7 @@ import {
   Download,
 } from "lucide-react";
 import FullScreenLoader from "@/components/FullScreenLoader";
+import { fetchWithAuth } from "@/lib/api/fetchWithAuth";
 
 type ImportType = "agents" | "documents" | "credits";
 
@@ -63,7 +64,7 @@ export default function ImportPage() {
       formData.append("file", file);
       formData.append("type", importType);
 
-      const response = await fetch("/api/import", {
+      const response = await fetchWithAuth("/api/import", {
         method: "POST",
         body: formData,
       });

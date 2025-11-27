@@ -33,6 +33,8 @@ interface RubriqueCardProps {
   onDeleteDossier?: (agentDossierId: number, sousDossierTitre: string) => void;
   refreshingPieces: Set<string>;
   onUploadClick: (data: { piece: any; sousDossier: any; rubriqueId: string }) => void;
+  agentId: string;
+  agentName: string;
 }
 
 export default function RubriqueCard({
@@ -44,6 +46,8 @@ export default function RubriqueCard({
   onDeleteDossier,
   refreshingPieces,
   onUploadClick,
+  agentId,
+  agentName,
 }: RubriqueCardProps) {
   const isCredit = isDossierCredit(dossier.rubrique);
 
@@ -142,6 +146,9 @@ export default function RubriqueCard({
                 sousDossier={sousDossier}
                 isCredit={isCredit}
                 rubriqueId={dossier.rubrique.id}
+                agentId={agentId}
+                agentName={agentName}
+                rubriqueName={dossier.rubrique.nom}
                 onCreditDossierClick={onCreditDossierClick}
                 onPieceClick={onPieceClick}
                 onDeleteDossier={onDeleteDossier}

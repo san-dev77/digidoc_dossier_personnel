@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import {
   X,
   Database,
@@ -8,8 +8,11 @@ import {
   Eye,
   Calendar,
   DatabaseZap,
+  Trash2,
+  Loader2,
+  AlertCircle,
 } from "lucide-react";
-import type { PieceData } from "@/services/agent-data";
+import type { PieceContext, PieceData } from "@/services/agent-data";
 import FileViewerModal from "./PieceViewerModal/FileViewerModal";
 import FilePreview from "./PieceViewerModal/FilePreview";
 
@@ -24,17 +27,75 @@ interface PieceViewerModalProps {
   isOpen: boolean;
   onClose: () => void;
   pieceData: PieceData | null;
+  pieceContext?: PieceContext | null;
+  onFilesChanged?: (params: {
+    files: PieceData["files"];
+    context?: PieceContext | null;
+  }) => void;
 }
 
 export default function PieceViewerModal({
   isOpen,
   onClose,
   pieceData,
+  pieceContext,
+  onFilesChanged,
 }: PieceViewerModalProps) {
+  const [files, setFiles] = useState<PieceData["files"]>([]);
   const [activeTab, setActiveTab] = useState<"metadata" | "files">("metadata");
   const [selectedFile, setSelectedFile] = useState<FileWithMimeType | null>(
     null
   );
+  const [deletingFileId, setDeletingFileId] = useState<string | null>(null);
+  const [deleteError, setDeleteError] = useState<string | null>(null);
+  const previousFilesRef = useRef<PieceData["files"]>([]);
+  const isInitialMountRef = useRef(true);
+
+  useEffect(() => {
+    if (pieceData) {
+      setFiles(pieceData.files);
+      setSelectedFile(null);
+      previousFilesRef.current = pieceData.files;
+      isInitialMountRef.current = true;
+    } else {
+      setFiles([]);
+      previousFilesRef.current = [];
+      isInitialMountRef.current = true;
+    }
+  }, [pieceData]);
+
+  useEffect(() => {
+    if (selectedFile && !files.some((file) => file.id === selectedFile.id)) {
+      setSelectedFile(null);
+    }
+  }, [files, selectedFile]);
+
+  // Notifier le parent des changements de fichiers (seulement après une suppression)
+  useEffect(() => {
+    // Ignorer le premier rendu (initialisation)
+    if (isInitialMountRef.current) {
+      isInitialMountRef.current = false;
+      return;
+    }
+
+    // Vérifier si les fichiers ont vraiment changé (par exemple, après une suppression)
+    const filesChanged =
+      files.length !== previousFilesRef.current.length ||
+      files.some(
+        (file, index) => file.id !== previousFilesRef.current[index]?.id
+      );
+
+    if (filesChanged && pieceContext && onFilesChanged) {
+      // Utiliser setTimeout pour s'assurer que c'est après le rendu
+      const timeoutId = setTimeout(() => {
+        onFilesChanged({ files, context: pieceContext });
+        previousFilesRef.current = files;
+      }, 0);
+      return () => clearTimeout(timeoutId);
+    } else {
+      previousFilesRef.current = files;
+    }
+  }, [files, pieceContext, onFilesChanged]);
 
   if (!isOpen || !pieceData) return null;
 
@@ -45,6 +106,52 @@ export default function PieceViewerModal({
   const closeFileViewer = () => {
     setSelectedFile(null);
   };
+
+  const handleDeleteFile = async (fileId: string, filePath: string) => {
+    const fileName = filePath.split("/").pop() || "ce fichier";
+    const confirmDelete = window.confirm(
+      `Supprimer définitivement ${fileName} ?`
+    );
+    if (!confirmDelete) return;
+
+    setDeletingFileId(fileId);
+    setDeleteError(null);
+
+    try {
+      const headers: HeadersInit = {};
+      if (typeof window !== "undefined") {
+        const token = sessionStorage.getItem("auth-token");
+        if (token) {
+          headers["Authorization"] = `Bearer ${token}`;
+        }
+      }
+
+      const response = await fetch(`/api/files/${fileId}`, {
+        method: "DELETE",
+        headers,
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => null);
+        throw new Error(
+          errorData?.error || "Impossible de supprimer ce fichier"
+        );
+      }
+
+      setFiles((prev) => prev.filter((file) => file.id !== fileId));
+    } catch (error) {
+      console.error("Erreur suppression fichier:", error);
+      setDeleteError(
+        error instanceof Error
+          ? error.message
+          : "Erreur lors de la suppression du fichier"
+      );
+    } finally {
+      setDeletingFileId(null);
+    }
+  };
+
+  const hasFiles = files.length > 0;
 
   return (
     <div className="fixed inset-0 bg-black/70 transition-all duration-300 backdrop-blur-md flex items-center justify-center z-50 p-4">
@@ -70,10 +177,10 @@ export default function PieceViewerModal({
                     {new Date(pieceData.piece.createdAt).toLocaleDateString()}
                   </span>
                 </div>
-                {pieceData.hasFiles && (
+                {hasFiles && (
                   <div className="flex items-center gap-1">
                     <FileText className="w-4 h-4" />
-                    <span>{pieceData.files.length} fichier(s)</span>
+                    <span>{files.length} fichier(s)</span>
                   </div>
                 )}
                 {pieceData.metadata.length > 0 && (
@@ -118,7 +225,7 @@ export default function PieceViewerModal({
           >
             <div className="flex items-center gap-2">
               <FileText className="w-4 h-4" />
-              Fichiers ({pieceData.files.length})
+              Fichiers ({files.length})
             </div>
           </button>
         </div>
@@ -272,7 +379,13 @@ export default function PieceViewerModal({
 
           {activeTab === "files" && (
             <div className="space-y-4">
-              {pieceData.files.length === 0 ? (
+              {deleteError && (
+                <div className="flex items-center gap-3 p-4 rounded-xl border border-error-200 bg-error-50 text-error-700">
+                  <AlertCircle className="w-5 h-5 flex-shrink-0" />
+                  <p className="text-sm font-medium">{deleteError}</p>
+                </div>
+              )}
+              {files.length === 0 ? (
                 <div className="text-center py-8">
                   <div className="w-16 h-16 bg-gray-100 rounded-xl flex items-center justify-center mx-auto mb-4">
                     <FileText className="w-8 h-8 text-gray-400" />
@@ -309,7 +422,7 @@ export default function PieceViewerModal({
                         </tr>
                       </thead>
                       <tbody className="bg-white divide-y divide-slate-200">
-                        {pieceData.files.map((file) => (
+                        {files.map((file) => (
                           <tr
                             key={file.id}
                             className="hover:bg-slate-50 transition-colors"
@@ -346,15 +459,36 @@ export default function PieceViewerModal({
                               </span>
                             </td>
                             <td className="px-4 py-3 text-sm text-slate-800">
-                              <button
-                                onClick={() =>
-                                  handleViewFile(file as FileWithMimeType)
-                                }
-                                className="flex items-center justify-center gap-1 px-3 py-1 bg-blue-500 text-white rounded-md hover:bg-blue-600 transition-colors text-xs font-semibold"
-                              >
-                                <Eye className="w-3 h-3" />
-                                Voir
-                              </button>
+                              <div className="flex items-center gap-2">
+                                <button
+                                  onClick={() =>
+                                    handleViewFile(file as FileWithMimeType)
+                                  }
+                                  className="flex items-center justify-center gap-1 px-3 py-1 bg-blue-500 text-white rounded-md hover:bg-blue-600 transition-colors text-xs font-semibold"
+                                >
+                                  <Eye className="w-3 h-3" />
+                                  Voir
+                                </button>
+                                <button
+                                  onClick={() =>
+                                    handleDeleteFile(file.id, file.file_path)
+                                  }
+                                  disabled={deletingFileId === file.id}
+                                  className="flex items-center justify-center gap-1 px-3 py-1 bg-error-600 text-white rounded-md hover:bg-error-700 transition-colors text-xs font-semibold disabled:opacity-50 disabled:cursor-not-allowed"
+                                >
+                                  {deletingFileId === file.id ? (
+                                    <>
+                                      <Loader2 className="w-3 h-3 animate-spin" />
+                                      Suppression...
+                                    </>
+                                  ) : (
+                                    <>
+                                      <Trash2 className="w-3 h-3" />
+                                      Supprimer
+                                    </>
+                                  )}
+                                </button>
+                              </div>
                             </td>
                           </tr>
                         ))}

@@ -39,6 +39,16 @@ export interface SousDossierData {
   piecesWithFiles: number;
 }
 
+export interface PieceContext {
+  agentId: string;
+  agentName: string;
+  rubriqueId: string;
+  rubriqueName: string;
+  sousDossierId: string;
+  sousDossierName: string;
+  agentDossierId?: number;
+}
+
 export interface PieceData {
   piece: {
     id: string;
@@ -51,6 +61,7 @@ export interface PieceData {
   metadata: MetaValueData[];
   files: FileData[];
   hasFiles: boolean;
+  context?: PieceContext;
 }
 
 export interface MetaValueData {

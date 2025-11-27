@@ -34,6 +34,7 @@ import { rubriquesService } from "@/services/rubriques";
 import CreditMetadataManager from "@/components/CreditMetadataManager";
 import PositionManagerModal from "@/components/PositionManagerModal";
 import { isDossierCredit } from "@/utils/rubrique-utils";
+import { fetchWithAuth } from "@/lib/api/fetchWithAuth";
 
 // Composant réactif pour le badge de comptage des pièces
 function PieceCountBadge({ sousDossierId }: { sousDossierId: string }) {
@@ -484,7 +485,9 @@ export default function RubriqueParametresPage() {
     // Recharger les métadonnées à jour avant d'afficher
     try {
       console.log("🔍 Rechargement des métadonnées pour la pièce:", piece.id);
-      const response = await fetch(`/api/pieces/${piece.id}/metadata-models`);
+      const response = await fetchWithAuth(
+        `/api/pieces/${piece.id}/metadata-models`
+      );
       if (response.ok) {
         const metadataModels = await response.json();
         console.log("✅ Métadonnées récupérées:", metadataModels.length);
@@ -550,7 +553,7 @@ export default function RubriqueParametresPage() {
     try {
       console.log("🗑️ Suppression de la métadonnée:", metadata.id);
 
-      const response = await fetch(
+      const response = await fetchWithAuth(
         `/api/pieces/${selectedPieceForView.id}/metadata-models/${metadata.id}`,
         {
           method: "DELETE",
@@ -565,7 +568,7 @@ export default function RubriqueParametresPage() {
       console.log("✅ Métadonnée supprimée:", result);
 
       // Recharger les métadonnées de la pièce
-      const metadataResponse = await fetch(
+      const metadataResponse = await fetchWithAuth(
         `/api/pieces/${selectedPieceForView.id}/metadata-models`
       );
       if (metadataResponse.ok) {
@@ -623,7 +626,7 @@ export default function RubriqueParametresPage() {
 
       // Utiliser l'API PUT pour mettre à jour le modèle de métadonnée
       // L'API attend "nom" (pas "libelle") et "type" comme champs requis
-      const response = await fetch(
+      const response = await fetchWithAuth(
         `/api/pieces/${selectedPieceForView.id}/metadata-models/${selectedMetadata.id}`,
         {
           method: "PUT",
@@ -642,7 +645,7 @@ export default function RubriqueParametresPage() {
       }
 
       // Recharger les métadonnées de la pièce
-      const metadataResponse = await fetch(
+      const metadataResponse = await fetchWithAuth(
         `/api/pieces/${selectedPieceForView.id}/metadata-models`
       );
       if (metadataResponse.ok) {
@@ -718,7 +721,7 @@ export default function RubriqueParametresPage() {
       console.log("📤 Métadonnées mappées pour l'API:", metadataForAPI);
 
       // Créer l'API call pour sauvegarder les modèles de métadonnées
-      const response = await fetch(
+      const response = await fetchWithAuth(
         `/api/pieces/${selectedPieceForMetadata.id}/metadata-models`,
         {
           method: "POST",
@@ -1239,7 +1242,7 @@ export default function RubriqueParametresPage() {
                 <div className="flex items-center gap-4">
                   <button
                     onClick={() => setShowPositionManager(true)}
-                    className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg flex items-center gap-2 text-sm font-semibold transition-colors shadow-md hover:shadow-lg"
+                    className="px-4 py-2 bg-primary-600 cursor-pointer hover:bg-primary-700 text-white rounded-lg flex items-center gap-2 text-sm font-semibold transition-colors shadow-md hover:shadow-lg"
                     title="Gérer l'ordre des sous-dossiers et pièces"
                   >
                     <Settings className="w-4 h-4" />

@@ -16,6 +16,7 @@ import {
   Eye,
   Download,
 } from "lucide-react";
+import { fetchWithAuth } from "@/lib/api/fetchWithAuth";
 
 interface FileNode {
   name: string;
@@ -51,7 +52,7 @@ export default function FileExplorer({ isOpen, onClose }: FileExplorerProps) {
       setLoading(true);
       setError(null);
 
-      const response = await fetch("/api/file-explorer");
+      const response = await fetchWithAuth("/api/file-explorer");
       const result = await response.json();
 
       if (!response.ok) {

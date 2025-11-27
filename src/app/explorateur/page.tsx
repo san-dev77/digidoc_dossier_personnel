@@ -24,6 +24,7 @@ import {
   Code,
   Database,
 } from "lucide-react";
+import { fetchWithAuth } from "@/lib/api/fetchWithAuth";
 import AuthGuard from "@/components/AuthGuard";
 import DashboardLayout from "@/components/DashboardLayout";
 
@@ -61,7 +62,7 @@ export default function ExplorateurPage() {
       setLoading(true);
       setError(null);
 
-      const response = await fetch("/api/file-explorer");
+      const response = await fetchWithAuth("/api/file-explorer");
       const result = await response.json();
 
       if (!response.ok) {
@@ -222,31 +223,80 @@ export default function ExplorateurPage() {
       setPreviewFile(file);
       setIsPreviewOpen(true);
 
-      // Créer l'URL pour la prévisualisation
-      const fileUrl = `/api/files/${encodeURIComponent(file.path)}`;
-      setPreviewUrl(fileUrl);
+      // Charger le fichier avec authentification et créer un Blob URL
+      // Encoder chaque segment du chemin individuellement pour la route [...path]
+      const pathSegments = file.path
+        .split("/")
+        .map((segment) => encodeURIComponent(segment));
+      const fileUrl = `/api/files/${pathSegments.join("/")}`;
+      const response = await fetchWithAuth(fileUrl);
+
+      if (!response.ok) {
+        throw new Error(`Erreur ${response.status}: ${response.statusText}`);
+      }
+
+      const blob = await response.blob();
+      const blobUrl = URL.createObjectURL(blob);
+      setPreviewUrl(blobUrl);
     } catch (error) {
       console.error("Erreur lors de la prévisualisation:", error);
     }
   };
 
-  const handleOpenFile = (file: FileNode) => {
+  const handleOpenFile = async (file: FileNode) => {
     if (file.type !== "file") return;
 
-    const fileUrl = `/api/files/${encodeURIComponent(file.path)}`;
-    window.open(fileUrl, "_blank");
+    try {
+      // Encoder chaque segment du chemin individuellement pour la route [...path]
+      const pathSegments = file.path
+        .split("/")
+        .map((segment) => encodeURIComponent(segment));
+      const fileUrl = `/api/files/${pathSegments.join("/")}`;
+      const response = await fetchWithAuth(fileUrl);
+
+      if (!response.ok) {
+        throw new Error(`Erreur ${response.status}: ${response.statusText}`);
+      }
+
+      const blob = await response.blob();
+      const blobUrl = URL.createObjectURL(blob);
+      window.open(blobUrl, "_blank");
+    } catch (error) {
+      console.error("Erreur lors de l'ouverture du fichier:", error);
+    }
   };
 
-  const handleDownload = (file: FileNode) => {
+  const handleDownload = async (file: FileNode) => {
     if (file.type !== "file") return;
 
-    const fileUrl = `/api/files/${encodeURIComponent(file.path)}`;
-    const link = document.createElement("a");
-    link.href = fileUrl;
-    link.download = file.name;
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
+    try {
+      // Encoder chaque segment du chemin individuellement pour la route [...path]
+      const pathSegments = file.path
+        .split("/")
+        .map((segment) => encodeURIComponent(segment));
+      const fileUrl = `/api/files/${pathSegments.join("/")}`;
+      const response = await fetchWithAuth(fileUrl);
+
+      if (!response.ok) {
+        throw new Error(`Erreur ${response.status}: ${response.statusText}`);
+      }
+
+      const blob = await response.blob();
+      const blobUrl = URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = blobUrl;
+      link.download = file.name;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+
+      // Nettoyer le Blob URL après un délai
+      setTimeout(() => {
+        URL.revokeObjectURL(blobUrl);
+      }, 100);
+    } catch (error) {
+      console.error("Erreur lors du téléchargement:", error);
+    }
   };
 
   const canPreview = (file: FileNode) => {
@@ -711,6 +761,9 @@ export default function ExplorateurPage() {
                     </button>
                     <button
                       onClick={() => {
+                        if (previewUrl) {
+                          URL.revokeObjectURL(previewUrl);
+                        }
                         setIsPreviewOpen(false);
                         setPreviewFile(null);
                         setPreviewUrl(null);

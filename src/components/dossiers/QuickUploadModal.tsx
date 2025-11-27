@@ -1,8 +1,27 @@
 "use client";
 
-import { useState, useRef } from "react";
-import { X, Upload, FileText, Loader2, CheckCircle, AlertCircle } from "lucide-react";
+import { useState, useRef, useEffect } from "react";
+import {
+  X,
+  Upload,
+  FileText,
+  Loader2,
+  CheckCircle,
+  AlertCircle,
+  Database,
+} from "lucide-react";
 import type { PieceData } from "@/services/agent-data";
+import { fetchWithAuth } from "@/lib/api/fetchWithAuth";
+
+interface MetadataModel {
+  id: string;
+  piece_id: string;
+  libelle: string;
+  type: string;
+  obligatoire: boolean;
+  description?: string;
+  created_at: string;
+}
 
 interface QuickUploadModalProps {
   isOpen: boolean;
@@ -22,11 +41,8 @@ export default function QuickUploadModal({
   isOpen,
   onClose,
   pieceData,
-  agentId,
   agentName,
-  rubriqueId,
   rubriqueName,
-  sousDossierId,
   sousDossierName,
   agentDossierId,
   onUploadSuccess,
@@ -36,12 +52,39 @@ export default function QuickUploadModal({
   const [uploadProgress, setUploadProgress] = useState(0);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState(false);
+  const [metadataModels, setMetadataModels] = useState<MetadataModel[]>([]);
+  const [metadataValues, setMetadataValues] = useState<Record<string, string>>(
+    {}
+  );
+  const [loadingMetadata, setLoadingMetadata] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
+  // Charger les modèles de métadonnées pour la pièce
+  useEffect(() => {
+    if (pieceData?.piece.id) {
+      setLoadingMetadata(true);
+      fetchWithAuth(`/api/pieces/${pieceData.piece.id}/metadata-models`)
+        .then((res) => (res.ok ? res.json() : []))
+        .then((data) => {
+          setMetadataModels(data || []);
+        })
+        .catch((err) => {
+          console.error("Erreur chargement métadonnées:", err);
+          setMetadataModels([]);
+        })
+        .finally(() => {
+          setLoadingMetadata(false);
+        });
+    }
+  }, [pieceData?.piece.id]);
+
   if (!isOpen) return null;
-  
+
   if (!pieceData) {
-    console.error("QuickUploadModal: pieceData is null or undefined", { isOpen, pieceData });
+    console.error("QuickUploadModal: pieceData is null or undefined", {
+      isOpen,
+      pieceData,
+    });
     return null;
   }
 
@@ -123,12 +166,44 @@ export default function QuickUploadModal({
         throw new Error(errorData.error || "Erreur lors de l'upload");
       }
 
-      const result = await response.json();
+      await response.json();
+
+      // Sauvegarder les métadonnées si elles existent
+      if (metadataModels.length > 0 && agentDossierId) {
+        for (const model of metadataModels) {
+          const metadataKey = model.id;
+          const metadataValue = metadataValues[metadataKey];
+
+          if (metadataValue && metadataValue.trim() !== "") {
+            try {
+              const metadataResponse = await fetchWithAuth(
+                `/api/pieces/${pieceData.piece.id}/metadata`,
+                {
+                  method: "POST",
+                  headers: { "Content-Type": "application/json" },
+                  body: JSON.stringify({
+                    meta_model_id: model.id,
+                    valeur: metadataValue,
+                    agent_dossier_id: agentDossierId,
+                  }),
+                }
+              );
+
+              if (metadataResponse.ok) {
+                console.log(`Métadonnée ${model.libelle} sauvegardée`);
+              }
+            } catch (err) {
+              console.error(`Erreur métadonnée ${model.libelle}:`, err);
+            }
+          }
+        }
+      }
+
       setSuccess(true);
-      
+
       // Appeler le callback de succès immédiatement pour rafraîchir
       onUploadSuccess?.();
-      
+
       // Attendre un peu pour montrer le succès avant de fermer
       setTimeout(() => {
         handleClose();
@@ -148,6 +223,7 @@ export default function QuickUploadModal({
       setError(null);
       setSuccess(false);
       setUploadProgress(0);
+      setMetadataValues({});
       onClose();
     }
   };
@@ -157,7 +233,7 @@ export default function QuickUploadModal({
     const k = 1024;
     const sizes = ["Bytes", "KB", "MB", "GB"];
     const i = Math.floor(Math.log(bytes) / Math.log(k));
-    return Math.round(bytes / Math.pow(k, i) * 100) / 100 + " " + sizes[i];
+    return Math.round((bytes / Math.pow(k, i)) * 100) / 100 + " " + sizes[i];
   };
 
   return (
@@ -219,6 +295,97 @@ export default function QuickUploadModal({
               </div>
             </div>
           </div>
+
+          {/* Métadonnées */}
+          {metadataModels.length > 0 && (
+            <div className="mb-6 p-4 bg-primary-50 rounded-xl border-2 border-primary-200">
+              <h3 className="text-sm font-bold text-primary-900 mb-3 border-b-2 border-primary-300 pb-2 flex items-center gap-2">
+                <Database className="w-4 h-4" />
+                Métadonnées ({metadataModels.length})
+              </h3>
+              {loadingMetadata ? (
+                <div className="text-center py-4">
+                  <Loader2 className="w-5 h-5 animate-spin text-primary-600 mx-auto" />
+                  <p className="text-sm text-primary-600 mt-2">
+                    Chargement des métadonnées...
+                  </p>
+                </div>
+              ) : (
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                  {metadataModels.map((model) => (
+                    <div
+                      key={model.id}
+                      className="space-y-2 bg-white p-3 rounded-lg border-2 border-primary-200"
+                    >
+                      <label className="text-sm font-bold text-primary-900">
+                        {model.libelle}
+                        {model.obligatoire && (
+                          <span className="text-red-600 ml-1 font-bold">*</span>
+                        )}
+                      </label>
+                      {model.type === "text" && (
+                        <input
+                          type="text"
+                          value={metadataValues[model.id] || ""}
+                          onChange={(e) =>
+                            setMetadataValues((prev) => ({
+                              ...prev,
+                              [model.id]: e.target.value,
+                            }))
+                          }
+                          placeholder={`Saisir ${model.libelle.toLowerCase()}`}
+                          className="w-full px-3 py-2.5 border-2 border-primary-400 bg-white rounded-lg focus:ring-2 focus:ring-primary-600 focus:border-primary-600 text-primary-900 font-medium shadow-sm"
+                        />
+                      )}
+                      {model.type === "number" && (
+                        <input
+                          type="number"
+                          value={metadataValues[model.id] || ""}
+                          onChange={(e) =>
+                            setMetadataValues((prev) => ({
+                              ...prev,
+                              [model.id]: e.target.value,
+                            }))
+                          }
+                          placeholder={`Saisir ${model.libelle.toLowerCase()}`}
+                          className="w-full px-3 py-2.5 border-2 border-primary-400 bg-white rounded-lg focus:ring-2 focus:ring-primary-600 focus:border-primary-600 text-primary-900 font-medium shadow-sm"
+                        />
+                      )}
+                      {model.type === "date" && (
+                        <input
+                          type="date"
+                          value={metadataValues[model.id] || ""}
+                          onChange={(e) =>
+                            setMetadataValues((prev) => ({
+                              ...prev,
+                              [model.id]: e.target.value,
+                            }))
+                          }
+                          className="w-full px-3 py-2.5 border-2 border-primary-400 bg-white text-primary-900 rounded-lg focus:ring-2 focus:ring-primary-600 focus:border-primary-600 font-medium shadow-sm"
+                        />
+                      )}
+                      {model.type === "boolean" && (
+                        <select
+                          value={metadataValues[model.id] || ""}
+                          onChange={(e) =>
+                            setMetadataValues((prev) => ({
+                              ...prev,
+                              [model.id]: e.target.value,
+                            }))
+                          }
+                          className="w-full px-3 py-2.5 border-2 border-primary-400 bg-white rounded-lg focus:ring-2 focus:ring-primary-600 focus:border-primary-600 text-primary-900 font-medium shadow-sm"
+                        >
+                          <option value="">Sélectionner...</option>
+                          <option value="true">Oui</option>
+                          <option value="false">Non</option>
+                        </select>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
 
           {/* Zone de drop */}
           <div
@@ -309,9 +476,7 @@ export default function QuickUploadModal({
             <div className="mt-4 p-4 bg-error-50 border border-error-200 rounded-xl flex items-start gap-3">
               <AlertCircle className="w-5 h-5 text-error-600 flex-shrink-0 mt-0.5" />
               <div>
-                <p className="text-sm font-semibold text-error-900">
-                  Erreur
-                </p>
+                <p className="text-sm font-semibold text-error-900">Erreur</p>
                 <p className="text-sm text-error-700 mt-1">{error}</p>
               </div>
             </div>
@@ -364,4 +529,3 @@ export default function QuickUploadModal({
     </div>
   );
 }
-

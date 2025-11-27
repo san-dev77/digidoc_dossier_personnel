@@ -20,7 +20,14 @@ export default function FilePreviewModal({
     <div className="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center z-[60] p-4">
       <div className="bg-white rounded-2xl shadow-2xl max-w-4xl w-full max-h-[90vh] overflow-hidden flex flex-col">
         <div className="flex items-center justify-between p-6 border-b border-primary-200">
-          <h3 className="text-xl font-bold text-primary-800">{file.name}</h3>
+          <h3
+            className="text-xl font-bold text-primary-800 truncate max-w-2xl"
+            title={file.name}
+          >
+            {file.name.length > 40
+              ? `${file.name.substring(0, 37)}...`
+              : file.name}
+          </h3>
           <button
             onClick={onClose}
             className="p-2 text-primary-400 hover:text-primary-600 hover:bg-primary-100 rounded-lg transition-colors"

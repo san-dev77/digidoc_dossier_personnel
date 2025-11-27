@@ -313,6 +313,15 @@ export default function AgentDataViewerOptimized({
                                   })
                                 ),
                                 hasFiles: hasFiles,
+                                context: {
+                                  agentId: agentData.agent.id,
+                                  agentName: `${agentData.agent.prenom} ${agentData.agent.nom}`,
+                                  rubriqueId: rubriqueId,
+                                  rubriqueName: dossier.rubrique.nom,
+                                  sousDossierId: sousDossier.id,
+                                  sousDossierName: sousDossier.titre,
+                                  agentDossierId: sousDossier.agentDossierId,
+                                },
                               },
                               agentId: agentData.agent.id,
                               agentName: `${agentData.agent.prenom} ${agentData.agent.nom}`,
@@ -324,6 +333,8 @@ export default function AgentDataViewerOptimized({
                             });
                             setShowQuickUpload(true);
                           }}
+                          agentId={agentData.agent.id}
+                          agentName={`${agentData.agent.prenom} ${agentData.agent.nom}`}
                         />
                       );
                     })

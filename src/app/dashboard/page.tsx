@@ -1,5 +1,6 @@
 "use client";
 
+import { useState, useEffect } from "react";
 import { useAuth } from "@/hooks/useAuth";
 import { useUser } from "@/hooks/useUser";
 import AuthGuard from "@/components/AuthGuard";
@@ -16,10 +17,31 @@ import {
   Clock,
   CheckCircle,
 } from "lucide-react";
+import { useDossiersStore } from "@/store/dossiersStore";
+import { DossiersOptimizedService } from "@/services/dossiers-optimized";
+import { agentsService } from "@/services/agents";
 
 export default function DashboardPage() {
   const { appUser } = useAuth();
   const { fullName, fonction, matricule, email } = useUser();
+  const { dossiers, agentsWithDossiers } = useDossiersStore();
+  const [totalAgents, setTotalAgents] = useState<number>(0);
+
+  // Charger les données au montage
+  useEffect(() => {
+    const loadData = async () => {
+      try {
+        // Charger les dossiers
+        await DossiersOptimizedService.loadDossiers(true);
+        // Charger le nombre total d'agents
+        const agents = await agentsService.getAllAgents();
+        setTotalAgents(agents.length);
+      } catch {
+        // Erreur silencieuse, les données seront chargées au prochain rendu
+      }
+    };
+    loadData();
+  }, []);
 
   // Fonction pour formater la date correctement (évite les problèmes de timezone)
   const formatDate = (dateString: string) => {
@@ -45,64 +67,139 @@ export default function DashboardPage() {
     }
   };
 
-  // Données de démonstration pour les statistiques
+  // Fonction pour formater le temps relatif
+  const formatRelativeTime = (dateString: string): string => {
+    if (!dateString) return "Date inconnue";
+    try {
+      const date = new Date(dateString);
+      const now = new Date();
+      const diffMs = now.getTime() - date.getTime();
+      const diffMins = Math.floor(diffMs / 60000);
+      const diffHours = Math.floor(diffMs / 3600000);
+      const diffDays = Math.floor(diffMs / 86400000);
+
+      if (diffMins < 1) return "À l'instant";
+      if (diffMins < 60)
+        return `Il y a ${diffMins} minute${diffMins > 1 ? "s" : ""}`;
+      if (diffHours < 24)
+        return `Il y a ${diffHours} heure${diffHours > 1 ? "s" : ""}`;
+      if (diffDays < 7)
+        return `Il y a ${diffDays} jour${diffDays > 1 ? "s" : ""}`;
+      return date.toLocaleDateString("fr-FR", {
+        day: "numeric",
+        month: "short",
+      });
+    } catch {
+      return "Date inconnue";
+    }
+  };
+
+  // Calculer les statistiques réelles
+  const totalSousDossiers = dossiers.reduce(
+    (sum, d) => sum + d.totalSousDossiers,
+    0
+  );
+  const totalPieces = dossiers.reduce((sum, d) => sum + d.totalPieces, 0);
+  const totalPiecesWithFiles = agentsWithDossiers.reduce((sum, agentData) => {
+    return (
+      sum +
+      agentData.dossiers.reduce((dossierSum, dossier) => {
+        return (
+          dossierSum +
+          dossier.sousDossiers.reduce((sousDossierSum, sousDossier) => {
+            return (
+              sousDossierSum +
+              sousDossier.pieces.filter((p) => p.files && p.files.length > 0)
+                .length
+            );
+          }, 0)
+        );
+      }, 0)
+    );
+  }, 0);
+  const tauxValidation =
+    totalPieces > 0
+      ? ((totalPiecesWithFiles / totalPieces) * 100).toFixed(1)
+      : "0.0";
+
+  // Données réelles pour les statistiques
   const stats = [
     {
       name: "Dossiers actifs",
-      value: "24",
-      change: "+12%",
-      changeType: "positive",
+      value: totalSousDossiers.toString(),
+      change: "",
+      changeType: "positive" as const,
       icon: FileText,
     },
     {
       name: "Agents enregistrés",
-      value: "156",
-      change: "+8%",
-      changeType: "positive",
+      value: totalAgents.toString(),
+      change: "",
+      changeType: "positive" as const,
       icon: Users,
     },
     {
       name: "Pièces traitées",
-      value: "1,234",
-      change: "+23%",
-      changeType: "positive",
+      value: totalPieces.toLocaleString("fr-FR"),
+      change: "",
+      changeType: "positive" as const,
       icon: FolderOpen,
     },
     {
       name: "Taux de validation",
-      value: "94.2%",
-      change: "+2.1%",
-      changeType: "positive",
+      value: `${tauxValidation}%`,
+      change: "",
+      changeType: "positive" as const,
       icon: TrendingUp,
     },
   ];
 
-  const recentActivities = [
-    {
-      id: 1,
-      type: "document",
-      title: "Nouveau dossier créé",
-      description: "Dossier de Marie Dubois créé avec succès",
-      time: "Il y a 5 minutes",
-      icon: FileText,
-    },
-    {
-      id: 2,
-      type: "validation",
-      title: "Document validé",
-      description: "CNI-001 validé par l'agent responsable",
-      time: "Il y a 1 heure",
-      icon: CheckCircle,
-    },
-    {
-      id: 3,
-      type: "agent",
-      title: "Nouvel agent ajouté",
-      description: "Jean Martin ajouté au système",
-      time: "Il y a 2 heures",
-      icon: Users,
-    },
-  ];
+  // Générer les activités récentes à partir des données réelles
+  const recentActivities = agentsWithDossiers
+    .flatMap((agentData) =>
+      agentData.dossiers.flatMap((dossier) =>
+        dossier.sousDossiers.flatMap((sousDossier) => [
+          {
+            id: sousDossier.id,
+            type: "document" as const,
+            title: "Dossier créé",
+            description: `${sousDossier.titre} - ${agentData.agent.nom}`,
+            time: formatRelativeTime(sousDossier.createdAt),
+            icon: FileText,
+            date: sousDossier.createdAt,
+          },
+          ...sousDossier.pieces
+            .filter(
+              (p: { files?: Array<{ created_at: string }> }) =>
+                p.files && p.files.length > 0
+            )
+            .map(
+              (piece: {
+                id: string;
+                nom: string;
+                updatedAt: string;
+                files?: Array<{ created_at: string }>;
+              }) => ({
+                id: piece.id,
+                type: "validation" as const,
+                title: "Fichier uploadé",
+                description: `${piece.nom} - ${agentData.agent.nom}`,
+                time: formatRelativeTime(
+                  piece.files?.[0]?.created_at || piece.updatedAt
+                ),
+                icon: CheckCircle,
+                date: piece.files?.[0]?.created_at || piece.updatedAt,
+              })
+            ),
+        ])
+      )
+    )
+    .sort((a, b) => {
+      const dateA = new Date(a.date || 0).getTime();
+      const dateB = new Date(b.date || 0).getTime();
+      return dateB - dateA;
+    })
+    .slice(0, 3);
 
   return (
     <AuthGuard>

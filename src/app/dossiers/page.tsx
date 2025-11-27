@@ -1,9 +1,9 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, startTransition } from "react";
 import AuthGuard from "@/components/AuthGuard";
 import DashboardLayout from "@/components/DashboardLayout";
-import { type PieceData } from "@/services/agent-data";
+import { type PieceData, type PieceContext } from "@/services/agent-data";
 import { DossiersOptimizedService } from "@/services/dossiers-optimized";
 import { useDossiersStore } from "@/store/dossiersStore";
 import { agentDossiersService } from "@/services/agent-dossiers";
@@ -15,7 +15,7 @@ import DossiersHeader from "@/components/dossiers/DossiersHeader";
 import DossiersSearchBar from "@/components/dossiers/DossiersSearchBar";
 import DeleteConfirmModal from "@/components/dossiers/DeleteConfirmModal";
 import SuccessPopup from "@/components/dossiers/SuccessPopup";
-import NouveauSousDossierModal from "@/components/dossiers/NouveauSousDossierModal";
+import NouveauSousDossierModal from "@/components/dossiers/NouveauDossierModal";
 import CreditDossierModal from "@/components/dossiers/CreditDossierModal";
 
 interface ModalData {
@@ -40,6 +40,8 @@ export default function DossiersPage() {
   const [selectedPieceData, setSelectedPieceData] = useState<PieceData | null>(
     null
   );
+  const [selectedPieceContext, setSelectedPieceContext] =
+    useState<PieceContext | null>(null);
   const [showCreditViewer, setShowCreditViewer] = useState(false);
   const [selectedCreditSousDossier, setSelectedCreditSousDossier] = useState<{
     id: number;
@@ -118,8 +120,37 @@ export default function DossiersPage() {
 
   const handlePieceClick = (pieceData: PieceData) => {
     setSelectedPieceData(pieceData);
+    setSelectedPieceContext(pieceData.context || null);
     setShowPieceViewer(true);
   };
+  const handlePieceFilesChanged = useCallback(
+    async ({
+      files,
+      context,
+    }: {
+      files: PieceData["files"];
+      context?: PieceContext | null;
+    }) => {
+      // Utiliser startTransition pour éviter l'erreur "Cannot update during render"
+      startTransition(() => {
+        setSelectedPieceData((prev) =>
+          prev ? { ...prev, files, hasFiles: files.length > 0 } : prev
+        );
+      });
+
+      if (context?.rubriqueId) {
+        try {
+          await DossiersOptimizedService.reloadRubrique(context.rubriqueId);
+        } catch (error) {
+          console.error(
+            "Erreur lors du rafraîchissement après suppression de fichier:",
+            error
+          );
+        }
+      }
+    },
+    []
+  );
 
   const handleCreditDossierClick = (
     sousDossierId: number,
@@ -228,8 +259,13 @@ export default function DossiersPage() {
         {/* Modal de consultation des pièces */}
         <PieceViewerModal
           isOpen={showPieceViewer}
-          onClose={() => setShowPieceViewer(false)}
+          onClose={() => {
+            setShowPieceViewer(false);
+            setSelectedPieceContext(null);
+          }}
           pieceData={selectedPieceData}
+          pieceContext={selectedPieceContext}
+          onFilesChanged={handlePieceFilesChanged}
         />
 
         {showCreditViewer && selectedCreditSousDossier && (

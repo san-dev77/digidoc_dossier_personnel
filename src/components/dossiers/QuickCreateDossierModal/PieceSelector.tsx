@@ -1,8 +1,18 @@
 "use client";
 
-import { Search, Loader2 } from "lucide-react";
+import { Search, Loader2, Database } from "lucide-react";
 import type { Piece } from "@/types";
 import PieceFileUpload from "./PieceFileUpload";
+
+interface MetadataModel {
+  id: string;
+  piece_id: string;
+  libelle: string;
+  type: string;
+  obligatoire: boolean;
+  description?: string;
+  created_at: string;
+}
 
 interface PieceSelectorProps {
   pieces: Piece[];
@@ -18,6 +28,9 @@ interface PieceSelectorProps {
   onRemoveFile: (pieceId: string, fileIndex: number) => void;
   onPreviewFile: (file: File, pieceId: string) => void;
   formatFileSize: (bytes: number) => string;
+  piecesMetadataModels: Map<string, MetadataModel[]>;
+  metadataValues: Record<string, string>;
+  onMetadataChange: (pieceId: string, modelId: string, value: string) => void;
 }
 
 export default function PieceSelector({
@@ -34,6 +47,9 @@ export default function PieceSelector({
   onRemoveFile,
   onPreviewFile,
   formatFileSize,
+  piecesMetadataModels,
+  metadataValues,
+  onMetadataChange,
 }: PieceSelectorProps) {
   const filteredPieces = pieces.filter((p) =>
     searchTerm ? p.nom.toLowerCase().includes(searchTerm.toLowerCase()) : true
@@ -66,6 +82,7 @@ export default function PieceSelector({
           {filteredPieces.map((piece) => {
             const isSelected = selectedPieces.has(piece.id);
             const files = piecesWithFiles.get(piece.id) || [];
+            const metadataModels = piecesMetadataModels.get(piece.id) || [];
 
             return (
               <div
@@ -96,16 +113,89 @@ export default function PieceSelector({
                 </div>
 
                 {isSelected && (
-                  <PieceFileUpload
-                    pieceId={piece.id}
-                    files={files}
-                    onFileChange={onFileChange}
-                    onDrop={onDrop}
-                    onDragOver={onDragOver}
-                    onRemoveFile={onRemoveFile}
-                    onPreviewFile={onPreviewFile}
-                    formatFileSize={formatFileSize}
-                  />
+                  <div className="space-y-4" onClick={(e) => e.stopPropagation()}>
+                    {/* Métadonnées */}
+                    {metadataModels.length > 0 && (
+                      <div className="p-4 bg-primary-50 rounded-lg border-2 border-primary-200">
+                        <h4 className="text-sm font-bold text-primary-900 mb-3 border-b-2 border-primary-300 pb-2 flex items-center gap-2">
+                          <Database className="w-4 h-4" />
+                          Métadonnées ({metadataModels.length})
+                        </h4>
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                          {metadataModels.map((model) => (
+                            <div
+                              key={model.id}
+                              className="space-y-2 bg-white p-3 rounded-lg border-2 border-primary-200"
+                            >
+                              <label className="text-sm font-bold text-primary-900">
+                                {model.libelle}
+                                {model.obligatoire && (
+                                  <span className="text-red-600 ml-1 font-bold">*</span>
+                                )}
+                              </label>
+                              {model.type === "text" && (
+                                <input
+                                  type="text"
+                                  value={metadataValues[`${piece.id}_${model.id}`] || ""}
+                                  onChange={(e) =>
+                                    onMetadataChange(piece.id, model.id, e.target.value)
+                                  }
+                                  placeholder={`Saisir ${model.libelle.toLowerCase()}`}
+                                  className="w-full px-3 py-2 border-2 border-primary-400 bg-white rounded-lg focus:ring-2 focus:ring-primary-600 focus:border-primary-600 text-primary-900 font-medium shadow-sm"
+                                />
+                              )}
+                              {model.type === "number" && (
+                                <input
+                                  type="number"
+                                  value={metadataValues[`${piece.id}_${model.id}`] || ""}
+                                  onChange={(e) =>
+                                    onMetadataChange(piece.id, model.id, e.target.value)
+                                  }
+                                  placeholder={`Saisir ${model.libelle.toLowerCase()}`}
+                                  className="w-full px-3 py-2 border-2 border-primary-400 bg-white rounded-lg focus:ring-2 focus:ring-primary-600 focus:border-primary-600 text-primary-900 font-medium shadow-sm"
+                                />
+                              )}
+                              {model.type === "date" && (
+                                <input
+                                  type="date"
+                                  value={metadataValues[`${piece.id}_${model.id}`] || ""}
+                                  onChange={(e) =>
+                                    onMetadataChange(piece.id, model.id, e.target.value)
+                                  }
+                                  className="w-full px-3 py-2 border-2 border-primary-400 bg-white text-primary-900 rounded-lg focus:ring-2 focus:ring-primary-600 focus:border-primary-600 font-medium shadow-sm"
+                                />
+                              )}
+                              {model.type === "boolean" && (
+                                <select
+                                  value={metadataValues[`${piece.id}_${model.id}`] || ""}
+                                  onChange={(e) =>
+                                    onMetadataChange(piece.id, model.id, e.target.value)
+                                  }
+                                  className="w-full px-3 py-2 border-2 border-primary-400 bg-white rounded-lg focus:ring-2 focus:ring-primary-600 focus:border-primary-600 text-primary-900 font-medium shadow-sm"
+                                >
+                                  <option value="">Sélectionner...</option>
+                                  <option value="true">Oui</option>
+                                  <option value="false">Non</option>
+                                </select>
+                              )}
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Upload de fichiers */}
+                    <PieceFileUpload
+                      pieceId={piece.id}
+                      files={files}
+                      onFileChange={onFileChange}
+                      onDrop={onDrop}
+                      onDragOver={onDragOver}
+                      onRemoveFile={onRemoveFile}
+                      onPreviewFile={onPreviewFile}
+                      formatFileSize={formatFileSize}
+                    />
+                  </div>
                 )}
               </div>
             );

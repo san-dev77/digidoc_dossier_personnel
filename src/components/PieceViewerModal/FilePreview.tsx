@@ -1,7 +1,6 @@
 "use client";
 
-import { useState } from "react";
-import Image from "next/image";
+import { useState, useEffect } from "react";
 import { FileText, Video, Music, Table, File, Image as ImageIcon } from "lucide-react";
 import { getFileApiUrl } from "./fileUtils";
 
@@ -18,10 +17,67 @@ interface FilePreviewProps {
 
 export default function FilePreview({ file, fileName }: FilePreviewProps) {
   const [imageError, setImageError] = useState(false);
-  const imageUrl = getFileApiUrl(file.file_path);
+  const [imageBlobUrl, setImageBlobUrl] = useState<string | null>(null);
+  const [loadingImage, setLoadingImage] = useState(false);
 
   const mimeType = file.mime_type || "";
   const extension = fileName.split(".").pop()?.toLowerCase();
+
+  // Charger l'image avec authentification pour les images
+  useEffect(() => {
+    if (
+      (mimeType.startsWith("image/") ||
+        ["jpg", "jpeg", "png", "gif", "bmp", "svg", "webp"].includes(
+          extension || ""
+        )) &&
+      !imageBlobUrl &&
+      !imageError &&
+      !loadingImage
+    ) {
+      setLoadingImage(true);
+      const imageUrl = getFileApiUrl(file.file_path);
+
+      const token =
+        typeof window !== "undefined"
+          ? sessionStorage.getItem("auth-token")
+          : null;
+
+      if (token) {
+        fetch(imageUrl, {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        })
+          .then((response) => {
+            if (!response.ok) {
+              throw new Error("Erreur lors du chargement de l'image");
+            }
+            return response.blob();
+          })
+          .then((blob) => {
+            const blobUrl = URL.createObjectURL(blob);
+            setImageBlobUrl(blobUrl);
+          })
+          .catch((error) => {
+            console.error("Erreur lors du chargement de l'image:", error);
+            setImageError(true);
+          })
+          .finally(() => {
+            setLoadingImage(false);
+          });
+      } else {
+        setImageError(true);
+        setLoadingImage(false);
+      }
+    }
+
+    // Cleanup: révoquer le Blob URL lors du démontage
+    return () => {
+      if (imageBlobUrl) {
+        URL.revokeObjectURL(imageBlobUrl);
+      }
+    };
+  }, [file.file_path, mimeType, extension, imageBlobUrl, imageError, loadingImage]);
 
   // Pour les images - afficher la vraie image
   if (
@@ -32,15 +88,16 @@ export default function FilePreview({ file, fileName }: FilePreviewProps) {
   ) {
     return (
       <div className="w-16 h-16 rounded-lg overflow-hidden border border-gray-200 bg-gray-50 relative">
-        {!imageError ? (
-          <Image
-            src={imageUrl}
+        {loadingImage ? (
+          <div className="w-full h-full flex items-center justify-center">
+            <div className="w-4 h-4 border-2 border-gray-300 border-t-gray-600 rounded-full animate-spin"></div>
+          </div>
+        ) : imageBlobUrl && !imageError ? (
+          <img
+            src={imageBlobUrl}
             alt={fileName}
             className="w-full h-full object-cover"
             onError={() => setImageError(true)}
-            width={100}
-            height={100}
-            unoptimized
           />
         ) : (
           <div className="w-full h-full bg-gradient-to-br from-green-100 to-green-200 flex items-center justify-center">

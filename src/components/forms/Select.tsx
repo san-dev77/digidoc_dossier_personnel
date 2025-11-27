@@ -29,7 +29,8 @@ export const Select = forwardRef<HTMLSelectElement, SelectProps>(
     },
     ref
   ) => {
-    const selectId = id || `select-${label?.toLowerCase().replace(/\s+/g, "-")}`;
+    const selectId =
+      id || `select-${label?.toLowerCase().replace(/\s+/g, "-")}`;
     const hasError = !!error;
 
     return (
@@ -48,7 +49,7 @@ export const Select = forwardRef<HTMLSelectElement, SelectProps>(
             ref={ref}
             id={selectId}
             className={`
-              w-full px-3 py-2.5 border rounded-lg
+              w-full px-3 text-black py-2.5 border rounded-lg
               focus:ring-2 focus:ring-slate-500 focus:border-slate-500
               transition-all duration-200
               ${hasError ? "border-red-300 bg-red-50" : "border-gray-300"}
@@ -102,4 +103,3 @@ export const Select = forwardRef<HTMLSelectElement, SelectProps>(
 );
 
 Select.displayName = "Select";
-

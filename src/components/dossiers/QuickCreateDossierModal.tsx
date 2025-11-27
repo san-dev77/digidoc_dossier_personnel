@@ -20,6 +20,16 @@ import SousDossierSelector from "./QuickCreateDossierModal/SousDossierSelector";
 import PieceSelector from "./QuickCreateDossierModal/PieceSelector";
 import FilePreviewModal from "./QuickCreateDossierModal/FilePreviewModal";
 
+interface MetadataModel {
+  id: string;
+  piece_id: string;
+  libelle: string;
+  type: string;
+  obligatoire: boolean;
+  description?: string;
+  created_at: string;
+}
+
 interface QuickCreateDossierModalProps {
   isOpen: boolean;
   onClose: () => void;
@@ -58,6 +68,12 @@ export default function QuickCreateDossierModal({
   const [loadingPieces, setLoadingPieces] = useState(false);
   const [searchSousDossier, setSearchSousDossier] = useState("");
   const [searchPiece, setSearchPiece] = useState("");
+  const [piecesMetadataModels, setPiecesMetadataModels] = useState<
+    Map<string, MetadataModel[]>
+  >(new Map());
+  const [metadataValues, setMetadataValues] = useState<Record<string, string>>(
+    {}
+  );
 
   // Charger les sous-dossiers quand une rubrique est sélectionnée
   useEffect(() => {
@@ -95,6 +111,28 @@ export default function QuickCreateDossierModal({
             selectedSousDossier.id
           );
           setPieces(data);
+
+          // Charger les métadonnées pour chaque pièce
+          const metadataMap = new Map<string, MetadataModel[]>();
+          await Promise.all(
+            data.map(async (piece) => {
+              try {
+                const res = await fetchWithAuth(
+                  `/api/pieces/${piece.id}/metadata-models`
+                );
+                if (res.ok) {
+                  const models = await res.json();
+                  metadataMap.set(piece.id, models || []);
+                }
+              } catch (err) {
+                console.error(
+                  `Erreur chargement métadonnées pour ${piece.id}:`,
+                  err
+                );
+              }
+            })
+          );
+          setPiecesMetadataModels(metadataMap);
         } catch (error) {
           console.error("Erreur chargement pièces:", error);
           setPieces([]);
@@ -106,6 +144,7 @@ export default function QuickCreateDossierModal({
     } else {
       setPieces([]);
       setSelectedPieces(new Set());
+      setPiecesMetadataModels(new Map());
     }
   }, [selectedSousDossier]);
 
@@ -124,6 +163,8 @@ export default function QuickCreateDossierModal({
     setSuccess(false);
     setSearchSousDossier("");
     setSearchPiece("");
+    setPiecesMetadataModels(new Map());
+    setMetadataValues({});
     onClose();
   };
 
@@ -355,6 +396,40 @@ export default function QuickCreateDossierModal({
             );
           }
 
+          // Sauvegarder les métadonnées pour cette pièce si elles existent
+          const metadataModels = piecesMetadataModels.get(pieceId) || [];
+          if (metadataModels.length > 0 && agentDossierId) {
+            for (const model of metadataModels) {
+              const metadataKey = `${pieceId}_${model.id}`;
+              const metadataValue = metadataValues[metadataKey];
+
+              if (metadataValue && metadataValue.trim() !== "") {
+                try {
+                  const metadataResponse = await fetchWithAuth(
+                    `/api/pieces/${pieceId}/metadata`,
+                    {
+                      method: "POST",
+                      headers: { "Content-Type": "application/json" },
+                      body: JSON.stringify({
+                        meta_model_id: model.id,
+                        valeur: metadataValue,
+                        agent_dossier_id: agentDossierId,
+                      }),
+                    }
+                  );
+
+                  if (metadataResponse.ok) {
+                    console.log(
+                      `Métadonnée ${model.libelle} sauvegardée pour ${piece.nom}`
+                    );
+                  }
+                } catch (err) {
+                  console.error(`Erreur métadonnée ${model.libelle}:`, err);
+                }
+              }
+            }
+          }
+
           uploadedFiles++;
           setUploadProgress(Math.round((uploadedFiles / totalFiles) * 100));
         }
@@ -477,6 +552,14 @@ export default function QuickCreateDossierModal({
                 onRemoveFile={removeFile}
                 onPreviewFile={openPreview}
                 formatFileSize={formatFileSize}
+                piecesMetadataModels={piecesMetadataModels}
+                metadataValues={metadataValues}
+                onMetadataChange={(pieceId, modelId, value) => {
+                  setMetadataValues((prev) => ({
+                    ...prev,
+                    [`${pieceId}_${modelId}`]: value,
+                  }));
+                }}
               />
             )}
 
