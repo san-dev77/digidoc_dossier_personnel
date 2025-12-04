@@ -1,20 +1,20 @@
-import { Pool, QueryResultRow } from "pg";
+import mysql from "mysql2/promise";
 
 const connectionString =
   process.env.DATABASE_URL ||
-  "postgres://postgres:root@localhost:5432/digidoc_personnel";
+  "mysql://root:root@localhost:3306/digidoc_personnel";
 
-export const db = new Pool({ connectionString });
+export const db = mysql.createPool(connectionString);
 
 export async function query<T = Record<string, unknown>>(
   text: string,
   params?: unknown[]
 ): Promise<{ rows: T[] }> {
-  const client = await db.connect();
+  const connection = await db.getConnection();
   try {
-    const res = await client.query<T & QueryResultRow>(text, params);
-    return { rows: res.rows };
+    const [rows] = await connection.query(text, params);
+    return { rows: rows as T[] };
   } finally {
-    client.release();
+    connection.release();
   }
 }

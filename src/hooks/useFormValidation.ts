@@ -36,11 +36,12 @@ export function useFormValidation<T extends Record<string, any>>(
         }
         return true;
       } catch (error) {
-        if (error instanceof z.ZodError) {
+        if (error instanceof z.ZodError && error.errors && Array.isArray(error.errors)) {
           const fieldError = error.errors[0]?.message || "Erreur de validation";
           setErrors((prev) => ({ ...prev, [fieldName]: fieldError }));
           return false;
         }
+        console.error("[Validation Field] Erreur inattendue:", error);
         return false;
       }
     },
@@ -56,7 +57,7 @@ export function useFormValidation<T extends Record<string, any>>(
       setErrors({});
       return true;
     } catch (error) {
-      if (error instanceof z.ZodError) {
+      if (error instanceof z.ZodError && error.errors && Array.isArray(error.errors)) {
         const newErrors: ValidationErrors = {};
         error.errors.forEach((err) => {
           const path = err.path[0] as string;
@@ -67,6 +68,8 @@ export function useFormValidation<T extends Record<string, any>>(
         setErrors(newErrors);
         return false;
       }
+      // Si ce n'est pas une ZodError valide, logger l'erreur
+      console.error("[Validation] Erreur inattendue:", error);
       return false;
     }
   }, [schema, values]);

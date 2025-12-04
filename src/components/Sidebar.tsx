@@ -16,6 +16,7 @@ import {
   BarChart3,
   HardDrive,
   Upload,
+  Activity,
 } from "lucide-react";
 import { useState } from "react";
 import logo from "@/app/assets/logo.png";
@@ -82,7 +83,28 @@ export default function Sidebar({
       textColor: "text-indigo-700",
       borderColor: "border-indigo-200",
     },
-
+    {
+      name: "Utilisateurs",
+      href: "/utilisateurs",
+      icon: Shield,
+      current: pathname.startsWith("/utilisateurs"),
+      description: "Accès & Permissions",
+      color: "from-red-500 to-red-600",
+      bgColor: "bg-red-50",
+      textColor: "text-red-700",
+      borderColor: "border-red-200",
+    },
+    {
+      name: "Audit",
+      href: "/audit",
+      icon: Activity,
+      current: pathname.startsWith("/audit"),
+      description: "Stats & Historique",
+      color: "from-teal-500 to-teal-600",
+      bgColor: "bg-teal-50",
+      textColor: "text-teal-700",
+      borderColor: "border-teal-200",
+    },
     {
       name: "Dossiers",
       href: "/dossiers",
@@ -128,12 +150,12 @@ export default function Sidebar({
       <div className="absolute inset-0 bg-gradient-to-br from-white/3 via-transparent to-transparent pointer-events-none"></div>
 
       {/* Header avec logo */}
-      <div className="relative p-5 border-b border-primary-700/70 bg-primary-800/50">
-        <div className="flex items-center justify-between gap-3">
+      <div className="relative px-6 py-6 border-b border-primary-700/70 bg-primary-800/50">
+        <div className="flex items-center justify-between gap-4">
           {!collapsed && (
-            <div className="flex items-center space-x-3 flex-1 min-w-0">
+            <div className="flex items-center space-x-4 flex-1 min-w-0">
               <div className="relative flex-shrink-0">
-                <div className="w-11 h-11 bg-white rounded-xl flex items-center justify-center shadow-lg ring-2 ring-primary-600/30 p-1.5 overflow-hidden">
+                <div className="w-14 h-14 bg-white rounded-2xl flex items-center justify-center shadow-2xl p-2 overflow-hidden">
                   <Image
                     src={logo}
                     alt="DigiDoc Logo"
@@ -143,11 +165,11 @@ export default function Sidebar({
                 </div>
               </div>
               <div className="flex-1 min-w-0">
-                <h1 className="text-lg font-bold text-white tracking-tight">
+                <h1 className="text-xl font-black text-white tracking-tight">
                   DigiDoc
                 </h1>
-                <p className="text-xs text-primary-300 font-medium truncate">
-                  Personnel Management
+                <p className="text-sm text-primary-200 font-semibold">
+                  Gestion du Personnel
                 </p>
               </div>
             </div>
@@ -191,60 +213,54 @@ export default function Sidebar({
       </div>
 
       {/* Navigation */}
-      <nav className="flex-1 px-3 py-4 space-y-1.5 overflow-y-auto sidebar-scrollbar">
+      <nav className="flex-1 px-4 py-6 space-y-2 overflow-y-auto sidebar-scrollbar">
         {navigationItems.map((item) => {
           const Icon = item.icon;
           return (
             <Link
               key={item.name}
               href={item.href}
-              className={`group relative flex items-center px-3 py-3 rounded-xl transition-all duration-200 ${
-                collapsed ? "justify-center" : "space-x-3"
+              className={`group relative flex items-center px-4 py-4 rounded-xl transition-all duration-200 ${
+                collapsed ? "justify-center" : "gap-4"
               } ${
                 item.current
-                  ? `bg-gradient-to-r ${item.color} text-white shadow-md ring-1 ring-white/10`
-                  : "text-primary-200 hover:text-white hover:bg-primary-700/60 active:bg-primary-700/80 border border-transparent hover:border-primary-600/30"
+                  ? `bg-gradient-to-r ${item.color} text-white shadow-xl`
+                  : "text-primary-200 hover:text-white hover:bg-primary-700/70 border border-transparent hover:border-primary-600/40"
               }`}
             >
-              {/* Indicateur actif avec meilleur contraste */}
+              {/* Indicateur actif */}
               {item.current && (
-                <div className="absolute left-0 top-1/2 transform -translate-y-1/2 w-1 h-10 bg-white rounded-r-full shadow-sm"></div>
+                <div className="absolute left-0 top-1/2 transform -translate-y-1/2 w-1.5 h-12 bg-white rounded-r-full"></div>
               )}
 
-              {/* Icône avec meilleur contraste */}
-              <div
-                className={`flex-shrink-0 p-2 rounded-lg transition-all duration-200 ${
-                  item.current
-                    ? "bg-white/15 shadow-sm"
-                    : "bg-primary-700/40 group-hover:bg-primary-600/60 group-active:bg-primary-600/80"
-                }`}
-              >
+              {/* Icône */}
+              <div className="flex-shrink-0">
                 <Icon
-                  className={`w-5 h-5 ${
+                  className={`w-6 h-6 ${
                     item.current
-                      ? "text-white drop-shadow-sm"
-                      : "text-primary-200 group-hover:text-white"
-                  } transition-colors duration-200`}
+                      ? "text-white"
+                      : "text-primary-300 group-hover:text-white"
+                  } transition-all duration-200 ${item.current ? "" : "group-hover:scale-110"}`}
                 />
               </div>
 
-              {/* Labels avec meilleur contraste */}
+              {/* Labels */}
               {!collapsed && (
-                <div className="flex-1 min-w-0 hover:scale-105  transition-all duration-100">
+                <div className="flex-1 min-w-0">
                   <div
-                    className={`font-semibold text-sm leading-tight  ${
+                    className={`font-bold text-base ${
                       item.current
-                        ? "text-white drop-shadow-sm"
-                        : "text-primary-100 group-hover:text-white "
+                        ? "text-white"
+                        : "text-white/90 group-hover:text-white"
                     } transition-colors duration-200`}
                   >
                     {item.name}
                   </div>
                   <div
-                    className={`text-xs mt-0.5 leading-tight ${
+                    className={`text-xs mt-1 ${
                       item.current
-                        ? "text-white/90"
-                        : "text-primary-300 group-hover:text-primary-100"
+                        ? "text-white/80"
+                        : "text-primary-300 group-hover:text-white/70"
                     } transition-colors duration-200`}
                   >
                     {item.description}
@@ -269,7 +285,7 @@ export default function Sidebar({
       </nav>
 
       {/* Footer avec stats et version */}
-      <div className="relative px-3 py-4 border-t border-primary-700/70 bg-primary-800/50">
+      <div className="relative px-5 py-5 border-t border-primary-700/40 bg-primary-900/60 backdrop-blur-sm">
         {!collapsed ? (
           <div className="space-y-3">
             {/* Stats rapides avec meilleur contraste */}

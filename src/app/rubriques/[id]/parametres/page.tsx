@@ -43,12 +43,8 @@ function PieceCountBadge({ sousDossierId }: { sousDossierId: string }) {
   );
 
   return (
-    <span className="text-emerald-700 font-semibold text-sm transition-all duration-300 transform">
-      <span className="inline-block" key={pieceCount}>
-        {pieceCount}
-        {"    "}
-      </span>
-      {"    "} pièce{pieceCount !== 1 ? "s" : ""}
+    <span className="text-emerald-700 font-semibold text-sm">
+      {pieceCount} pièce{pieceCount !== 1 ? "s" : ""}
     </span>
   );
 }
@@ -875,10 +871,10 @@ export default function RubriqueParametresPage() {
     }
 
     return (
-      <div className="p-6 space-y-6 bg-white">
-        <div className="flex items-center justify-between pb-4 border-b-2 border-gray-200">
+      <div className="p-6 space-y-5 bg-gradient-to-br from-gray-50 to-white">
+        <div className="flex items-center justify-between pb-5 border-b border-gray-200">
           <div className="flex items-center gap-4">
-            <div className="w-3 h-8 bg-gradient-to-b from-blue-500 to-blue-700 rounded-full shadow-sm"></div>
+            <div className="w-1 h-10 bg-gradient-to-b from-primary-500 to-primary-600 rounded-full"></div>
             <div>
               <h3 className="text-xl font-bold text-gray-900">
                 Documents dans ce dossier
@@ -905,44 +901,44 @@ export default function RubriqueParametresPage() {
             </button>
           </div>
         </div>
-        <div className="overflow-x-auto content-scrollbar rounded-lg border border-gray-200 shadow-sm">
+        <div className="overflow-x-auto content-scrollbar rounded-xl border border-gray-200 bg-white shadow-sm">
           <table className="w-full">
             <thead>
-              <tr className="bg-gradient-to-r from-gray-50 to-gray-100 border-b-2 border-gray-300">
-                <th className="px-4 py-3 text-left text-xs font-bold text-gray-700 uppercase tracking-wider">
+              <tr className="bg-gradient-to-r from-gray-50 via-gray-50 to-gray-100 border-b border-gray-200">
+                <th className="px-5 py-4 text-left text-xs font-bold text-gray-700 uppercase tracking-wider">
                   #
                 </th>
-                <th className="px-4 py-3 text-left text-xs font-bold text-gray-700 uppercase tracking-wider">
+                <th className="px-5 py-4 text-left text-xs font-bold text-gray-700 uppercase tracking-wider">
                   Nom du document
                 </th>
-                <th className="px-4 py-3 text-left text-xs font-bold text-gray-700 uppercase tracking-wider">
+                <th className="px-5 py-4 text-left text-xs font-bold text-gray-700 uppercase tracking-wider">
                   Description
                 </th>
-                <th className="px-4 py-3 text-left text-xs font-bold text-gray-700 uppercase tracking-wider">
+                <th className="px-5 py-4 text-left text-xs font-bold text-gray-700 uppercase tracking-wider">
                   Métadonnées
                 </th>
-                <th className="px-4 py-3 text-left text-xs font-bold text-gray-700 uppercase tracking-wider">
+                <th className="px-5 py-4 text-left text-xs font-bold text-gray-700 uppercase tracking-wider">
                   Date de création
                 </th>
-                <th className="px-4 py-3 text-center text-xs font-bold text-gray-700 uppercase tracking-wider">
+                <th className="px-5 py-4 text-center text-xs font-bold text-gray-700 uppercase tracking-wider">
                   Actions
                 </th>
               </tr>
             </thead>
-            <tbody className="bg-white divide-y divide-gray-200">
+            <tbody className="bg-white divide-y divide-gray-100">
               {pieces.map((piece, index) => (
                 <tr
                   key={piece.id}
-                  className="hover:bg-blue-50 transition-colors duration-150 border-b border-gray-100"
+                  className="hover:bg-primary-50/50 transition-colors duration-200 border-b border-gray-50"
                 >
-                  <td className="px-4 py-3 whitespace-nowrap">
-                    <div className="w-10 h-10 bg-gradient-to-br from-blue-500 to-blue-600 rounded-lg flex items-center justify-center text-sm font-bold text-white shadow-md">
+                  <td className="px-5 py-4 whitespace-nowrap">
+                    <div className="w-10 h-10 bg-gradient-to-br from-primary-500 to-primary-600 rounded-lg flex items-center justify-center text-sm font-bold text-white shadow-sm">
                       {index + 1}
                     </div>
                   </td>
-                  <td className="px-4 py-3">
-                    <div className="font-bold text-gray-900 flex items-center gap-2">
-                      <File className="w-5 h-5 text-blue-600 flex-shrink-0" />
+                  <td className="px-5 py-4">
+                    <div className="font-semibold text-gray-900 flex items-center gap-2.5">
+                      <File className="w-5 h-5 text-primary-600 flex-shrink-0" />
                       <span
                         className="text-gray-900 truncate max-w-md"
                         title={piece.nom}
@@ -951,21 +947,21 @@ export default function RubriqueParametresPage() {
                       </span>
                     </div>
                   </td>
-                  <td className="px-4 py-3">
-                    <div className="text-gray-700 text-sm max-w-xs truncate font-medium">
+                  <td className="px-5 py-4">
+                    <div className="text-gray-600 text-sm max-w-xs truncate">
                       {piece.description || (
-                        <span className="text-gray-400 italic">
+                        <span className="text-gray-400 italic text-xs">
                           Aucune description
                         </span>
                       )}
                     </div>
                   </td>
-                  <td className="px-4 py-3 whitespace-nowrap">
+                  <td className="px-5 py-4 whitespace-nowrap">
                     <span
-                      className={`inline-flex items-center px-3 py-1 rounded-full text-xs font-bold ${
+                      className={`inline-flex items-center px-3 py-1.5 rounded-lg text-xs font-semibold shadow-sm ${
                         piece.aMetadonnees
-                          ? "bg-emerald-100 text-emerald-800 border border-emerald-300"
-                          : "bg-amber-100 text-amber-800 border border-amber-300"
+                          ? "bg-emerald-50 text-emerald-700 border border-emerald-200"
+                          : "bg-amber-50 text-amber-700 border border-amber-200"
                       }`}
                     >
                       {piece.aMetadonnees
@@ -973,8 +969,8 @@ export default function RubriqueParametresPage() {
                         : "Sans métadonnées"}
                     </span>
                   </td>
-                  <td className="px-4 py-3 whitespace-nowrap">
-                    <span className="text-gray-700 text-sm font-medium">
+                  <td className="px-5 py-4 whitespace-nowrap">
+                    <span className="text-gray-600 text-sm">
                       {new Date(piece.createdAt).toLocaleDateString("fr-FR", {
                         day: "2-digit",
                         month: "2-digit",
@@ -982,18 +978,18 @@ export default function RubriqueParametresPage() {
                       })}
                     </span>
                   </td>
-                  <td className="px-4 py-3 whitespace-nowrap">
-                    <div className="flex gap-2 justify-center">
+                  <td className="px-5 py-4 whitespace-nowrap">
+                    <div className="flex gap-1.5 justify-center">
                       <button
                         onClick={() => handleViewPieceDetails(piece)}
-                        className="p-2 bg-blue-50 text-blue-600 rounded-lg hover:bg-blue-100 hover:text-blue-700 transition-colors shadow-sm hover:shadow-md"
+                        className="p-2 bg-blue-50 text-blue-600 rounded-lg hover:bg-blue-100 hover:text-blue-700 transition-all duration-150 shadow-sm hover:shadow"
                         title="Voir détails"
                       >
                         <Eye className="w-4 h-4" />
                       </button>
                       <button
                         onClick={() => handleEditPiece(piece)}
-                        className="p-2 bg-gray-50 text-gray-600 rounded-lg hover:bg-gray-100 hover:text-gray-700 transition-colors shadow-sm hover:shadow-md"
+                        className="p-2 bg-gray-50 text-gray-600 rounded-lg hover:bg-gray-100 hover:text-gray-700 transition-all duration-150 shadow-sm hover:shadow"
                         title="Modifier"
                       >
                         <Edit className="w-4 h-4" />
@@ -1002,7 +998,7 @@ export default function RubriqueParametresPage() {
                       {rubrique && !isDossierCredit(rubrique) && (
                         <button
                           onClick={() => handleAddMetadata(piece)}
-                          className="p-2 bg-purple-50 text-purple-600 rounded-lg hover:bg-purple-100 hover:text-purple-700 transition-colors shadow-sm hover:shadow-md"
+                          className="p-2 bg-purple-50 text-purple-600 rounded-lg hover:bg-purple-100 hover:text-purple-700 transition-all duration-150 shadow-sm hover:shadow"
                           title="Gérer métadonnées"
                         >
                           <Database className="w-4 h-4" />
@@ -1010,7 +1006,7 @@ export default function RubriqueParametresPage() {
                       )}
                       <button
                         onClick={() => handleDeletePiece(piece)}
-                        className="p-2 bg-red-50 text-red-600 rounded-lg hover:bg-red-100 hover:text-red-700 transition-colors shadow-sm hover:shadow-md"
+                        className="p-2 bg-red-50 text-red-600 rounded-lg hover:bg-red-100 hover:text-red-700 transition-all duration-150 shadow-sm hover:shadow"
                         title="Supprimer"
                       >
                         <Trash2 className="w-4 h-4" />
@@ -1288,67 +1284,68 @@ export default function RubriqueParametresPage() {
                   </button>
                 </div>
               ) : (
-                <div className="space-y-6">
+                <div className="space-y-4">
                   {sousDossiers.map((sousDossier) => (
                     <div
                       key={sousDossier.id}
-                      className="card-elevated hover:shadow-primary-lg"
+                      className="bg-white border border-gray-200 rounded-xl shadow-sm hover:shadow-md hover:border-primary-200 transition-all duration-200 overflow-hidden"
                     >
                       {/* Header du sous-dossier */}
                       <div
-                        className="p-4 bg-primary-300 hover:bg-primary-600 transition-all duration-300 hover:text-white rounded-lg cursor-pointer"
+                        className="p-5 bg-gradient-to-r from-primary-50 to-primary-100/50 hover:from-primary-100 hover:to-primary-150 transition-all duration-200 cursor-pointer border-b border-gray-100"
                         onClick={() =>
                           toggleSousDossierExpansion(sousDossier.id)
                         }
                       >
                         <div className="flex items-center justify-between relative z-10">
-                          <div className="flex items-center gap-3 flex-1 min-w-0">
+                          <div className="flex items-center gap-4 flex-1 min-w-0">
                             {/* Chevron compact */}
                             <div className="flex-shrink-0">
                               {expandedSousDossier === sousDossier.id ? (
-                                <div className="w-5 h-5 bg-primary-700 rounded flex items-center justify-center shadow-sm transform rotate-180">
-                                  <ChevronDown className="w-3 h-3 text-white" />
+                                <div className="w-6 h-6 bg-primary-500 rounded-lg flex items-center justify-center shadow-sm transition-transform duration-200">
+                                  <ChevronDown className="w-4 h-4 text-white" />
                                 </div>
                               ) : (
-                                <div className="w-5 h-5 bg-primary-400 rounded flex items-center justify-center shadow-sm group-hover:bg-primary-600">
-                                  <ChevronRight className="w-3 h-3 text-white" />
+                                <div className="w-6 h-6 bg-primary-300 rounded-lg flex items-center justify-center shadow-sm transition-colors duration-200">
+                                  <ChevronRight className="w-4 h-4 text-primary-700" />
                                 </div>
                               )}
                             </div>
 
                             {/* Icône compacte */}
                             <div className="flex-shrink-0">
-                              <div className="w-10 h-10 bg-primary-600 rounded-xl flex items-center justify-center shadow-md group-hover:shadow-lg">
-                                <FolderTree className="w-5 h-5 text-white" />
+                              <div className="w-12 h-12 bg-primary-500 rounded-xl flex items-center justify-center shadow-sm">
+                                <FolderTree className="w-6 h-6 text-white" />
                               </div>
                             </div>
 
                             {/* Contenu principal */}
                             <div className="flex-1 min-w-0">
-                              <h4 className="text-base font-semibold text-primary-800 group-hover:text-primary-700 truncate">
+                              <h4 className="text-lg font-semibold text-primary-900 truncate mb-1">
                                 {sousDossier.titre}
                               </h4>
-                              <p className="text-xs text-neutral-600 truncate">
-                                {sousDossier.description}
+                              <p className="text-sm text-gray-600 truncate">
+                                {sousDossier.description ||
+                                  "Aucune description"}
                               </p>
                             </div>
                           </div>
 
-                          <div className="flex items-center gap-2 flex-shrink-0">
+                          <div className="flex items-center gap-3 flex-shrink-0 ml-4">
                             {/* Badge compact */}
-                            <div className="flex items-center gap-1 bg-accent-green-light border border-accent-green px-2 py-1 rounded-lg text-xs">
-                              <FileText className="w-3 h-3 text-accent-green" />
+                            <div className="flex items-center gap-2 bg-white border border-emerald-200 px-3 py-1.5 rounded-lg shadow-sm">
+                              <FileText className="w-4 h-4 text-emerald-600" />
                               <PieceCountBadge sousDossierId={sousDossier.id} />
                             </div>
 
                             {/* Boutons d'action compacts */}
-                            <div className="flex items-center gap-1 opacity-100">
+                            <div className="flex items-center gap-1.5 opacity-100">
                               <button
                                 onClick={(e) => {
                                   e.stopPropagation();
                                   handleCreatePiece(sousDossier.id);
                                 }}
-                                className="p-1.5 bg-green-50 text-green-700 hover:bg-green-100 rounded border border-green-200"
+                                className="p-2 bg-emerald-50 text-emerald-700 hover:bg-emerald-100 rounded-lg border border-emerald-200 transition-colors duration-150 shadow-sm hover:shadow"
                                 title="Ajouter une pièce"
                               >
                                 <Plus className="w-4 h-4" />
@@ -1361,7 +1358,7 @@ export default function RubriqueParametresPage() {
                                     e.stopPropagation();
                                     handleManageCreditMetadata(sousDossier.id);
                                   }}
-                                  className="p-1.5 bg-slate-50 text-slate-700 hover:bg-slate-100 rounded border border-slate-200"
+                                  className="p-2 bg-slate-50 text-slate-700 hover:bg-slate-100 rounded-lg border border-slate-200 transition-colors duration-150 shadow-sm hover:shadow"
                                   title="Gérer les métadonnées de crédit"
                                 >
                                   <DatabaseZap className="w-4 h-4" />
@@ -1373,7 +1370,7 @@ export default function RubriqueParametresPage() {
                                   e.stopPropagation();
                                   handleEditSousDossier(sousDossier);
                                 }}
-                                className="p-1.5 bg-blue-50 text-blue-700 hover:bg-blue-100 rounded border border-blue-200"
+                                className="p-2 bg-blue-50 text-blue-700 hover:bg-blue-100 rounded-lg border border-blue-200 transition-colors duration-150 shadow-sm hover:shadow"
                                 title="Modifier"
                               >
                                 <SquarePen className="w-4 h-4" />
@@ -1384,7 +1381,7 @@ export default function RubriqueParametresPage() {
                                   e.stopPropagation();
                                   handleDeleteSousDossier(sousDossier);
                                 }}
-                                className="p-1.5 bg-red-50 text-red-700 hover:bg-red-100 rounded border border-red-200"
+                                className="p-2 bg-red-50 text-red-700 hover:bg-red-100 rounded-lg border border-red-200 transition-colors duration-150 shadow-sm hover:shadow"
                                 title="Supprimer"
                               >
                                 <Trash2 className="w-4 h-4" />
@@ -1398,7 +1395,7 @@ export default function RubriqueParametresPage() {
                       {expandedSousDossier === sousDossier.id && (
                         <div
                           key={`pieces-${sousDossier.id}`}
-                          className="border-t-2 border-gray-200 bg-gray-50/50"
+                          className="border-t border-gray-200 bg-gradient-to-br from-gray-50/80 to-white"
                         >
                           <SousDossierPiecesContent
                             sousDossierId={sousDossier.id}

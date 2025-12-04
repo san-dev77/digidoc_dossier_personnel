@@ -19,6 +19,11 @@ export interface Agent {
   telephone: string;
   createdAt: string;
   updatedAt: string;
+  // Champs additionnels pour les utilisateurs (optionnels)
+  role?: string; // Code du rôle (ex: 'super_admin', 'admin_rh')
+  userId?: number; // ID utilisateur si c'est un utilisateur connecté
+  agentId?: number; // ID agent
+  accountType?: string; // 'utilisateur' ou 'agent'
 }
 
 export interface Rubrique {
@@ -87,7 +92,7 @@ export interface PieceWithMetadata extends Piece {
   metadonnees?: MetadataModel[];
 }
 
-// Types pour les formulaires
+// Types pour les formulaires (sans password - géré dans utilisateurs)
 export interface AgentFormData {
   matricule: string;
   nom_complet: string; // Nom complet (nom et prénom)
@@ -103,7 +108,6 @@ export interface AgentFormData {
     | "Veuf/Veuve";
   adresse: string;
   telephone: string;
-  password?: string; // Optionnel, uniquement pour la création
 }
 
 export interface RubriqueFormData {

@@ -28,7 +28,7 @@ export async function POST(req: NextRequest) {
 
     // Vérifier existence
     const existing = await query(
-      `SELECT id FROM agents WHERE matricule = $1 LIMIT 1`,
+      `SELECT id FROM agents WHERE matricule = ? LIMIT 1`,
       [matricule]
     );
     console.log("[REGISTER] existing count:", existing.rows.length);
@@ -73,18 +73,23 @@ export async function POST(req: NextRequest) {
         body.telephone ?? null,
       ];
 
-      const placeholders = values.map((_, i) => `$${i + 1}`).join(",");
+      const placeholders = values.map(() => `?`).join(",");
       console.log("[REGISTER] insert fields:", fields);
       console.log("[REGISTER] insert values:", values);
 
       const { rows } = await query(
         `INSERT INTO agents (${fields.join(
           ","
-        )}) VALUES (${placeholders}) RETURNING *`,
+        )}) VALUES (${placeholders})`,
         values
       );
+      
+      // MySQL ne supporte pas RETURNING, récupérer le dernier ID inséré
+      const { rows: insertedRows } = await query(
+        `SELECT * FROM agents WHERE id = LAST_INSERT_ID()`
+      );
 
-      const createdAgent = rows[0] as {
+      const createdAgent = insertedRows[0] as {
         id: number;
         matricule: string;
         password: string | null;

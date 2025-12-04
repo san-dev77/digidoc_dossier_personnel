@@ -34,10 +34,10 @@ export async function GET(request: NextRequest) {
         p.updated_at,
         COALESCE(pp.position, 999) as position
       FROM pieces p
-      LEFT JOIN piece_positions pp ON p.id = pp.piece_id AND pp.sous_dossier_id = $1
-      WHERE p.sous_dossier_id = $1
+      LEFT JOIN piece_positions pp ON p.id = pp.piece_id AND pp.sous_dossier_id = ?
+      WHERE p.sous_dossier_id = ?
       ORDER BY COALESCE(pp.position, 999) ASC, p.id ASC`,
-      [sousDossierId]
+      [sousDossierId, sousDossierId]
     );
 
     // Récupérer les métadonnées et fichiers pour chaque pièce

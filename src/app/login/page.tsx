@@ -15,14 +15,16 @@ import {
   AlertTriangle,
 } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
+import { useAuthStore } from "@/store/authStore";
 import { Input } from "@/components/forms";
 import { useFormValidation } from "@/hooks/useFormValidation";
 import { z } from "zod";
 import RateLimitModal from "@/components/RateLimitModal";
+import LoginErrorModal from "@/components/LoginErrorModal";
 import type { RateLimitInfo, AuthError } from "@/services/auth";
 
 const loginSchema = z.object({
-  matricule: z.string().min(1, "Le matricule est requis"),
+  identifier: z.string().min(1, "L'identifiant est requis"),
   password: z.string().min(1, "Le mot de passe est requis"),
 });
 
@@ -34,6 +36,8 @@ export default function LoginPage() {
   );
   const [showRateLimitModal, setShowRateLimitModal] = useState(false);
   const [rateLimitError, setRateLimitError] = useState<string>("");
+  const [showErrorModal, setShowErrorModal] = useState(false);
+  const [loginError, setLoginError] = useState<string>("");
 
   const { login, error: authError, loading } = useAuth();
   const router = useRouter();
@@ -45,7 +49,7 @@ export default function LoginPage() {
     setFieldTouched,
     validateForm,
   } = useFormValidation(loginSchema, {
-    matricule: "",
+    identifier: "",
     password: "",
   });
 
@@ -58,7 +62,35 @@ export default function LoginPage() {
     try {
       setIsSubmitting(true);
       setRateLimitError("");
-      const result = await login(formData.matricule, formData.password);
+      
+      // Utiliser la route unifiée
+      const response = await fetch("/api/auth/login-unified", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          identifier: formData.identifier,
+          password: formData.password,
+        }),
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        setLoginError(data.message || data.hint || "Erreur de connexion");
+        setShowErrorModal(true);
+        return; // Juste afficher le modal, pas de throw
+      }
+
+      // Sauvegarder dans sessionStorage (compatible avec le store)
+      sessionStorage.setItem("auth-token", data.token); // ✅ Nom correct !
+      sessionStorage.setItem("user", JSON.stringify(data));
+      
+      // Mettre à jour le store Zustand
+      const authStore = useAuthStore.getState();
+      authStore.setAppUser(data);
+      authStore.setLastSessionCheck(Date.now());
+
+      const result = data;
 
       // Mettre à jour les infos de rate limit si disponibles (même en cas de succès)
       if (result && "rateLimitInfo" in result && result.rateLimitInfo) {
@@ -190,29 +222,32 @@ export default function LoginPage() {
           <form onSubmit={handleSubmit} className="space-y-8 relative z-10">
             <div className="group">
               <label
-                htmlFor="matricule"
+                htmlFor="identifier"
                 className="flex text-sm font-bold text-slate-800 mb-3 items-center group-hover:text-indigo-600 transition-colors duration-300"
               >
                 <User className="w-4 h-4 mr-3 text-indigo-600 group-hover:scale-110 transition-transform duration-300" />
-                Matricule
+                Identifiant
               </label>
               <div className="relative group">
                 <Input
                   type="text"
-                  id="matricule"
-                  value={formData.matricule}
-                  onChange={(e) => setValue("matricule", e.target.value)}
-                  onBlur={() => setFieldTouched("matricule")}
-                  error={errors.matricule}
+                  id="identifier"
+                  value={formData.identifier}
+                  onChange={(e) => setValue("identifier", e.target.value)}
+                  onBlur={() => setFieldTouched("identifier")}
+                  error={errors.identifier}
                   required
                   disabled={isSubmitting || loading}
                   className="w-full px-5 py-5 pl-14 border-2 border-slate-200 rounded-2xl focus:ring-4 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all duration-300 bg-white/80 backdrop-blur-sm hover:bg-white hover:border-primary-300 text-primary-900 placeholder-slate-500 font-medium shadow-sm hover:shadow-md disabled:opacity-50 disabled:cursor-not-allowed"
-                  placeholder="Entrez votre matricule"
+                  placeholder="Username, email ou matricule"
                   fullWidth={false}
                   label=""
                 />
                 <User className="absolute left-5 top-1/2 transform -translate-y-1/2 w-5 h-5 text-slate-400 group-hover:text-indigo-500 transition-colors duration-300 pointer-events-none" />
               </div>
+              <p className="text-xs text-slate-500 mt-2 ml-1">
+                💡 Utilisez votre <strong>username</strong> (ex: digidoc) pour les utilisateurs, ou <strong>matricule</strong> pour les agents
+              </p>
             </div>
 
             <div className="group">
@@ -300,6 +335,16 @@ export default function LoginPage() {
           "Trop de tentatives de connexion. Réessayez dans quelques minutes."
         }
         retryAfter={rateLimitInfo?.retryAfter}
+      />
+
+      {/* Modale d'erreur détaillée */}
+      <LoginErrorModal
+        isOpen={showErrorModal}
+        onClose={() => {
+          setShowErrorModal(false);
+          setLoginError("");
+        }}
+        error={loginError}
       />
     </div>
   );

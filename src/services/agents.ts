@@ -80,7 +80,7 @@ export const agentsService = {
     }
   },
 
-  // Créer un nouvel agent
+  // Créer un nouvel agent (sans password - géré dans utilisateurs)
   async createAgent(agentData: AgentFormData): Promise<Agent> {
     try {
       console.log("[Service] Create agent data:", agentData);
@@ -96,7 +96,6 @@ export const agentsService = {
         situation_matrimoniale: agentData.situationMatrimoniale,
         adresse: agentData.adresse,
         telephone: agentData.telephone,
-        password: agentData.password || "password123", // Mot de passe par défaut
       };
 
       console.log("[Service] Payload to send:", payload);

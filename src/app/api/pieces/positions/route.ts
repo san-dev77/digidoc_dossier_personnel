@@ -33,7 +33,7 @@ export async function GET(request: NextRequest) {
         p.description
       FROM piece_positions pp
       INNER JOIN pieces p ON p.id = pp.piece_id
-      WHERE pp.sous_dossier_id = $1
+      WHERE pp.sous_dossier_id = ?
       ORDER BY pp.position ASC, pp.piece_id ASC`,
       [sousDossierId]
     );
@@ -76,7 +76,7 @@ export async function PUT(request: NextRequest) {
     try {
       // Supprimer les anciennes positions pour ce sous-dossier
       await query(
-        `DELETE FROM piece_positions WHERE sous_dossier_id = $1`,
+        `DELETE FROM piece_positions WHERE sous_dossier_id = ?`,
         [sousDossierId]
       );
 
@@ -85,9 +85,8 @@ export async function PUT(request: NextRequest) {
         if (pos.pieceId && typeof pos.position === "number") {
           await query(
             `INSERT INTO piece_positions (sous_dossier_id, piece_id, position, updated_at)
-             VALUES ($1, $2, $3, NOW())
-             ON CONFLICT (piece_id) 
-             DO UPDATE SET position = $3, updated_at = NOW()`,
+             VALUES (?, ?, ?, NOW())
+             ON DUPLICATE KEY UPDATE position = VALUES(position), updated_at = NOW()`,
             [sousDossierId, pos.pieceId, pos.position]
           );
         }

@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { hashPassword } from "@/lib/auth/password";
 import { createErrorResponse } from "@/lib/errors/safeError";
 import { protectRoute } from "@/lib/auth/routeProtection";
 
@@ -28,15 +27,15 @@ export async function POST(req: NextRequest) {
     const body = await req.json();
     console.log("[CREATE AGENT] Body received:", body);
 
-    if (!body.matricule || !body.password) {
+    if (!body.matricule || !body.nom_complet) {
       console.error("[CREATE AGENT] Missing required fields");
       return NextResponse.json(
-        { message: "Matricule et mot de passe requis" },
+        { message: "Matricule et nom complet requis" },
         { status: 400 }
       );
     }
 
-    // Préparer les données
+    // Préparer les données (sans password - géré dans utilisateurs)
     interface AgentCreateData {
       matricule: string;
       nom_complet: string;
@@ -47,8 +46,8 @@ export async function POST(req: NextRequest) {
       situation_matrimoniale: string | null;
       adresse: string | null;
       telephone: string | null;
-      password: string;
       date_naissance?: Date;
+      statut?: string;
     }
 
     const dataToCreate: AgentCreateData = {
@@ -61,7 +60,7 @@ export async function POST(req: NextRequest) {
       situation_matrimoniale: body.situation_matrimoniale ?? null,
       adresse: body.adresse ?? null,
       telephone: body.telephone ?? null,
-      password: body.password,
+      statut: body.statut ?? "actif",
     };
 
     // Convertir la date de naissance si elle existe
@@ -69,21 +68,14 @@ export async function POST(req: NextRequest) {
       dataToCreate.date_naissance = new Date(body.date_naissance);
     }
 
-    // Hasher le mot de passe avant de l'enregistrer
-    dataToCreate.password = await hashPassword(dataToCreate.password);
-
     console.log("[CREATE AGENT] Data to create:", dataToCreate);
 
     const created = await prisma.agents.create({
       data: dataToCreate,
     });
 
-    // Ne pas retourner le mot de passe
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars
-    const { password: _, ...agentWithoutPassword } = created;
-
     console.log("[CREATE AGENT] Success:", created.id);
-    return NextResponse.json(agentWithoutPassword, { status: 201 });
+    return NextResponse.json(created, { status: 201 });
   } catch (error) {
     console.error("[CREATE AGENT] Erreur:", error);
     return createErrorResponse(

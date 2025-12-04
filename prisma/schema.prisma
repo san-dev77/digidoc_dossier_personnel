@@ -3,8 +3,127 @@ generator client {
 }
 
 datasource db {
-  provider = "postgresql"
+  provider = "mysql"
   url      = env("DATABASE_URL")
+  relationMode = "prisma"
+}
+
+// ============================================
+// SYSTÈME DE RÔLES ET PERMISSIONS
+// ============================================
+
+// Table des rôles (personnalisables et modifiables)
+model roles {
+  id                     Int                      @id @default(autoincrement())
+  code                   String                   @unique @db.VarChar(50) // Identifiant technique (ex: super_admin)
+  nom                    String                   @unique @db.VarChar(100) // Nom affiché (modifiable)
+  description            String?                  @db.Text
+  couleur                String?                  @db.VarChar(20) // Pour l'UI (ex: "#3B82F6")
+  is_system              Boolean                  @default(false) // true = non supprimable (ex: super_admin)
+  created_at             DateTime                 @default(now()) @db.DateTime(6)
+  updated_at             DateTime                 @default(now()) @db.DateTime(6)
+  utilisateurs           utilisateurs[]
+  role_permissions       role_permissions[]
+  
+  @@index([code])
+  @@index([nom])
+  @@index([is_system])
+}
+
+// Table des permissions (liste fixe de toutes les permissions possibles)
+model permissions {
+  id                       Int                        @id @default(autoincrement())
+  code                     String                     @unique @db.VarChar(100) // Ex: "agents.create", "users.delete"
+  nom_affichage            String                     @db.VarChar(200)
+  description              String?                    @db.Text
+  categorie                String                     @db.VarChar(50) // agents, rubriques, dossiers, utilisateurs, etc.
+  created_at               DateTime                   @default(now()) @db.DateTime(6)
+  role_permissions         role_permissions[]
+  utilisateur_permissions  utilisateur_permissions[]
+  
+  @@index([code])
+  @@index([categorie])
+}
+
+// Table de liaison : Permissions d'un rôle
+model role_permissions {
+  id             Int         @id @default(autoincrement())
+  role_id        Int
+  permission_id  Int
+  created_at     DateTime    @default(now()) @db.DateTime(6)
+  roles          roles       @relation(fields: [role_id], references: [id], onDelete: Cascade)
+  permissions    permissions @relation(fields: [permission_id], references: [id], onDelete: Cascade)
+  
+  @@unique([role_id, permission_id])
+  @@index([role_id])
+  @@index([permission_id])
+}
+
+// Table des permissions individuelles (overrides)
+// Permet d'ajouter ou retirer des permissions à un utilisateur spécifique
+model utilisateur_permissions {
+  id              Int          @id @default(autoincrement())
+  utilisateur_id  Int
+  permission_id   Int
+  type            String       @db.VarChar(10) // "grant" = ajouter, "revoke" = retirer
+  reason          String?      @db.Text // Pourquoi cet override
+  granted_by      Int?         // ID de l'utilisateur qui a accordé cette permission
+  created_at      DateTime     @default(now()) @db.DateTime(6)
+  utilisateurs    utilisateurs @relation(fields: [utilisateur_id], references: [id], onDelete: Cascade)
+  permissions     permissions  @relation(fields: [permission_id], references: [id], onDelete: Cascade)
+  
+  @@unique([utilisateur_id, permission_id])
+  @@index([utilisateur_id])
+  @@index([permission_id])
+  @@index([type])
+}
+
+// Table des utilisateurs qui peuvent se connecter à l'application
+model utilisateurs {
+  id                       Int                        @id @default(autoincrement())
+  username                 String                     @unique @db.VarChar(50)
+  email                    String                     @unique @db.VarChar(255)
+  password                 String                     @db.VarChar(255)
+  nom_complet              String                     @db.VarChar(255)
+  role_id                  Int                        // FK vers roles
+  agent_id                 Int?                       @unique // FK optionnel vers agents (un utilisateur peut être aussi un agent)
+  statut                   String                     @default("actif") @db.VarChar(20) // actif, inactif, suspendu
+  avatar                   String?                    @db.VarChar(500)
+  telephone                String?                    @db.VarChar(50)
+  departement              String?                    @db.VarChar(100)
+  derniere_connexion       DateTime?                  @db.DateTime(6)
+  created_at               DateTime                   @default(now()) @db.DateTime(6)
+  updated_at               DateTime                   @default(now()) @db.DateTime(6)
+  created_by               Int?                       // ID de l'utilisateur qui a créé ce compte
+  roles                    roles                      @relation(fields: [role_id], references: [id], onDelete: Restrict)
+  agents                   agents?                    @relation(fields: [agent_id], references: [id], onDelete: SetNull)
+  audit_logs               audit_logs[]
+  utilisateur_permissions  utilisateur_permissions[]  // Permissions individuelles
+  
+  @@index([username])
+  @@index([email])
+  @@index([role_id])
+  @@index([agent_id])
+  @@index([statut])
+}
+
+// Table pour l'audit des actions (traçabilité)
+model audit_logs {
+  id             Int          @id @default(autoincrement())
+  utilisateur_id Int
+  action         String       @db.VarChar(100) // create, update, delete, view
+  entity_type    String       @db.VarChar(50)  // agent, rubrique, piece, utilisateur, role
+  entity_id      Int?
+  description    String?      @db.Text
+  ip_address     String?      @db.VarChar(50)
+  user_agent     String?      @db.VarChar(500)
+  created_at     DateTime     @default(now()) @db.DateTime(6)
+  utilisateurs   utilisateurs @relation(fields: [utilisateur_id], references: [id], onDelete: Cascade)
+  
+  @@index([utilisateur_id])
+  @@index([action])
+  @@index([entity_type])
+  @@index([created_at])
 }
 
 model agent_rubriques {
@@ -20,7 +139,7 @@ model agent_dossiers {
   agent_id        Int
   rubrique_id     Int
   sous_dossier_id Int
-  created_at      DateTime?     @default(now()) @db.Timestamp(6)
+  created_at      DateTime?     @default(now()) @db.DateTime(6)
   agents          agents        @relation(fields: [agent_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
   rubriques       rubriques     @relation(fields: [rubrique_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
   sous_dossiers   sous_dossiers @relation(fields: [sous_dossier_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
@@ -35,7 +154,7 @@ model agent_dossiers {
 
 model agents {
   id                     Int               @id @default(autoincrement())
-  matricule              String            @db.VarChar(50)
+  matricule              String            @unique @db.VarChar(50)
   nom_complet            String            @db.VarChar(255)
   fonction               String?           @db.VarChar(255)
   date_naissance         DateTime?         @db.Date
@@ -45,14 +164,20 @@ model agents {
   adresse                String?
   telephone              String?           @db.VarChar(50)
   email                  String?           @db.VarChar(255)
-  created_at             DateTime?         @default(now()) @db.Timestamp(6)
-  updated_at             DateTime?         @default(now()) @db.Timestamp(6)
-  password               String            @db.VarChar(255)
+  statut                 String            @default("actif") @db.VarChar(20) // actif, inactif, retraite
+  photo                  String?           @db.VarChar(500)
+  created_at             DateTime?         @default(now()) @db.DateTime(6)
+  updated_at             DateTime?         @default(now()) @db.DateTime(6)
   agent_rubriques        agent_rubriques[]
   agent_dossiers         agent_dossiers[]
   fiabilisations         fiabilisations[]
   notifications          notifications[]
   pieces_check           pieces_check[]
+  utilisateur            utilisateurs?     // Compte utilisateur associé (optionnel)
+  
+  @@index([matricule])
+  @@index([nom_complet])
+  @@index([statut])
 }
 
 model fiabilisations {
@@ -60,7 +185,7 @@ model fiabilisations {
   agent_id    Int
   piece_nom   String    @db.VarChar(255)
   statut      String    @db.VarChar(255)
-  date_update DateTime? @default(now()) @db.Timestamp(6)
+  date_update DateTime? @default(now()) @db.DateTime(6)
   agents      agents    @relation(fields: [agent_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
 }
 
@@ -69,7 +194,7 @@ model notifications {
   agent_id   Int
   message    String
   type_notif String    @db.VarChar(255)
-  date_envoi DateTime? @default(now()) @db.Timestamp(6)
+  date_envoi DateTime? @default(now()) @db.DateTime(6)
   lu         Boolean?  @default(false)
   agents     agents    @relation(fields: [agent_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
 }
@@ -90,8 +215,8 @@ model sous_dossiers {
   titre           String                  @db.VarChar(255)
   description     String?
   statut          String                  @default("ouvert") @db.VarChar(50)
-  created_at      DateTime?               @default(now()) @db.Timestamp(6)
-  updated_at      DateTime?               @default(now()) @db.Timestamp(6)
+  created_at      DateTime?               @default(now()) @db.DateTime(6)
+  updated_at      DateTime?               @default(now()) @db.DateTime(6)
   agent_dossiers  agent_dossiers[]
   pieces          pieces[]
   metadata_credit metadata_credit[]
@@ -105,8 +230,8 @@ model sous_dossier_positions {
   rubrique_id     Int
   sous_dossier_id Int           @unique
   position        Int           @default(0)
-  created_at      DateTime?     @default(now()) @db.Timestamp(6)
-  updated_at      DateTime?     @default(now()) @db.Timestamp(6)
+  created_at      DateTime?     @default(now()) @db.DateTime(6)
+  updated_at      DateTime?     @default(now()) @db.DateTime(6)
   sous_dossiers   sous_dossiers @relation(fields: [sous_dossier_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
   rubriques       rubriques     @relation(fields: [rubrique_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
 
@@ -120,9 +245,9 @@ model pieces {
   sous_dossier_id Int
   nom             String           @db.VarChar(255)
   description     String?
-  created_at      DateTime?        @default(now()) @db.Timestamp(6)
+  created_at      DateTime?        @default(now()) @db.DateTime(6)
   has_meta        Boolean?         @default(false)
-  updated_at      DateTime?        @default(now()) @db.Timestamp(6)
+  updated_at      DateTime?        @default(now()) @db.DateTime(6)
   metadata_model  metadata_model[]
   pieces_check    pieces_check[]
   piece_file      piece_file[]
@@ -135,8 +260,8 @@ model piece_positions {
   sous_dossier_id Int
   piece_id        Int           @unique
   position        Int           @default(0)
-  created_at      DateTime?     @default(now()) @db.Timestamp(6)
-  updated_at      DateTime?     @default(now()) @db.Timestamp(6)
+  created_at      DateTime?     @default(now()) @db.DateTime(6)
+  updated_at      DateTime?     @default(now()) @db.DateTime(6)
   pieces          pieces        @relation(fields: [piece_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
   sous_dossiers   sous_dossiers @relation(fields: [sous_dossier_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
 
@@ -149,11 +274,11 @@ model metadata_model {
   id          Int           @id @default(autoincrement())
   piece_id    Int
   obligatoire Boolean?      @default(false)
-  created_at  DateTime?     @default(now()) @db.Timestamp(6)
+  created_at  DateTime?     @default(now()) @db.DateTime(6)
   description String?
   libelle     String        @db.VarChar(255)
   type        String        @db.VarChar(50)
-  updated_at  DateTime?     @default(now()) @db.Timestamp(6)
+  updated_at  DateTime?     @default(now()) @db.DateTime(6)
   pieces      pieces        @relation(fields: [piece_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
   meta_values meta_values[]
 }
@@ -162,7 +287,7 @@ model pieces_check {
   id         Int      @id @default(autoincrement())
   piece_id   Int
   disponible Boolean
-  date_check DateTime @default(now()) @db.Timestamp(6)
+  date_check DateTime @default(now()) @db.DateTime(6)
   agent_id   Int
   pieces     pieces   @relation(fields: [piece_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
   agents     agents   @relation(fields: [agent_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
@@ -173,7 +298,7 @@ model piece_file {
   id_piece         Int
   agent_dossier_id Int?
   file_path        String
-  created_at       DateTime        @default(now()) @db.Timestamp(6)
+  created_at       DateTime        @default(now()) @db.DateTime(6)
   pieces           pieces          @relation(fields: [id_piece], references: [id], onDelete: Cascade, onUpdate: NoAction)
   agent_dossiers   agent_dossiers? @relation(fields: [agent_dossier_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
 
@@ -185,7 +310,7 @@ model meta_values {
   meta_model_id    Int
   agent_dossier_id Int?
   valeur           String
-  created_at       DateTime        @default(now()) @db.Timestamp(6)
+  created_at       DateTime        @default(now()) @db.DateTime(6)
   metadata_model   metadata_model  @relation(fields: [meta_model_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
   agent_dossiers   agent_dossiers? @relation(fields: [agent_dossier_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
 
@@ -197,7 +322,7 @@ model metadata_credit {
   sous_dossier_id    Int
   nom_meta           String               @db.VarChar(255)
   type_meta          String               @db.VarChar(50)
-  created_at         DateTime             @default(now()) @db.Timestamp(6)
+  created_at         DateTime             @default(now()) @db.DateTime(6)
   sous_dossiers      sous_dossiers        @relation(fields: [sous_dossier_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
   meta_credit_values meta_credit_values[]
 }
@@ -206,7 +331,7 @@ model meta_credit_values {
   id                 Int             @id @default(autoincrement())
   metadata_credit_id Int
   valeur             String          @db.Text
-  created_at         DateTime        @default(now()) @db.Timestamp(6)
-  updated_at         DateTime?       @default(now()) @db.Timestamp(6)
+  created_at         DateTime        @default(now()) @db.DateTime(6)
+  updated_at         DateTime?       @default(now()) @db.DateTime(6)
   metadata_credit    metadata_credit @relation(fields: [metadata_credit_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
 }

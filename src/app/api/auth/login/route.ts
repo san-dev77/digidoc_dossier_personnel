@@ -26,7 +26,7 @@ export async function POST(req: NextRequest) {
 
     // Récupérer l'agent par matricule
     const { rows } = await query(
-      `SELECT * FROM agents WHERE matricule = $1 LIMIT 1`,
+      `SELECT * FROM agents WHERE matricule = ? LIMIT 1`,
       [matricule]
     );
 

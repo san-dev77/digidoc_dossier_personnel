@@ -15,7 +15,9 @@
     "db:seed": "tsx prisma/seed.ts",
     "db:init": "npm run db:generate && npm run db:push && npm run db:seed",
     "db:setup": "npm run db:init",
-    "db:migrate-positions": "tsx scripts/migrate-positions.ts"
+    "db:migrate-positions": "tsx scripts/migrate-positions.ts",
+    "db:check-mysql": "tsx scripts/check-mysql-connection.ts",
+    "db:migrate-to-mysql": "tsx scripts/migrate-postgres-to-mysql.ts"
   },
   "prisma": {
     "seed": "tsx prisma/seed.ts"
@@ -30,15 +32,15 @@
     "@types/fs-extra": "^11.0.4",
     "@types/jsonwebtoken": "^9.0.10",
     "@types/multer": "^2.0.0",
-    "@types/pg": "^8.15.5",
+    "@types/mysql": "^2.15.21",
     "bcryptjs": "^3.0.3",
     "fs-extra": "^11.3.2",
     "jsonwebtoken": "^9.0.2",
     "lucide-react": "^0.542.0",
     "multer": "^2.0.2",
+    "mysql2": "^3.11.3",
     "next": "^16.0.3",
     "path": "^0.12.7",
-    "pg": "^8.16.3",
     "react": "19.1.0",
     "react-dom": "19.1.0",
     "react-hot-toast": "^2.6.0",

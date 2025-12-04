@@ -33,10 +33,10 @@ export async function GET(req: NextRequest) {
         sd.updated_at,
         COALESCE(sdp.position, 999) as position
       FROM sous_dossiers sd
-      LEFT JOIN sous_dossier_positions sdp ON sd.id = sdp.sous_dossier_id AND sdp.rubrique_id = $1
-      WHERE sd.rubrique_id = $1
+      LEFT JOIN sous_dossier_positions sdp ON sd.id = sdp.sous_dossier_id AND sdp.rubrique_id = ?
+      WHERE sd.rubrique_id = ?
       ORDER BY COALESCE(sdp.position, 999) ASC, sd.id ASC`,
-      [rubriqueId]
+      [rubriqueId, rubriqueId]
     );
 
     return NextResponse.json(rows);

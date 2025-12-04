@@ -21,10 +21,13 @@ export const phoneSchema = z
   .optional();
 
 // Schéma de validation pour les mots de passe
+// Accepte soit une chaîne vide (pas de changement), soit un mot de passe valide
 export const passwordSchema = z
-  .string()
-  .min(6, "Le mot de passe doit contenir au moins 6 caractères")
-  .max(100, "Le mot de passe ne peut pas dépasser 100 caractères")
+  .union([
+    z.string().min(6, "Le mot de passe doit contenir au moins 6 caractères").max(100, "Le mot de passe ne peut pas dépasser 100 caractères"),
+    z.literal(""),
+    z.undefined(),
+  ])
   .optional();
 
 // Schéma de validation pour les matricules
@@ -35,11 +38,12 @@ export const matriculeSchema = z
   .regex(/^[A-Z0-9\-_]+$/i, "Le matricule ne peut contenir que des lettres, chiffres, tirets et underscores");
 
 // Schéma de validation pour les noms
+// Accepte lettres (avec accents), chiffres, espaces, tirets, apostrophes, points
 export const nameSchema = z
   .string()
   .min(1, "Ce champ est requis")
   .max(200, "Ce champ ne peut pas dépasser 200 caractères")
-  .regex(/^[a-zA-ZÀ-ÿ\s\-'\.]+$/, "Le nom ne peut contenir que des lettres, espaces, tirets et apostrophes");
+  .regex(/^[a-zA-Z0-9À-ÿ\s\-'\.]+$/, "Le nom ne peut contenir que des lettres, chiffres, espaces, tirets, apostrophes et points");
 
 // Schéma de validation pour les dates
 export const dateSchema = z
@@ -79,12 +83,12 @@ export const descriptionSchema = z
   ])
   .optional();
 
-// Schéma complet pour Agent
+// Schéma complet pour Agent (sans password - géré dans utilisateurs)
 export const agentFormSchema = z.object({
   matricule: matriculeSchema,
   nom_complet: nameSchema,
   email: emailSchema,
-  fonction: textSchema,
+  fonction: z.union([z.string().max(500), z.literal(""), z.undefined()]).optional(),
   date_naissance: dateSchema,
   lieu_naissance: z.union([z.string().max(100), z.literal(""), z.undefined()]).optional(),
   sexe: z.enum(["M", "F"], {
@@ -93,7 +97,6 @@ export const agentFormSchema = z.object({
   situationMatrimoniale: z.string().optional(),
   adresse: z.union([z.string().max(500), z.literal(""), z.undefined()]).optional(),
   telephone: phoneSchema,
-  password: passwordSchema.optional(),
 });
 
 // Schéma pour Rubrique

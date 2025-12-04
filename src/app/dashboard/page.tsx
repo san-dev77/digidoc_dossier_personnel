@@ -542,7 +542,7 @@ export default function DashboardPage() {
 
                   return (
                     <div
-                      key={activity.id}
+                      key={`activity-${activity.id}-${index}`}
                       className={`group relative bg-gradient-to-r ${activityBgColors[index]} rounded-xl p-5 border-2 border-gray-200 hover:shadow-xl transition-all duration-300 hover:-translate-y-1`}
                     >
                       <div className="flex items-start space-x-4">
