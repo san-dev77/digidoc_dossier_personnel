@@ -293,7 +293,7 @@ async function main() {
 
     console.log(`✅ Super Admin créé :`);
     console.log(`   👤 Username: digidoc`);
-    console.log(`   🔑 Password: san_gamer77`);
+    console.log(`   🔑 Password: **********`);
     console.log(`   📧 Email: admin@digidoc.local`);
     console.log(`   🛡️  Rôle: Super Administrateur`);
     console.log(`   🔗 Agent lié: ADMIN001 (${agentDigidoc.nom_complet})`);
@@ -355,7 +355,7 @@ async function main() {
   console.log("\n🎉 Seed terminé avec succès !");
   console.log("\n🔐 Pour vous connecter :");
   console.log("   Username: digidoc");
-  console.log("   Password: san_gamer77");
+  console.log("   Password: **********");
 }
 
 main()

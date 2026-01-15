@@ -35,12 +35,6 @@ export default function HomePage() {
             <span className="relative z-10">Se connecter</span>
             <div className="absolute inset-0 bg-gradient-to-r from-slate-800 to-slate-700 rounded-xl opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
           </Link>
-          <Link
-            href="/register"
-            className="group px-10 py-4 border-2 text-gray-700 border-slate-700  rounded-xl hover:border-slate-400 hover:bg-slate-50/80 transition-all duration-300 font-semibold text-lg shadow-[0_4px_20px_-5px_rgba(0,0,0,0.1)] hover:shadow-[0_8px_30px_-10px_rgba(0,0,0,0.15)] transform hover:-translate-y-0.5 backdrop-blur-sm"
-          >
-            S&apos;inscrire
-          </Link>
         </div>
 
         {/* Indicateur de statut */}

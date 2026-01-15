@@ -311,18 +311,6 @@ export default function LoginPage() {
               <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/10 to-transparent -skew-x-12 -translate-x-full group-hover:translate-x-full transition-transform duration-1000"></div>
             </button>
           </form>
-
-          <div className="mt-10 text-center relative z-10">
-            <p className="text-sm text-primary-600 font-medium">
-              Pas encore de compte ?{" "}
-              <Link
-                href="/register"
-                className="text-indigo-600 hover:text-indigo-700 font-bold transition-all duration-300 hover:underline hover:scale-105 inline-block"
-              >
-                S&apos;inscrire
-              </Link>
-            </p>
-          </div>
         </div>
       </div>
 

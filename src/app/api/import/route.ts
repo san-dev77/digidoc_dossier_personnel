@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { hashPassword } from "@/lib/auth/password";
 import { protectRoute } from "@/lib/auth/routeProtection";
 import * as XLSX from "xlsx";
 
@@ -65,7 +64,6 @@ async function importAgents(data: Record<string, string>[]) {
       const email = row["email"] || row["Email"] || row["EMAIL"] || "";
       const telephone =
         row["telephone"] || row["Telephone"] || row["Téléphone"] || "";
-      const password = row["password"] || row["Password"] || "";
 
       // Si Nom et Prénom sont fournis, les combiner
       if (nom && prenom && !nom_complet) {
@@ -117,12 +115,9 @@ async function importAgents(data: Record<string, string>[]) {
         });
       } else {
         // Créer
-        const passwordToHash = password?.trim() || "password123";
-        const hashedPassword = await hashPassword(passwordToHash);
         await prisma.agents.create({
           data: {
             ...agentData,
-            password: hashedPassword,
           },
         });
         created++;
