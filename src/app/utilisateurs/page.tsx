@@ -12,29 +12,7 @@ import UtilisateursTable from "@/components/utilisateurs/UtilisateursTable";
 import UtilisateurForm from "@/components/UtilisateurForm";
 import UtilisateurDetailsModal from "@/components/utilisateurs/UtilisateurDetailsModal";
 import RolesPermissionsView from "@/components/utilisateurs/RolesPermissionsView";
-
-interface RoleData {
-  id: number;
-  code: string;
-  nom: string;
-  description: string | null;
-  couleur: string | null;
-  is_system: boolean;
-}
-
-interface Utilisateur {
-  id: number;
-  username: string;
-  email: string;
-  nom_complet: string;
-  role_id: number;
-  roles: RoleData;
-  statut: string;
-  telephone: string | null;
-  departement: string | null;
-  derniere_connexion: string | null;
-  created_at: string;
-}
+import type { RoleData, Utilisateur } from "@/types/rbac";
 
 export default function UtilisateursPage() {
   const router = useRouter();

@@ -1,8 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
-import { verifyToken, extractTokenFromRequest } from "./jwt";
+import { verifyTokenEdge, extractTokenFromRequest } from "./jwt-edge";
 
 // Routes publiques qui ne nécessitent pas d'authentification
-const publicRoutes = ["/api/auth/login", "/api/auth/register"];
+const publicRoutes = ["/api/auth/login", "/api/auth/register", "/api/agent-rubriques"];
 
 // Routes administratives qui nécessitent le rôle admin
 // Note: Les routes migration et database-schema ont été supprimées pour des raisons de sécurité
@@ -10,12 +10,19 @@ const adminRoutes: string[] = [];
 
 /**
  * Middleware d'authentification pour protéger les routes API
+ * Version async pour supporter jose (Edge Runtime compatible)
  */
-export function requireAuth(request: NextRequest): {
+export async function requireAuth(request: NextRequest): Promise<{
   authorized: boolean;
   response?: NextResponse;
-  user?: { agentId: number; matricule: string; email?: string; role?: string };
-} {
+  user?: {
+    userId?: number;
+    agentId?: number;
+    matricule: string;
+    email?: string;
+    role?: string;
+  };
+}> {
   const pathname = request.nextUrl.pathname;
 
   // Routes publiques : pas besoin d'authentification
@@ -43,8 +50,8 @@ export function requireAuth(request: NextRequest): {
     };
   }
 
-  // Vérifier le token
-  const payload = verifyToken(token);
+  // Vérifier le token (async avec jose)
+  const payload = await verifyTokenEdge(token);
 
   if (!payload) {
     return {
@@ -72,6 +79,7 @@ export function requireAuth(request: NextRequest): {
   return {
     authorized: true,
     user: {
+      userId: payload.userId,
       agentId: payload.agentId,
       matricule: payload.matricule,
       email: payload.email,
@@ -79,3 +87,4 @@ export function requireAuth(request: NextRequest): {
     },
   };
 }
+

@@ -26,9 +26,17 @@ export default function DashboardPage() {
   const { fullName, fonction, matricule, email } = useUser();
   const { dossiers, agentsWithDossiers } = useDossiersStore();
   const [totalAgents, setTotalAgents] = useState<number>(0);
+  const [isMounted, setIsMounted] = useState(false);
 
-  // Charger les données au montage
+  // Marquer le composant comme monté côté client
   useEffect(() => {
+    setIsMounted(true);
+  }, []);
+
+  // Charger les données UNIQUEMENT après le montage côté client
+  useEffect(() => {
+    if (!isMounted) return; // Ne pas charger côté serveur
+    
     const loadData = async () => {
       try {
         // Charger les dossiers
@@ -41,7 +49,7 @@ export default function DashboardPage() {
       }
     };
     loadData();
-  }, []);
+  }, [isMounted]);
 
   // Fonction pour formater la date correctement (évite les problèmes de timezone)
   const formatDate = (dateString: string) => {

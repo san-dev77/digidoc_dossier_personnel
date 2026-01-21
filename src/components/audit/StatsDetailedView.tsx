@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { Folder, Check, X, ChevronDown, ChevronUp } from "lucide-react";
 
-interface StatsData {
+export interface StatsData {
   rubriques: Array<{ id: number; nom: string; nombreSousDossiers: number }>;
   sousDossiers: Array<{
     id: number;

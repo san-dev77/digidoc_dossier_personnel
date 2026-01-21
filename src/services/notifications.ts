@@ -36,7 +36,10 @@ class NotificationService {
   }
 
   // Envoyer une notification desktop
-  sendDesktopNotification(title: string, options?: NotificationOptions): void {
+  sendDesktopNotification(
+    title: string,
+    options?: NotificationOptions
+  ): Notification | undefined {
     if (this.isDesktopNotificationEnabled()) {
       const notification = new Notification(title, {
         icon: "/favicon.ico",
@@ -52,6 +55,7 @@ class NotificationService {
 
       return notification;
     }
+    return undefined;
   }
 
   // Ajouter une notification
@@ -234,8 +238,16 @@ class NotificationService {
         }
 
         const parsed: NotificationDataSerialized[] = JSON.parse(saved);
+        const validTypes = ["success", "warning", "info", "error"] as const;
+        const validCategories = ["login", "system", "security", "update"] as const;
         this.notifications = parsed.map((n) => ({
           ...n,
+          type: (validTypes as readonly string[]).includes(n.type)
+            ? (n.type as NotificationData["type"])
+            : "info",
+          category: (validCategories as readonly string[]).includes(n.category)
+            ? (n.category as NotificationData["category"])
+            : "system",
           timestamp: new Date(n.timestamp),
         }));
         this.notifyListeners();

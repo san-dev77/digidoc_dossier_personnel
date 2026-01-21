@@ -3,15 +3,7 @@
 import { useState, useEffect } from "react";
 import { X, Save, Shield } from "lucide-react";
 import { Input } from "@/components/forms";
-
-interface RoleData {
-  id: number;
-  code: string;
-  nom: string;
-  description: string | null;
-  couleur: string | null;
-  is_system: boolean;
-}
+import type { RoleData } from "@/types/rbac";
 
 interface RoleEditModalProps {
   isOpen: boolean;

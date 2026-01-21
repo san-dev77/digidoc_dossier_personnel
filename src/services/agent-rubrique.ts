@@ -137,7 +137,7 @@ export const agentRubriqueService = {
         );
       }
       interface AgentRubriqueRelation {
-        agents: Record<string, unknown>;
+        agents: Agent;
         rubrique_id?: number | string;
         rubriques?: {
           nom: string;
@@ -145,7 +145,7 @@ export const agentRubriqueService = {
       }
 
       const data: AgentRubriqueRelation[] = await response.json();
-      return data.map((relation) => ({
+      return data.map((relation): AgentWithRubrique => ({
         ...relation.agents,
         rubrique_id: relation.rubrique_id?.toString(),
         rubrique_nom: relation.rubriques?.nom,

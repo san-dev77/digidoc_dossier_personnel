@@ -23,7 +23,8 @@ async function getUserIdFromRequest(req: NextRequest): Promise<number | null> {
   try {
     const decoded = verifyToken(token);
     if (!decoded) return null;
-    return decoded.agentId || null;
+    // Priorité: userId (nouveau système), sinon agentId (legacy)
+    return decoded.userId ?? decoded.agentId ?? null;
   } catch {
     return null;
   }

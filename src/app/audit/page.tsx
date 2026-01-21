@@ -7,8 +7,8 @@ import AuthGuard from "@/components/AuthGuard";
 import DashboardLayout from "@/components/DashboardLayout";
 import AuditHeader from "@/components/audit/AuditHeader";
 import StatsDetailedView from "@/components/audit/StatsDetailedView";
+import type { StatsData } from "@/components/audit/StatsDetailedView";
 import {
-  Users as UsersIcon,
   BarChart3,
   Activity,
   Clock,
@@ -20,7 +20,6 @@ import {
   Server,
   Lock,
   CheckCircle,
-  AlertCircle,
   Zap,
 } from "lucide-react";
 
@@ -45,6 +44,21 @@ interface UserStats {
   parRole: Record<string, number>;
 }
 
+type UtilisateurStatut = "actif" | "inactif" | "suspendu";
+
+interface UtilisateurForAudit {
+  id: number;
+  username: string;
+  nom_complet: string;
+  statut: UtilisateurStatut;
+  derniere_connexion: string | null;
+  roles?: {
+    nom: string;
+    couleur: string | null;
+  } | null;
+}
+
+
 export default function AuditPage() {
   const router = useRouter();
   const { canManageUsers } = usePermissions();
@@ -57,7 +71,7 @@ export default function AuditPage() {
   const [totalAgents, setTotalAgents] = useState(0);
   const [totalDossiers, setTotalDossiers] = useState(0);
   const [totalPieces, setTotalPieces] = useState(0);
-  const [detailedStats, setDetailedStats] = useState<any>(null);
+  const [detailedStats, setDetailedStats] = useState<StatsData | null>(null);
 
   useEffect(() => {
     if (!canManageUsers) {
@@ -78,7 +92,7 @@ export default function AuditPage() {
         headers: { Authorization: `Bearer ${token}` },
       });
       if (statsRes.ok) {
-        const statsData = await statsRes.json();
+        const statsData = (await statsRes.json()) as StatsData;
         setDetailedStats(statsData);
         setTotalDossiers(statsData.totalSousDossiers);
         setTotalPieces(statsData.totalPieces);
@@ -99,7 +113,7 @@ export default function AuditPage() {
       });
 
       if (response.ok) {
-        const utilisateurs = await response.json();
+        const utilisateurs = (await response.json()) as UtilisateurForAudit[];
 
         // Calculer les stats
         const stats: UserStats = {
@@ -111,7 +125,7 @@ export default function AuditPage() {
         };
 
         utilisateurs.forEach((u) => {
-          const roleName = u.roles?.nom || "Sans rôle";
+          const roleName = u.roles?.nom ?? "Sans rôle";
           stats.parRole[roleName] = (stats.parRole[roleName] || 0) + 1;
         });
 
@@ -122,8 +136,8 @@ export default function AuditPage() {
           .filter((u) => u.derniere_connexion)
           .sort(
             (a, b) =>
-              new Date(b.derniere_connexion).getTime() -
-              new Date(a.derniere_connexion).getTime()
+              new Date(b.derniere_connexion!).getTime() -
+              new Date(a.derniere_connexion!).getTime()
           )
           .slice(0, 20)
           .map((u) => ({
@@ -131,9 +145,9 @@ export default function AuditPage() {
             utilisateur: {
               nom_complet: u.nom_complet,
               username: u.username,
-              roles: u.roles,
+              roles: u.roles ?? { nom: "Sans rôle", couleur: null },
             },
-            derniere_connexion: u.derniere_connexion,
+            derniere_connexion: u.derniere_connexion!,
           }));
 
         setLogs(logsData);

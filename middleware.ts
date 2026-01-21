@@ -23,7 +23,7 @@ const allowedHeaders = [
   "Origin",
 ];
 
-export function middleware(request: NextRequest) {
+export async function middleware(request: NextRequest) {
   console.log(
     "[MIDDLEWARE] ⚡ Middleware exécuté pour:",
     request.nextUrl.pathname
@@ -81,7 +81,7 @@ export function middleware(request: NextRequest) {
     }
 
     // VÉRIFICATION D'AUTHENTIFICATION (sauf pour OPTIONS)
-    const authResult = requireAuth(request);
+    const authResult = await requireAuth(request);
     console.log("[MIDDLEWARE] Auth result:", {
       authorized: authResult.authorized,
       pathname: request.nextUrl.pathname,
@@ -106,7 +106,11 @@ export function middleware(request: NextRequest) {
 
     // Ajouter l'utilisateur dans les headers pour utilisation dans les routes
     if (authResult.user) {
-      response.headers.set("x-user-id", authResult.user.agentId.toString());
+      const userIdHeader =
+        authResult.user.userId ?? authResult.user.agentId ?? null;
+      if (userIdHeader !== null) {
+        response.headers.set("x-user-id", userIdHeader.toString());
+      }
       response.headers.set("x-user-matricule", authResult.user.matricule);
       if (authResult.user.role) {
         response.headers.set("x-user-role", authResult.user.role);

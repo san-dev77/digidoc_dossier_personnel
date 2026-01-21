@@ -21,12 +21,17 @@ interface AuthState {
   clearAuth: () => void;
 }
 
+type AuthPersistedState = Pick<
+  AuthState,
+  "appUser" | "isAuthenticated" | "lastSessionCheck"
+>;
+
 // Durée de validité du cache de session (2 minutes)
 const SESSION_CACHE_DURATION = 2 * 60 * 1000;
 
 export const useAuthStore = create<AuthState>()(
   devtools(
-    persist(
+    persist<AuthState, [], [], AuthPersistedState>(
       (set, get) => ({
         // État initial
         appUser: null,
@@ -82,16 +87,13 @@ export const useAuthStore = create<AuthState>()(
           },
         },
         // Ne persister que les données essentielles
-        partialize: (state) =>
-          ({
-            appUser: state.appUser,
-            isAuthenticated: state.isAuthenticated,
-            lastSessionCheck: state.lastSessionCheck,
-          } as Partial<AuthState>),
+        partialize: (state) => ({
+          appUser: state.appUser,
+          isAuthenticated: state.isAuthenticated,
+          lastSessionCheck: state.lastSessionCheck,
+        }),
       }
     ),
-    {
-      name: "auth-session",
-    }
+    { name: "AuthStore" }
   )
 );

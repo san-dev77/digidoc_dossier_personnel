@@ -74,7 +74,7 @@ export async function PUT(
       statut,
     } = body;
 
-    const userId = parseInt(params.id);
+    const userId = parseInt(paramId);
 
     // Vérifier si l'utilisateur existe
     const existing = await prisma.utilisateurs.findUnique({

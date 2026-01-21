@@ -52,8 +52,8 @@ function getClientIP(request: NextRequest): string {
     return cfConnectingIP;
   }
 
-  // Fallback : utiliser l'IP de la connexion
-  return request.ip || "unknown";
+  // Fallback : NextRequest.ip n'est pas typé dans tous les runtimes Next
+  return "unknown";
 }
 
 /**

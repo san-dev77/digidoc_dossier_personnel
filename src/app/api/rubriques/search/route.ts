@@ -26,13 +26,11 @@ export async function GET(req: NextRequest) {
           {
             nom: {
               contains: query,
-              mode: "insensitive",
             },
           },
           {
             description: {
               contains: query,
-              mode: "insensitive",
             },
           },
         ],

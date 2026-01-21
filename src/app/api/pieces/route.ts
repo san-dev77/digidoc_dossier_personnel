@@ -23,7 +23,7 @@ export async function GET(request: NextRequest) {
     }
 
     // Utiliser une requête SQL pour trier par position
-    const { rows } = await query(
+    const { rows } = await query<PieceRow>(
       `SELECT 
         p.id,
         p.sous_dossier_id,
@@ -40,9 +40,37 @@ export async function GET(request: NextRequest) {
       [sousDossierId, sousDossierId]
     );
 
+    interface PieceRow {
+      id: number;
+      sous_dossier_id: number;
+      nom: string;
+      description: string | null;
+      has_meta: boolean | number;
+      created_at: Date | null;
+      updated_at: Date | null;
+      position: number;
+    }
+
+    interface PieceWithRelations extends PieceRow {
+      piece_file: Array<{
+        id: number | bigint;
+        file_path: string;
+        created_at: Date | null;
+      }>;
+      metadata_model: Array<{
+        id: number | bigint;
+        libelle: string;
+        type: string;
+        obligatoire: boolean | null;
+        description: string | null;
+        created_at: Date | null;
+        updated_at: Date | null;
+      }>;
+    }
+
     // Récupérer les métadonnées et fichiers pour chaque pièce
-    const pieces = await Promise.all(
-      rows.map(async (piece: { id: number }) => {
+    const pieces: PieceWithRelations[] = await Promise.all(
+      rows.map(async (piece): Promise<PieceWithRelations> => {
         const [metadata, files] = await Promise.all([
           prisma.metadata_model.findMany({
             where: { piece_id: piece.id },
@@ -60,36 +88,12 @@ export async function GET(request: NextRequest) {
       })
     );
 
-    interface PieceWithRelations {
-      id: number | bigint;
-      sous_dossier_id: number | bigint;
-      nom: string;
-      description: string | null;
-      has_meta: boolean;
-      created_at: Date | null;
-      updated_at: Date | null;
-      piece_file: Array<{
-        id: number | bigint;
-        file_path: string;
-        created_at: Date | null;
-      }>;
-      metadata_model: Array<{
-        id: number | bigint;
-        libelle: string;
-        type: string;
-        obligatoire: boolean;
-        description: string | null;
-        created_at: Date | null;
-        updated_at: Date | null;
-      }>;
-    }
-
-    const formattedPieces = (pieces as PieceWithRelations[]).map((piece) => ({
+    const formattedPieces = pieces.map((piece) => ({
       id: piece.id,
       sousDossierId: piece.sous_dossier_id.toString(),
       nom: piece.nom,
       description: piece.description,
-      aMetadonnees: piece.has_meta || false,
+      aMetadonnees: Boolean(piece.has_meta),
       createdAt: piece.created_at?.toISOString() || "",
       updatedAt: piece.updated_at?.toISOString() || "",
       files: piece.piece_file.map(
@@ -104,7 +108,7 @@ export async function GET(request: NextRequest) {
           id: meta.id,
           nom: meta.libelle,
           type: meta.type,
-          obligatoire: meta.obligatoire || false,
+          obligatoire: Boolean(meta.obligatoire),
           description: meta.description,
           createdAt: meta.created_at?.toISOString() || "",
           updatedAt: meta.updated_at?.toISOString() || "",

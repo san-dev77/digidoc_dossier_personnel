@@ -35,6 +35,7 @@
     "@types/mysql": "^2.15.21",
     "bcryptjs": "^3.0.3",
     "fs-extra": "^11.3.2",
+    "jose": "^6.1.3",
     "jsonwebtoken": "^9.0.2",
     "lucide-react": "^0.542.0",
     "multer": "^2.0.2",

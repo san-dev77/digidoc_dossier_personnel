@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useCallback } from "react";
-import { z, ZodSchema } from "zod";
+import { z } from "zod";
 
 export interface ValidationErrors {
   [key: string]: string | undefined;
@@ -14,7 +14,7 @@ export interface ValidationErrors {
  * @returns Objet contenant les fonctions et états pour la gestion du formulaire
  */
 export function useFormValidation<T extends Record<string, any>>(
-  schema: ZodSchema<T>,
+  schema: z.ZodObject<any>,
   initialValues: T
 ) {
   const [values, setValues] = useState<T>(initialValues);
@@ -36,8 +36,8 @@ export function useFormValidation<T extends Record<string, any>>(
         }
         return true;
       } catch (error) {
-        if (error instanceof z.ZodError && error.errors && Array.isArray(error.errors)) {
-          const fieldError = error.errors[0]?.message || "Erreur de validation";
+        if (error instanceof z.ZodError && Array.isArray(error.issues)) {
+          const fieldError = error.issues[0]?.message || "Erreur de validation";
           setErrors((prev) => ({ ...prev, [fieldName]: fieldError }));
           return false;
         }
@@ -57,9 +57,9 @@ export function useFormValidation<T extends Record<string, any>>(
       setErrors({});
       return true;
     } catch (error) {
-      if (error instanceof z.ZodError && error.errors && Array.isArray(error.errors)) {
+      if (error instanceof z.ZodError && Array.isArray(error.issues)) {
         const newErrors: ValidationErrors = {};
-        error.errors.forEach((err) => {
+        error.issues.forEach((err) => {
           const path = err.path[0] as string;
           if (path) {
             newErrors[path] = err.message;

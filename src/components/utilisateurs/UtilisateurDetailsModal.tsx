@@ -10,31 +10,12 @@ import {
   User,
   Clock,
 } from "lucide-react";
-
-interface RoleData {
-  nom: string;
-  code: string;
-  couleur: string | null;
-  description: string | null;
-}
-
-interface UtilisateurDetails {
-  id: number;
-  username: string;
-  email: string;
-  nom_complet: string;
-  roles: RoleData;
-  statut: string;
-  telephone: string | null;
-  departement: string | null;
-  derniere_connexion: string | null;
-  created_at: string;
-}
+import type { RoleData, Utilisateur } from "@/types/rbac";
 
 interface UtilisateurDetailsModalProps {
   isOpen: boolean;
   onClose: () => void;
-  utilisateur: UtilisateurDetails | null;
+  utilisateur: Utilisateur | null;
 }
 
 export default function UtilisateurDetailsModal({

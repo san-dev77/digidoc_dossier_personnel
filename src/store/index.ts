@@ -7,6 +7,7 @@ import {
   Piece,
   MetadataModel,
   PieceMetadata,
+  Notification,
 } from "@/types";
 import { useAuthStore } from "@/store/authStore";
 

@@ -75,13 +75,13 @@ async function migrate() {
     for (const agent of agents) {
       await mysqlConnection.execute(
         `INSERT INTO agents (id, matricule, nom_complet, fonction, date_naissance, lieu_naissance, 
-         sexe, situation_matrimoniale, adresse, telephone, email, created_at, updated_at, password) 
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+         sexe, situation_matrimoniale, adresse, telephone, email, created_at, updated_at) 
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
         [
           agent.id, agent.matricule, agent.nom_complet, agent.fonction,
           agent.date_naissance, agent.lieu_naissance, agent.sexe,
           agent.situation_matrimoniale, agent.adresse, agent.telephone,
-          agent.email, agent.created_at, agent.updated_at, agent.password
+          agent.email, agent.created_at, agent.updated_at
         ]
       );
     }

@@ -17,9 +17,15 @@ import { requireAuth } from "./middleware";
 export async function protectRoute(request: NextRequest): Promise<{
   authorized: boolean;
   response?: NextResponse;
-  user?: { agentId: number; matricule: string; email?: string; role?: string };
+  user?: {
+    userId?: number;
+    agentId?: number;
+    matricule: string;
+    email?: string;
+    role?: string;
+  };
 }> {
-  return requireAuth(request);
+  return await requireAuth(request);
 }
 
 /**
@@ -29,11 +35,17 @@ export async function protectRoute(request: NextRequest): Promise<{
 export function withAuth(
   handler: (
     request: NextRequest,
-    user: { agentId: number; matricule: string; email?: string; role?: string }
+    user: {
+      userId?: number;
+      agentId?: number;
+      matricule: string;
+      email?: string;
+      role?: string;
+    }
   ) => Promise<NextResponse>
 ) {
   return async (request: NextRequest) => {
-    const authResult = requireAuth(request);
+    const authResult = await requireAuth(request);
     
     if (!authResult.authorized) {
       return authResult.response!;
@@ -49,4 +61,3 @@ export function withAuth(
     return handler(request, authResult.user);
   };
 }
-

@@ -8,7 +8,9 @@ export interface LoginCredentials {
 export interface RegisterData {
   matricule: string;
   email?: string; // Email optionnel
-  password: string;
+  // Le système actuel ne crée plus d'agents avec mot de passe.
+  // (Les accès à l'app passent par la table utilisateurs.)
+  password?: string;
   nom_complet: string; // Interface utilise "nom_complet"
   fonction?: string;
   date_naissance?: string;
@@ -63,7 +65,7 @@ export const authService = {
         // Si c'est une erreur 429 (rate limit), lancer une erreur spéciale
         if (res.status === 429) {
           const error = new Error(detail) as Error & { rateLimitInfo?: RateLimitInfo };
-          error.rateLimitInfo = rateLimitInfo;
+          error.rateLimitInfo = rateLimitInfo || undefined;
           throw error;
         }
       } catch (e) {
@@ -75,7 +77,7 @@ export const authService = {
       
       // Pour les autres erreurs, créer une erreur avec les infos de rate limit
       const error = new Error(detail || (res.status === 401 ? "Matricule ou mot de passe invalide" : "Erreur serveur")) as Error & { rateLimitInfo?: RateLimitInfo };
-      error.rateLimitInfo = rateLimitInfo;
+      error.rateLimitInfo = rateLimitInfo || undefined;
       throw error;
     }
     const data = await res.json();
@@ -117,7 +119,7 @@ export const authService = {
         // Si c'est une erreur 429 (rate limit), lancer une erreur spéciale
         if (res.status === 429) {
           const error = new Error(detail) as Error & { rateLimitInfo?: RateLimitInfo };
-          error.rateLimitInfo = rateLimitInfo;
+          error.rateLimitInfo = rateLimitInfo || undefined;
           throw error;
         }
       } catch (e) {
@@ -129,7 +131,7 @@ export const authService = {
       
       // Pour les autres erreurs, créer une erreur avec les infos de rate limit
       const error = new Error(detail || (res.status === 409 ? "Matricule déjà utilisé" : "Erreur serveur")) as Error & { rateLimitInfo?: RateLimitInfo };
-      error.rateLimitInfo = rateLimitInfo;
+      error.rateLimitInfo = rateLimitInfo || undefined;
       throw error;
     }
     const data = await res.json();

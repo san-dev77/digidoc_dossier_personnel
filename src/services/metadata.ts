@@ -17,7 +17,7 @@ export interface MetadataUpdate {
 export interface MetadataResponse {
   success: boolean;
   message: string;
-  data?: Record<string, unknown>;
+  data?: unknown | null;
 }
 
 export class MetadataService {
@@ -305,7 +305,6 @@ export class MetadataService {
         where: {
           nom_meta: {
             contains: searchTerm,
-            mode: "insensitive",
           },
         },
         include: {

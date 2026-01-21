@@ -7,6 +7,29 @@ import type {
 import { fetchWithAuth } from "@/lib/api/fetchWithAuth";
 
 export const piecesService = {
+  async getPieceById(pieceId: string): Promise<Piece | null> {
+    try {
+      const response = await fetchWithAuth(`/api/pieces/${pieceId}`);
+      if (response.status === 404) return null;
+      if (!response.ok) {
+        throw new Error("Erreur lors de la récupération de la pièce");
+      }
+      const data = await response.json();
+      return {
+        id: data.id.toString(),
+        sousDossierId: data.sousDossierId,
+        nom: data.nom,
+        description: data.description,
+        aMetadonnees: data.aMetadonnees,
+        createdAt: data.createdAt,
+        updatedAt: data.updatedAt,
+      };
+    } catch (error) {
+      console.error("Erreur lors du chargement de la pièce:", error);
+      throw error;
+    }
+  },
+
   async getAllPiecesBySousDossier(sousDossierId: string): Promise<Piece[]> {
     try {
       const response = await fetchWithAuth(

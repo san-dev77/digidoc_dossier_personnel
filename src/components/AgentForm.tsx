@@ -35,7 +35,6 @@ export default function AgentForm({
     situationMatrimoniale: "Célibataire",
     adresse: "",
     telephone: "",
-    password: "",
   };
 
   const {
@@ -68,7 +67,6 @@ export default function AgentForm({
         situationMatrimoniale: agent.situationMatrimoniale || "Célibataire",
         adresse: agent.adresse || "",
         telephone: agent.telephone || "",
-        password: "",
       });
     } else {
       reset(initialValues);
@@ -91,7 +89,6 @@ export default function AgentForm({
           "Célibataire") as "Célibataire" | "Marié(e)" | "Divorcé(e)" | "Veuf/Veuve",
         adresse: formData.adresse || "",
         telephone: formData.telephone || "",
-        password: formData.password || undefined,
       };
       onSubmit(submitData);
     }
@@ -162,19 +159,7 @@ export default function AgentForm({
                   />
                 </div>
 
-                {mode === "create" && (
-                  <Input
-                    type="password"
-                    label="Mot de passe"
-                    value={formData.password || ""}
-                    onChange={(e) => setValue("password", e.target.value)}
-                    onBlur={() => setFieldTouched("password")}
-                    error={errors.password}
-                    required
-                    helperText="Minimum 6 caractères"
-                    placeholder="Mot de passe"
-                  />
-                )}
+                {/* Les agents n'ont plus de mot de passe dans le nouveau système */}
               </div>
             </div>
 

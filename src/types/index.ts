@@ -21,6 +21,7 @@ export interface Agent {
   updatedAt: string;
   // Champs additionnels pour les utilisateurs (optionnels)
   role?: string; // Code du rôle (ex: 'super_admin', 'admin_rh')
+  roles?: { code: string; nom?: string; couleur?: string | null } | null; // Rôle provenant de la table roles (utilisateurs)
   userId?: number; // ID utilisateur si c'est un utilisateur connecté
   agentId?: number; // ID agent
   accountType?: string; // 'utilisateur' ou 'agent'

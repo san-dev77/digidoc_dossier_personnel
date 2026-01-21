@@ -1,28 +1,7 @@
 "use client";
 
 import { Shield, Edit, Trash2, Clock } from "lucide-react";
-
-interface RoleData {
-  id: number;
-  code: string;
-  nom: string;
-  couleur: string | null;
-  is_system: boolean;
-}
-
-interface Utilisateur {
-  id: number;
-  username: string;
-  email: string;
-  nom_complet: string;
-  role_id: number;
-  roles: RoleData;
-  statut: string;
-  telephone: string | null;
-  departement: string | null;
-  derniere_connexion: string | null;
-  created_at: string;
-}
+import type { Utilisateur } from "@/types/rbac";
 
 interface UtilisateursTableProps {
   utilisateurs: Utilisateur[];

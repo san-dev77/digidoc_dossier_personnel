@@ -4,22 +4,13 @@ import { useState, useEffect } from "react";
 import { Shield, Check, X, Info, Users as UsersIcon, Settings, Edit } from "lucide-react";
 import RolePermissionsEditor from "./RolePermissionsEditor";
 import RoleEditModal from "./RoleEditModal";
+import type { RoleData } from "@/types/rbac";
 
 interface Permission {
   id: number;
   code: string;
   nom_affichage: string;
   categorie: string;
-}
-
-interface RoleData {
-  id: number;
-  code: string;
-  nom: string;
-  description: string | null;
-  couleur: string | null;
-  is_system: boolean;
-  _count?: { utilisateurs: number };
 }
 
 interface RolesPermissionsViewProps {

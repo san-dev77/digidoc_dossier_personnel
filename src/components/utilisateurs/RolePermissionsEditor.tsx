@@ -2,20 +2,13 @@
 
 import { useState, useEffect } from "react";
 import { X, Save, Shield, Check } from "lucide-react";
+import type { RoleData } from "@/types/rbac";
 
 interface Permission {
   id: number;
   code: string;
   nom_affichage: string;
   categorie: string;
-}
-
-interface RoleData {
-  id: number;
-  code: string;
-  nom: string;
-  couleur: string | null;
-  is_system: boolean;
 }
 
 interface RolePermissionsEditorProps {

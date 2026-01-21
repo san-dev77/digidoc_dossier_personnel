@@ -92,7 +92,7 @@ export const agentFormSchema = z.object({
   date_naissance: dateSchema,
   lieu_naissance: z.union([z.string().max(100), z.literal(""), z.undefined()]).optional(),
   sexe: z.enum(["M", "F"], {
-    errorMap: () => ({ message: "Le sexe doit être M ou F" }),
+    message: "Le sexe doit être M ou F",
   }),
   situationMatrimoniale: z.string().optional(),
   adresse: z.union([z.string().max(500), z.literal(""), z.undefined()]).optional(),
@@ -124,7 +124,7 @@ export const pieceFormSchema = z.object({
 export const metadataFormSchema = z.object({
   nom: textSchema,
   type: z.enum(["text", "number", "date", "email", "url"], {
-    errorMap: () => ({ message: "Type invalide" }),
+    message: "Type invalide",
   }),
   obligatoire: z.boolean(),
   description: descriptionSchema,

@@ -4,8 +4,6 @@ import { useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import {
-  Eye,
-  EyeOff,
   ArrowLeft,
   User,
   Mail,
@@ -26,12 +24,8 @@ import RateLimitModal from "@/components/RateLimitModal";
 import type { RateLimitInfo, AuthError } from "@/services/auth";
 
 export default function RegisterPage() {
-  const [showPassword, setShowPassword] = useState(false);
-  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [showOptionalFields, setShowOptionalFields] = useState(false);
-  const [confirmPassword, setConfirmPassword] = useState("");
-  const [confirmPasswordError, setConfirmPasswordError] = useState("");
   const [rateLimitInfo, setRateLimitInfo] = useState<RateLimitInfo | null>(
     null
   );
@@ -52,7 +46,6 @@ export default function RegisterPage() {
     adresse: "",
     telephone: "",
     email: "",
-    password: "",
   };
 
   const {
@@ -67,22 +60,14 @@ export default function RegisterPage() {
     e.preventDefault();
     if (isSubmitting) return;
 
-    // Vérifier la confirmation du mot de passe
-    if (formData.password !== confirmPassword) {
-      setConfirmPasswordError("Les mots de passe ne correspondent pas");
-      return;
-    }
-    setConfirmPasswordError("");
-
     if (!validateForm()) return;
 
     try {
       setIsSubmitting(true);
       setRateLimitError("");
-      const { password, ...restData } = formData;
+      const restData = formData;
       const registerData = {
         matricule: restData.matricule,
-        password: password || "",
         nom_complet: restData.nom_complet,
         fonction: restData.fonction || undefined,
         email: restData.email || undefined,
@@ -95,7 +80,6 @@ export default function RegisterPage() {
       };
       console.log("📝 Données d'inscription envoyées:", {
         ...registerData,
-        password: "***",
       });
       const result = await register(registerData);
 
@@ -504,108 +488,6 @@ export default function RegisterPage() {
                 </div>
               </div>
             )}
-
-            {/* Mots de passe */}
-            <div className="bg-slate-50/80 rounded-2xl p-6 border border-slate-200/60">
-              <h3 className="text-lg font-semibold text-slate-800 mb-4 flex items-center">
-                <Shield className="w-5 h-5 mr-3 text-slate-600" />
-                Sécurité du compte
-              </h3>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <div>
-                  <label
-                    htmlFor="password"
-                    className=" text-sm font-semibold text-slate-700 mb-3 flex items-center"
-                  >
-                    <Shield className="w-4 h-4 mr-2 text-slate-600" />
-                    Mot de passe *
-                  </label>
-                  <div className="relative">
-                    <Input
-                      type={showPassword ? "text" : "password"}
-                      id="password"
-                      value={formData.password || ""}
-                      onChange={(e) => setValue("password", e.target.value)}
-                      onBlur={() => setFieldTouched("password")}
-                      error={errors.password}
-                      required
-                      disabled={isSubmitting || loading}
-                      className="w-full px-4 py-4 pl-12 pr-12 border-2 border-slate-200 rounded-xl focus:ring-4 focus:ring-slate-500/20 focus:border-slate-500 transition-all duration-300 bg-white/90 backdrop-blur-sm hover:bg-white text-slate-900 placeholder-slate-500 font-medium disabled:opacity-50 disabled:cursor-not-allowed"
-                      placeholder="Créez un mot de passe"
-                      fullWidth={false}
-                      label=""
-                      helperText="Minimum 6 caractères"
-                    />
-                    <Shield className="absolute left-4 top-1/2 transform -translate-y-1/2 w-5 h-5 text-slate-400 pointer-events-none" />
-                    <button
-                      type="button"
-                      onClick={() => setShowPassword(!showPassword)}
-                      disabled={isSubmitting || loading}
-                      className="absolute right-4 top-1/2 transform -translate-y-1/2 text-slate-400 hover:text-slate-600 transition-all duration-300 p-2 hover:bg-slate-100 rounded-xl hover:scale-110 disabled:opacity-50 disabled:cursor-not-allowed z-10"
-                    >
-                      {showPassword ? (
-                        <EyeOff className="w-5 h-5" />
-                      ) : (
-                        <Eye className="w-5 h-5" />
-                      )}
-                    </button>
-                  </div>
-                </div>
-
-                <div>
-                  <label
-                    htmlFor="confirmPassword"
-                    className=" text-sm font-semibold text-slate-700 mb-3 flex items-center"
-                  >
-                    <CheckCircle className="w-4 h-4 mr-2 text-slate-600" />
-                    Confirmer le mot de passe *
-                  </label>
-                  <div className="relative">
-                    <Input
-                      type={showConfirmPassword ? "text" : "password"}
-                      id="confirmPassword"
-                      value={confirmPassword}
-                      onChange={(e) => {
-                        setConfirmPassword(e.target.value);
-                        if (confirmPasswordError) setConfirmPasswordError("");
-                      }}
-                      onBlur={() => {
-                        if (
-                          formData.password &&
-                          confirmPassword !== formData.password
-                        ) {
-                          setConfirmPasswordError(
-                            "Les mots de passe ne correspondent pas"
-                          );
-                        }
-                      }}
-                      error={confirmPasswordError}
-                      required
-                      disabled={isSubmitting || loading}
-                      className="w-full px-4 py-4 pl-12 pr-12 border-2 border-slate-200 rounded-xl focus:ring-4 focus:ring-slate-500/20 focus:border-slate-500 transition-all duration-300 bg-white/90 backdrop-blur-sm hover:bg-white text-slate-900 placeholder-slate-500 font-medium disabled:opacity-50 disabled:cursor-not-allowed"
-                      placeholder="Confirmez votre mot de passe"
-                      fullWidth={false}
-                      label=""
-                    />
-                    <CheckCircle className="absolute left-4 top-1/2 transform -translate-y-1/2 w-5 h-5 text-slate-400 pointer-events-none" />
-                    <button
-                      type="button"
-                      onClick={() =>
-                        setShowConfirmPassword(!showConfirmPassword)
-                      }
-                      disabled={isSubmitting || loading}
-                      className="absolute right-4 top-1/2 transform -translate-y-1/2 text-slate-400 hover:text-slate-600 transition-all duration-300 p-2 hover:bg-slate-100 rounded-xl hover:scale-110 disabled:opacity-50 disabled:cursor-not-allowed z-10"
-                    >
-                      {showConfirmPassword ? (
-                        <EyeOff className="w-5 h-5" />
-                      ) : (
-                        <Eye className="w-5 h-5" />
-                      )}
-                    </button>
-                  </div>
-                </div>
-              </div>
-            </div>
 
             <button
               type="submit"

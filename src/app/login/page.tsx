@@ -81,9 +81,15 @@ export default function LoginPage() {
         return; // Juste afficher le modal, pas de throw
       }
 
+      // DEBUG: Vérifier le token reçu
+      console.log("[LOGIN DEBUG] data reçue:", data);
+      console.log("[LOGIN DEBUG] data.token:", data.token);
+      
       // Sauvegarder dans sessionStorage (compatible avec le store)
       sessionStorage.setItem("auth-token", data.token); // ✅ Nom correct !
       sessionStorage.setItem("user", JSON.stringify(data));
+      
+      console.log("[LOGIN DEBUG] Token stocké:", sessionStorage.getItem("auth-token"));
       
       // Mettre à jour le store Zustand
       const authStore = useAuthStore.getState();
