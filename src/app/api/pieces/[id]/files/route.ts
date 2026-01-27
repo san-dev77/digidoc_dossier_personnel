@@ -45,7 +45,18 @@ export async function GET(
       },
     });
 
-    return NextResponse.json(files);
+    const formattedFiles = files.map((file: any) => ({
+      id: file.id,
+      id_piece: file.id_piece,
+      filePath: file.file_path,
+      file_path: file.file_path, // Backward comp
+      mimeType: file.mime_type,
+      mime_type: file.mime_type, // Backward comp
+      createdAt: file.created_at,
+      created_at: file.created_at, // Backward comp
+    }));
+
+    return NextResponse.json(formattedFiles);
   } catch (error) {
     console.error("Erreur lors de la récupération des fichiers:", error);
     return NextResponse.json(

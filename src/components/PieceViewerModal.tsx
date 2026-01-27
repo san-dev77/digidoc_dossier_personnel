@@ -19,8 +19,12 @@ import FilePreview from "./PieceViewerModal/FilePreview";
 // Type pour les fichiers avec mime_type (peut être différent de FileData)
 type FileWithMimeType = {
   id: string;
-  file_path: string;
-  mime_type?: string;
+  filePath: string;
+  file_path?: string; // Backward compatibility
+  mimeType?: string;
+  mime_type?: string; // Backward compatibility
+  createdAt?: string;
+  created_at?: string; // Backward compatibility
 };
 
 interface PieceViewerModalProps {
@@ -108,7 +112,7 @@ export default function PieceViewerModal({
   };
 
   const handleDeleteFile = async (fileId: string, filePath: string) => {
-    const fileName = filePath.split("/").pop() || "ce fichier";
+    const fileName = (filePath || "").split("/").pop() || "ce fichier";
     const confirmDelete = window.confirm(
       `Supprimer définitivement ${fileName} ?`
     );
@@ -433,17 +437,17 @@ export default function PieceViewerModal({
                             <td className="px-4 py-3 text-sm text-slate-800 border-r border-slate-200">
                               <FilePreview
                                 file={file as FileWithMimeType}
-                                fileName={file.file_path.split("/").pop() || ""}
+                                fileName={((file as any).filePath || (file as any).file_path || "").split("/").pop() || "fichier"}
                               />
                             </td>
                             <td className="px-4 py-3 text-sm text-slate-800 border-r border-slate-200">
                               <span
                                 className="bg-slate-50 rounded-lg px-3 py-2 font-medium max-w-xs truncate block"
-                                title={file.file_path.split("/").pop()}
+                                title={((file as any).filePath || (file as any).file_path || "").split("/").pop()}
                               >
                                 {(() => {
                                   const fileName =
-                                    file.file_path.split("/").pop() || "";
+                                    ((file as any).filePath || (file as any).file_path || "").split("/").pop() || "fichier";
                                   return fileName.length > 25
                                     ? fileName.substring(0, 22) + "..."
                                     : fileName;
@@ -453,7 +457,7 @@ export default function PieceViewerModal({
 
                             <td className="px-4 py-3 text-sm text-slate-800 border-r border-slate-200">
                               <span className="bg-slate-50 rounded-lg px-3 py-2 inline-block">
-                                {new Date(file.created_at).toLocaleDateString(
+                                {new Date((file as any).createdAt || (file as any).created_at || new Date()).toLocaleDateString(
                                   "fr-FR"
                                 )}
                               </span>
@@ -471,7 +475,7 @@ export default function PieceViewerModal({
                                 </button>
                                 <button
                                   onClick={() =>
-                                    handleDeleteFile(file.id, file.file_path)
+                                    handleDeleteFile(file.id, (file as any).filePath || (file as any).file_path || "")
                                   }
                                   disabled={deletingFileId === file.id}
                                   className="flex items-center justify-center gap-1 px-3 py-1 bg-error-600 text-white rounded-md hover:bg-error-700 transition-colors text-xs font-semibold disabled:opacity-50 disabled:cursor-not-allowed"

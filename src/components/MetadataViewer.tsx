@@ -147,8 +147,8 @@ export default function MetadataViewer({
 
             {/* Métadonnées */}
             {piece.aMetadonnees &&
-            piece.metadonnees &&
-            piece.metadonnees.length > 0 ? (
+            piece.metadataModels &&
+            piece.metadataModels.length > 0 ? (
               <div className="bg-gradient-to-r from-accent-green-light/20 to-blue-50/30 rounded-xl p-6 border border-gray-200">
                 <div className="flex items-center gap-3 mb-6">
                   <div className="w-3 h-3 bg-accent-green rounded-full animate-pulse"></div>
@@ -158,8 +158,8 @@ export default function MetadataViewer({
                   </h3>
                   <div className="flex-1 h-px bg-gradient-to-r from-accent-green/30 to-transparent"></div>
                   <span className="text-sm text-gray-600 bg-white px-3 py-1 rounded-full border border-gray-200">
-                    {piece.metadonnees.length} champ
-                    {piece.metadonnees.length !== 1 ? "s" : ""}
+                    {piece.metadataModels.length} champ
+                    {piece.metadataModels.length !== 1 ? "s" : ""}
                   </span>
                 </div>
 
@@ -191,7 +191,7 @@ export default function MetadataViewer({
                       </tr>
                     </thead>
                     <tbody className="bg-white divide-y divide-gray-200">
-                      {piece.metadonnees.map((meta, index) => (
+                      {piece.metadataModels.map((meta, index) => (
                         <tr
                           key={meta.id}
                           className="hover:bg-blue-50 transition-colors duration-150"

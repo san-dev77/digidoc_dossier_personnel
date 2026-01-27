@@ -1,76 +1,18 @@
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
-import type { MetaValue, Agent, Rubrique } from "@/types";
+import type { 
+  MetaValue, 
+  Agent, 
+  Rubrique, 
+  MetadataModel, 
+  PieceFile, 
+  PieceWithMetadata,
+  SousDossierWithStats,
+  DossierData,
+  AgentWithDossiers
+} from "@/types";
 
-// Types
-export interface MetadataModel {
-  id: string;
-  piece_id: string;
-  libelle: string;
-  type: string;
-  obligatoire: boolean;
-  description?: string;
-  created_at: string;
-  updated_at?: string;
-}
-
-export interface PieceFile {
-  id: string;
-  piece_id: string;
-  file_name: string;
-  file_path: string;
-  file_size: number;
-  mime_type: string;
-  created_at: string;
-}
-
-export interface PieceWithMetadata {
-  id: string;
-  nom: string;
-  description?: string;
-  aMetadonnees: boolean;
-  createdAt: string;
-  updatedAt: string;
-  metadata: MetaValue[];
-  metadataModels: MetadataModel[];
-  files: PieceFile[];
-}
-
-export interface SousDossierWithStats {
-  id: string;
-  rubrique_id: string;
-  titre: string;
-  description: string;
-  statut?: string;
-  documentsCount?: number;
-  createdAt: string;
-  updatedAt: string;
-  pieces: PieceWithMetadata[];
-  piecesCount: number;
-  piecesWithMetadataCount: number;
-  totalMetadataCount: number;
-  lastActivity: string;
-  agentDossierId?: number; // ID de l'agent_dossier pour la suppression
-}
-
-export interface DossierData {
-  rubrique: {
-    id: string;
-    nom: string;
-    description: string;
-    created_at: string;
-    updatedAt: string;
-  };
-  sousDossiers: SousDossierWithStats[];
-  totalPieces: number;
-  totalSousDossiers: number;
-  totalMetadata: number;
-}
-
-export interface AgentWithDossiers {
-  agent: Agent;
-  dossiers: DossierData[];
-}
+// Types (déplacés dans @/types)
 
 interface CacheState {
   // Données mises en cache

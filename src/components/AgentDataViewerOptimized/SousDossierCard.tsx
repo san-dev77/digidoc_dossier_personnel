@@ -11,10 +11,12 @@ import {
   Loader2,
 } from "lucide-react";
 import type {
-  AgentWithDossiers,
   PieceWithMetadata,
+  MetadataModel,
+  AgentWithDossiers,
   SousDossierWithStats,
-} from "@/store/dossiersStore";
+} from "@/types";
+import type { Piece } from "@/types"; // Might be redundant but safe
 
 interface SousDossierCardProps {
   sousDossier: AgentWithDossiers["dossiers"][0]["sousDossiers"][0];
@@ -24,7 +26,7 @@ interface SousDossierCardProps {
   agentName: string;
   rubriqueName: string;
   onCreditDossierClick?: (sousDossierId: number, rubriqueId: number) => void;
-  onPieceClick?: (piece: unknown) => void;
+  onPieceClick?: (piece: any) => void;
   onDeleteDossier?: (agentDossierId: number, sousDossierTitre: string) => void;
   refreshingPieces: Set<string>;
   onUploadClick: (data: {
@@ -145,11 +147,14 @@ export default function SousDossierCard({
                       has_meta: sousDossier.piecesWithMetadataCount > 0,
                       createdAt: sousDossier.createdAt,
                       updatedAt: sousDossier.updatedAt,
+                      metadata: [],
+                      metadataModels: [],
+                      files: [],
                     },
                     metadata: [],
                     files: [],
                     hasFiles: sousDossier.pieces.some(
-                      (p) => p.files && p.files.length > 0
+                      (p: PieceWithMetadata) => p.files && p.files.length > 0
                     ),
                   });
                 }}
@@ -205,7 +210,7 @@ export default function SousDossierCard({
                   </tr>
                 </thead>
                 <tbody className="bg-white divide-y divide-primary-100">
-                  {sousDossier.pieces.map((piece) => {
+                  {sousDossier.pieces.map((piece: PieceWithMetadata) => {
                     const hasFiles = piece.files && piece.files.length > 0;
                     const hasMetadata =
                       piece.metadata && piece.metadata.length > 0;
@@ -318,7 +323,7 @@ export default function SousDossierCard({
                                     updatedAt: piece.updatedAt,
                                   },
                                   metadata: (piece.metadata || []).map(
-                                    (meta) => ({
+                                    (meta: any) => ({
                                       id: meta.id,
                                       meta_model_id: meta.meta_model_id,
                                       valeur: meta.valeur,
@@ -326,12 +331,31 @@ export default function SousDossierCard({
                                       created_at: meta.created_at,
                                     })
                                   ),
-                                  files: (piece.files || []).map((file) => ({
-                                    id: file.id,
-                                    id_piece: file.piece_id,
-                                    file_path: file.file_path,
-                                    created_at: file.created_at,
-                                  })),
+                                  metadataModels: (piece.metadataModels || []).map(
+                                    (model: MetadataModel) => ({
+                                      id: model.id,
+                                      piece_id: model.piece_id,
+                                      libelle: model.libelle,
+                                      nom: model.nom,
+                                      type: model.type,
+                                      obligatoire: model.obligatoire,
+                                      description: model.description,
+                                      created_at: model.created_at,
+                                    })
+                                  ),
+                                  files: (piece.files || []).map((file: any) => {
+                                    console.log("🔍 [SousDossierCard] mapping file raw:", file);
+                                    return {
+                                      id: file.id,
+                                      id_piece: file.piece_id || file.id_piece || file.pieceId,
+                                      file_path: file.file_path || file.filePath || "",
+                                      filePath: file.filePath || file.file_path || "",
+                                      created_at: file.created_at || file.createdAt,
+                                      createdAt: file.createdAt || file.created_at,
+                                      mimeType: file.mimeType || file.mime_type,
+                                      mime_type: file.mime_type || file.mimeType,
+                                    };
+                                  }),
                                   hasFiles: hasFiles,
                                   context: {
                                     agentId,

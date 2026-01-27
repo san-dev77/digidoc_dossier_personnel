@@ -13,22 +13,12 @@ import { sousDossiersService } from "@/services/sous-dossiers";
 import { piecesService } from "@/services/pieces";
 import { fetchWithAuth } from "@/lib/api/fetchWithAuth";
 import { DossiersOptimizedService } from "@/services/dossiers-optimized";
-import type { Rubrique, Agent, Piece } from "@/types";
+import type { Rubrique, Agent, Piece, MetadataModel } from "@/types";
 import type { SousDossier } from "@/services/sous-dossiers";
 import RubriqueSelector from "./QuickCreateDossierModal/RubriqueSelector";
 import SousDossierSelector from "./QuickCreateDossierModal/SousDossierSelector";
 import PieceSelector from "./QuickCreateDossierModal/PieceSelector";
 import FilePreviewModal from "./QuickCreateDossierModal/FilePreviewModal";
-
-interface MetadataModel {
-  id: string;
-  piece_id: string;
-  libelle: string;
-  type: string;
-  obligatoire: boolean;
-  description?: string;
-  created_at: string;
-}
 
 interface QuickCreateDossierModalProps {
   isOpen: boolean;

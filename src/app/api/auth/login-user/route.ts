@@ -2,7 +2,6 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { comparePassword } from "@/lib/auth/password";
 import { generateToken } from "@/lib/auth/jwt";
-import { checkRateLimit, rateLimitConfigs } from "@/lib/rateLimit";
 
 /**
  * POST /api/auth/login-user
@@ -10,13 +9,6 @@ import { checkRateLimit, rateLimitConfigs } from "@/lib/rateLimit";
  */
 export async function POST(req: NextRequest) {
   console.log("[LOGIN-USER] 📥 Requête de connexion utilisateur reçue");
-
-  // Vérifier le rate limiting
-  const rateLimitResult = checkRateLimit(req, rateLimitConfigs.login);
-  if (!rateLimitResult.allowed) {
-    console.log("[LOGIN-USER] ⚠️ Rate limit atteint");
-    return rateLimitResult.response!;
-  }
 
   try {
     const { username, password } = await req.json();
@@ -91,30 +83,14 @@ export async function POST(req: NextRequest) {
     // Retourner l'utilisateur avec le token (sans le mot de passe)
     const { password: _, ...utilisateurSafe } = utilisateur;
 
-    const response = NextResponse.json(
+    console.log("[LOGIN-USER] ✅ Connexion réussie");
+    return NextResponse.json(
       {
         ...utilisateurSafe,
         token,
       },
       { status: 200 }
     );
-
-    // Headers de rate limit
-    response.headers.set(
-      "X-RateLimit-Limit",
-      rateLimitConfigs.login.maxRequests.toString()
-    );
-    response.headers.set(
-      "X-RateLimit-Remaining",
-      rateLimitResult.remaining.toString()
-    );
-    response.headers.set(
-      "X-RateLimit-Reset",
-      new Date(rateLimitResult.resetTime).toISOString()
-    );
-
-    console.log("[LOGIN-USER] ✅ Connexion réussie");
-    return response;
   } catch (e) {
     console.error("[LOGIN-USER] ❌ Erreur:", e);
     return NextResponse.json({ message: "Erreur serveur" }, { status: 500 });

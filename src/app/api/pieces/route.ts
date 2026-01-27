@@ -14,6 +14,9 @@ export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url);
     const sousDossierId = searchParams.get("sousDossierId");
+    const agentDossierId = searchParams.get("agentDossierId");
+
+    console.log(`🔍 [API Pieces] Fetching pieces for sousDossierId=${sousDossierId}, agentDossierId=${agentDossierId}`);
 
     if (!sousDossierId) {
       return NextResponse.json(
@@ -22,73 +25,33 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    // Utiliser une requête SQL pour trier par position
-    const { rows } = await query<PieceRow>(
-      `SELECT 
-        p.id,
-        p.sous_dossier_id,
-        p.nom,
-        p.description,
-        p.has_meta,
-        p.created_at,
-        p.updated_at,
-        COALESCE(pp.position, 999) as position
-      FROM pieces p
-      LEFT JOIN piece_positions pp ON p.id = pp.piece_id AND pp.sous_dossier_id = ?
-      WHERE p.sous_dossier_id = ?
-      ORDER BY COALESCE(pp.position, 999) ASC, p.id ASC`,
-      [sousDossierId, sousDossierId]
-    );
+    // Récupérer les pièces avec toutes leurs relations en une seule requête optimisée
+    const pieces = await prisma.pieces.findMany({
+      where: {
+        sous_dossier_id: parseInt(sousDossierId)
+      },
+      include: {
+        metadata_model: {
+          include: {
+            meta_values: agentDossierId ? {
+              where: {
+                agent_dossier_id: parseInt(agentDossierId)
+              }
+            } : true
+          }
+        },
+        piece_file: true,
+        position: true
+      },
+      orderBy: [
+        { position: { position: 'asc' } },
+        { id: 'asc' }
+      ]
+    });
 
-    interface PieceRow {
-      id: number;
-      sous_dossier_id: number;
-      nom: string;
-      description: string | null;
-      has_meta: boolean | number;
-      created_at: Date | null;
-      updated_at: Date | null;
-      position: number;
-    }
+    console.log(`✅ [API Pieces] Found ${pieces.length} pieces`);
 
-    interface PieceWithRelations extends PieceRow {
-      piece_file: Array<{
-        id: number | bigint;
-        file_path: string;
-        created_at: Date | null;
-      }>;
-      metadata_model: Array<{
-        id: number | bigint;
-        libelle: string;
-        type: string;
-        obligatoire: boolean | null;
-        description: string | null;
-        created_at: Date | null;
-        updated_at: Date | null;
-      }>;
-    }
-
-    // Récupérer les métadonnées et fichiers pour chaque pièce
-    const pieces: PieceWithRelations[] = await Promise.all(
-      rows.map(async (piece): Promise<PieceWithRelations> => {
-        const [metadata, files] = await Promise.all([
-          prisma.metadata_model.findMany({
-            where: { piece_id: piece.id },
-          }),
-          prisma.piece_file.findMany({
-            where: { id_piece: piece.id },
-          }),
-        ]);
-
-        return {
-          ...piece,
-          metadata_model: metadata,
-          piece_file: files,
-        };
-      })
-    );
-
-    const formattedPieces = pieces.map((piece) => ({
+    const formattedPieces = pieces.map((piece: any) => ({
       id: piece.id,
       sousDossierId: piece.sous_dossier_id.toString(),
       nom: piece.nom,
@@ -96,24 +59,36 @@ export async function GET(request: NextRequest) {
       aMetadonnees: Boolean(piece.has_meta),
       createdAt: piece.created_at?.toISOString() || "",
       updatedAt: piece.updated_at?.toISOString() || "",
-      files: piece.piece_file.map(
-        (file: PieceWithRelations["piece_file"][0]) => ({
-          id: file.id,
-          filePath: file.file_path,
-          createdAt: file.created_at?.toISOString() || "",
-        })
+      files: piece.piece_file.map((file: any) => ({
+        id: file.id,
+        filePath: file.file_path,
+        mimeType: file.mime_type,
+        createdAt: file.created_at?.toISOString() || "",
+      })),
+      metadonnees: piece.metadata_model.flatMap((model: any) => 
+        model.meta_values.map((val: any) => ({
+          id: val.id,
+          meta_model_id: model.id,
+          valeur: val.valeur,
+          createdAt: val.created_at?.toISOString() || "",
+          metadataModel: {
+            libelle: model.libelle,
+            type: model.type,
+            obligatoire: Boolean(model.obligatoire)
+          }
+        }))
       ),
-      metadonnees: piece.metadata_model.map(
-        (meta: PieceWithRelations["metadata_model"][0]) => ({
-          id: meta.id,
-          nom: meta.libelle,
-          type: meta.type,
-          obligatoire: Boolean(meta.obligatoire),
-          description: meta.description,
-          createdAt: meta.created_at?.toISOString() || "",
-          updatedAt: meta.updated_at?.toISOString() || "",
-        })
-      ),
+      metadataModels: piece.metadata_model.map((meta: any) => ({
+        id: meta.id,
+        piece_id: piece.id,
+        libelle: meta.libelle,
+        nom: meta.libelle, // Alias
+        type: meta.type,
+        obligatoire: Boolean(meta.obligatoire),
+        description: meta.description,
+        createdAt: meta.created_at?.toISOString() || "",
+        updatedAt: meta.updated_at?.toISOString() || "",
+      })),
     }));
 
     return NextResponse.json(formattedPieces);

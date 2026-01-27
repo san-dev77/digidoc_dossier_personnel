@@ -24,45 +24,12 @@ import {
 import { piecesService } from "@/services/pieces";
 import { useDossiersStore } from "@/store/dossiersStore";
 import { isDossierCredit } from "@/utils/rubrique-utils";
-import type { Rubrique, MetaValue, Agent } from "@/types";
+import type { Rubrique, MetaValue, Agent, PieceWithMetadata, MetadataModel, PieceFile } from "@/types";
 import Image from "next/image";
 import SuccessNotification from "@/components/SuccessNotification";
 import FullScreenLoader from "@/components/FullScreenLoader";
 import { fetchWithAuth } from "@/lib/api/fetchWithAuth";
 import { DossiersOptimizedService } from "@/services/dossiers-optimized";
-
-// Types pour les dossiers
-interface PieceWithMetadata {
-  id: string;
-  nom: string;
-  libelle?: string;
-  description?: string;
-  aMetadonnees: boolean;
-  createdAt: string;
-  updatedAt: string;
-  metadata: MetaValue[];
-  filePath?: string;
-  files?: PieceFile[];
-  metadataModels?: MetadataModel[];
-}
-
-interface MetadataModel {
-  id: string;
-  piece_id: string;
-  libelle: string;
-  type: string;
-  obligatoire: boolean;
-  description?: string;
-  created_at: string;
-  updated_at?: string;
-}
-
-interface PieceFile {
-  id: string;
-  piece_id: string;
-  file_path: string;
-  created_at: string;
-}
 
 interface CreditMetadata {
   id: string;

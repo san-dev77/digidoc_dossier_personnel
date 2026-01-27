@@ -2,17 +2,9 @@ import { NextRequest, NextResponse } from "next/server";
 import { query } from "@/lib/db";
 import { comparePassword } from "@/lib/auth/password";
 import { generateToken } from "@/lib/auth/jwt";
-import { checkRateLimit, rateLimitConfigs } from "@/lib/rateLimit";
 
 export async function POST(req: NextRequest) {
   console.log("[LOGIN] 📥 Requête de connexion reçue");
-  
-  // Vérifier le rate limiting AVANT de traiter la requête
-  const rateLimitResult = checkRateLimit(req, rateLimitConfigs.login);
-  if (!rateLimitResult.allowed) {
-    console.log("[LOGIN] ⚠️ Rate limit atteint");
-    return rateLimitResult.response!;
-  }
 
   try {
     const { matricule, password } = await req.json();
@@ -83,30 +75,14 @@ export async function POST(req: NextRequest) {
     // Retourner l'agent avec le token (sans le mot de passe)
     const { password: _, ...agentWithoutPassword } = agent;
     
-    const response = NextResponse.json(
+    console.log("[LOGIN] ✅ Connexion réussie, réponse envoyée");
+    return NextResponse.json(
       {
         ...agentWithoutPassword,
         token,
       },
       { status: 200 }
     );
-
-    // Ajouter les headers de rate limit
-    response.headers.set(
-      "X-RateLimit-Limit",
-      rateLimitConfigs.login.maxRequests.toString()
-    );
-    response.headers.set(
-      "X-RateLimit-Remaining",
-      rateLimitResult.remaining.toString()
-    );
-    response.headers.set(
-      "X-RateLimit-Reset",
-      new Date(rateLimitResult.resetTime).toISOString()
-    );
-
-    console.log("[LOGIN] ✅ Connexion réussie, réponse envoyée");
-    return response;
   } catch (e) {
     console.error("[LOGIN] ❌ Erreur lors de la connexion:", e);
     return NextResponse.json({ message: "Erreur serveur" }, { status: 500 });

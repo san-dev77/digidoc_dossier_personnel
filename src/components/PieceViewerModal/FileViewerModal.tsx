@@ -7,7 +7,8 @@ import { getFileApiUrl, getMimeTypeFromExtension } from "./fileUtils";
 
 type FileWithMimeType = {
   id: string;
-  file_path: string;
+  filePath?: string;
+  file_path?: string; // Backward compatibility
   mime_type?: string;
 };
 
@@ -29,7 +30,14 @@ export default function FileViewerModal({
     setFileError(null);
 
     try {
-      const fileUrl = getFileApiUrl(fileToLoad.file_path);
+      console.log("🔍 [FileViewer] fileToLoad:", fileToLoad);
+      const filePath = fileToLoad.filePath || fileToLoad.file_path || "";
+      console.log("🔍 [FileViewer] chemin résolu:", filePath);
+      
+      if (!filePath) {
+        throw new Error("Le chemin du fichier est introuvable");
+      }
+      const fileUrl = getFileApiUrl(filePath);
 
       const token = sessionStorage.getItem("auth-token");
       if (!token) {
@@ -48,10 +56,10 @@ export default function FileViewerModal({
 
       const blob = await response.blob();
 
-      const fileName = fileToLoad.file_path.split("/").pop() || "";
+      const fileName = filePath.split("/").pop() || "";
       const extension = fileName.split(".").pop()?.toLowerCase() || "";
       const responseContentType = response.headers.get("content-type");
-      const fileMimeType = fileToLoad.mime_type;
+      const fileMimeType = (fileToLoad as any).mimeType || fileToLoad.mime_type;
       const extensionMimeType = getMimeTypeFromExtension(extension);
 
       let contentType =
@@ -117,8 +125,9 @@ export default function FileViewerModal({
     onClose();
   };
 
-  const mimeType = file.mime_type || "";
-  const fileName = file.file_path.split("/").pop() || "Fichier";
+  const filePath = file.filePath || file.file_path || "";
+  const mimeType = (file as any).mimeType || file.mime_type || "";
+  const fileName = filePath.split("/").pop() || "Fichier";
   const extension = fileName.split(".").pop()?.toLowerCase();
 
   return (

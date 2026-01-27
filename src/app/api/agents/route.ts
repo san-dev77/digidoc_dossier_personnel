@@ -13,6 +13,8 @@ export async function GET(request: NextRequest) {
   const agents = await prisma.agents.findMany({
     orderBy: { created_at: "desc" },
   });
+  
+  console.log(`[GET agents] Agents trouvés: ${agents.length}`);
   return NextResponse.json(agents);
 }
 

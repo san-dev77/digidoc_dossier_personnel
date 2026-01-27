@@ -4,6 +4,10 @@ const connectionString =
   process.env.DATABASE_URL ||
   "mysql://root:root@localhost:3306/digidoc_personnel";
 
+// Log de configuration (masqué)
+const maskedUrl = connectionString.replace(/:([^:@]+)@/, ":****@");
+console.log(`[DB-MYSQL2] Initialisation avec DB: ${maskedUrl}`);
+
 export const db = mysql.createPool(connectionString);
 
 export async function query<T = Record<string, unknown>>(

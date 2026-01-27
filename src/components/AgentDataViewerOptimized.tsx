@@ -300,17 +300,18 @@ export default function AgentDataViewerOptimized({
                                   })
                                 ),
                                 files: (piece.files || []).map(
-                                  (file: {
-                                    id: string;
-                                    piece_id: string;
-                                    file_path: string;
-                                    created_at: string;
-                                  }) => ({
-                                    id: file.id,
-                                    id_piece: file.piece_id,
-                                    file_path: file.file_path,
-                                    created_at: file.created_at,
-                                  })
+                                  (file: any) => {
+                                    console.log("🔍 [Mapping AgentData] file raw:", file);
+                                    return {
+                                      id: file.id,
+                                      id_piece: file.piece_id || file.id_piece || file.pieceId,
+                                      file_path: file.file_path || file.filePath || "",
+                                      filePath: file.filePath || file.file_path || "", // On garde les deux pour être sûr
+                                      created_at: file.created_at || file.createdAt,
+                                      createdAt: file.createdAt || file.created_at,
+                                      mimeType: file.mimeType || file.mime_type,
+                                    };
+                                  }
                                 ),
                                 hasFiles: hasFiles,
                                 context: {

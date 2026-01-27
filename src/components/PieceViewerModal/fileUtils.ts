@@ -44,38 +44,38 @@ export const getMimeTypeFromExtension = (extension: string): string => {
 
 // Fonction pour convertir un chemin de fichier local en URL API
 export const getFileApiUrl = (filePath: string): string => {
+  if (!filePath) return "";
+
   // Si c'est déjà une URL, la retourner telle quelle
   if (
     filePath.startsWith("http://") ||
     filePath.startsWith("https://") ||
-    filePath.startsWith("/api/")
+    filePath.startsWith("/api/") ||
+    filePath.startsWith("blob:")
   ) {
     return filePath;
   }
 
+  // Normaliser les séparateurs de chemin
+  const normalizedPath = filePath.replace(/\\/g, "/");
+
   // Extraire la partie relative après "uploads"
-  const uploadsIndex = filePath.indexOf("uploads");
+  const uploadsIndex = normalizedPath.indexOf("uploads/");
   if (uploadsIndex !== -1) {
-    const relativePath = filePath.substring(
-      uploadsIndex + "uploads".length + 1
+    const relativePath = normalizedPath.substring(
+      uploadsIndex + "uploads/".length
     );
-    // Normaliser les séparateurs de chemin pour Windows/Unix
-    const normalizedPath = relativePath.replace(/\\/g, "/");
-    return `/api/files/${normalizedPath}`;
+    return `/api/files/${relativePath}`;
   }
 
-  // Si on ne trouve pas "uploads", essayer de trouver le chemin relatif
-  // en cherchant le dernier "uploads" dans le chemin
-  const lastUploadsIndex = filePath.lastIndexOf("uploads");
-  if (lastUploadsIndex !== -1) {
-    const relativePath = filePath.substring(
-      lastUploadsIndex + "uploads".length + 1
-    );
-    const normalizedPath = relativePath.replace(/\\/g, "/");
-    return `/api/files/${normalizedPath}`;
+  // Si on ne trouve pas "uploads/", mais que c'est un chemin Windows avec uploads
+  if (normalizedPath.includes("/uploads/")) {
+     const parts = normalizedPath.split("/uploads/");
+     return `/api/files/${parts[parts.length - 1]}`;
   }
 
-  // Fallback : retourner le chemin tel quel (peut causer une erreur)
-  return filePath;
+  // Si c'est juste un nom de fichier ou un chemin relatif sans "uploads"
+  // On tente de le servir via /api/files/ quand même
+  return `/api/files/${normalizedPath}`;
 };
 

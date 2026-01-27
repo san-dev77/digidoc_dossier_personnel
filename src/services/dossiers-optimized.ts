@@ -1,10 +1,12 @@
 import {
-  useDossiersStore,
+  type PieceWithMetadata,
+  type MetadataModel,
+  type PieceFile,
   type DossierData,
   type SousDossierWithStats,
-  type PieceWithMetadata,
   type AgentWithDossiers,
-} from "@/store/dossiersStore";
+} from "@/types";
+import { useDossiersStore } from "@/store/dossiersStore";
 import { rubriquesService } from "./rubriques";
 import { sousDossiersService } from "./sous-dossiers";
 import { piecesService } from "./pieces";
@@ -124,9 +126,7 @@ export class DossiersOptimizedService {
             // Construire les dossiers par rubrique
             const rubriquePromises = Array.from(rubriqueMap.entries()).map(
               async ([rubriqueId, sousDossiersList]) => {
-                const rubrique = await rubriquesService.getRubriqueById(
-                  rubriqueId
-                );
+                const rubrique = allRubriques.find(r => r.id === rubriqueId);
                 if (!rubrique) return null;
 
                 // Pour chaque sous-dossier de cette rubrique
@@ -134,7 +134,7 @@ export class DossiersOptimizedService {
                   (sd): sd is SousDossier => sd !== undefined
                 );
 
-                // Charger les pièces pour chaque sous-dossier
+                // Charger les pièces pour chaque sous-dossier avec toutes leurs données
                 const sousDossiersWithStats: SousDossierWithStats[] =
                   await Promise.all(
                     sousDossiers.map(async (sousDossier) => {
@@ -149,63 +149,11 @@ export class DossiersOptimizedService {
                         ? parseInt(agentDossier.id.toString())
                         : undefined;
 
-                      const pieces =
+                      // Récupérer TOUTES les données de la pièce en un seul appel (modèles, fichiers, valeurs)
+                      const piecesWithMetadata =
                         await piecesService.getAllPiecesBySousDossier(
-                          sousDossier.id
-                        );
-
-                      // Charger métadonnées et fichiers pour chaque pièce avec filtrage par agent_dossier_id
-                      const piecesWithMetadata: PieceWithMetadata[] =
-                        await Promise.all(
-                          pieces.map(async (piece) => {
-                            const {
-                              isPieceInCache,
-                              getPieceFromCache,
-                              setPieceInCache,
-                            } = useDossiersStore.getState();
-
-                            const cacheKey = agentDossierId
-                              ? `${piece.id}_${agentDossierId}`
-                              : piece.id;
-
-                            if (isPieceInCache(cacheKey)) {
-                              return getPieceFromCache(cacheKey)!;
-                            }
-
-                            // Filtrer par agent_dossier_id
-                            const metadataUrl = agentDossierId
-                              ? `/api/pieces/${piece.id}/metadata?agentDossierId=${agentDossierId}`
-                              : `/api/pieces/${piece.id}/metadata`;
-                            const filesUrl = agentDossierId
-                              ? `/api/pieces/${piece.id}/files?agentDossierId=${agentDossierId}`
-                              : `/api/pieces/${piece.id}/files`;
-
-                            const [
-                              metadataResponse,
-                              metadataModelsResponse,
-                              filesResponse,
-                            ] = await Promise.all([
-                              fetchWithAuth(metadataUrl).then((res) =>
-                                res.ok ? res.json() : []
-                              ),
-                              fetchWithAuth(
-                                `/api/pieces/${piece.id}/metadata-models`
-                              ).then((res) => (res.ok ? res.json() : [])),
-                              fetchWithAuth(filesUrl).then((res) =>
-                                res.ok ? res.json() : []
-                              ),
-                            ]);
-
-                            const pieceWithMetadata = {
-                              ...piece,
-                              metadata: metadataResponse || [],
-                              metadataModels: metadataModelsResponse || [],
-                              files: filesResponse || [],
-                            };
-
-                            setPieceInCache(pieceWithMetadata);
-                            return pieceWithMetadata;
-                          })
+                          sousDossier.id,
+                          agentDossierId
                         );
 
                       const piecesCount = piecesWithMetadata.length;
@@ -269,14 +217,14 @@ export class DossiersOptimizedService {
 
       // 4. Filtrer les résultats null
       const agentsWithData = agentsData.filter(
-        (ad): ad is AgentWithDossiers => ad !== null
+        (ad: AgentWithDossiers | null): ad is AgentWithDossiers => ad !== null
       );
 
       // 5. Stocker les agents avec leurs dossiers
       setAgentsWithDossiers(agentsWithData);
 
       // Aplatir en liste de dossiers pour compatibilité
-      const allDossiers = agentsWithData.flatMap(({ dossiers }) => dossiers);
+      const allDossiers = agentsWithData.flatMap(({ dossiers }: AgentWithDossiers) => dossiers);
       setDossiers(allDossiers);
 
       console.log(
@@ -401,76 +349,11 @@ export class DossiersOptimizedService {
                     updatedAt: "",
                   };
 
-                  const pieces = await piecesService.getAllPiecesBySousDossier(
-                    sousDossier.id.toString()
+                  // Récupérer TOUTES les données de la pièce en un seul appel (modèles, fichiers, valeurs)
+                  const piecesWithMetadata = await piecesService.getAllPiecesBySousDossier(
+                    sousDossier.id.toString(),
+                    agentDossierId
                   );
-
-                  // Charger métadonnées et fichiers pour chaque pièce avec filtrage par agent_dossier_id
-                  const piecesWithMetadata: PieceWithMetadata[] =
-                    await Promise.all(
-                      pieces.map(async (piece) => {
-                        try {
-                          const {
-                            isPieceInCache,
-                            getPieceFromCache,
-                            setPieceInCache,
-                          } = useDossiersStore.getState();
-
-                          const cacheKey = agentDossierId
-                            ? `${piece.id}_${agentDossierId}`
-                            : piece.id;
-
-                          if (isPieceInCache(cacheKey)) {
-                            return getPieceFromCache(cacheKey)!;
-                          }
-
-                          // Filtrer par agent_dossier_id
-                          const metadataUrl = agentDossierId
-                            ? `/api/pieces/${piece.id}/metadata?agentDossierId=${agentDossierId}`
-                            : `/api/pieces/${piece.id}/metadata`;
-                          const filesUrl = agentDossierId
-                            ? `/api/pieces/${piece.id}/files?agentDossierId=${agentDossierId}`
-                            : `/api/pieces/${piece.id}/files`;
-
-                          const [
-                            metadataResponse,
-                            metadataModelsResponse,
-                            filesResponse,
-                          ] = await Promise.all([
-                            fetchWithAuth(metadataUrl).then((res) =>
-                              res.ok ? res.json() : []
-                            ),
-                            fetchWithAuth(
-                              `/api/pieces/${piece.id}/metadata-models`
-                            ).then((res) => (res.ok ? res.json() : [])),
-                            fetchWithAuth(filesUrl).then((res) =>
-                              res.ok ? res.json() : []
-                            ),
-                          ]);
-
-                          const pieceWithMetadata = {
-                            ...piece,
-                            metadata: metadataResponse || [],
-                            metadataModels: metadataModelsResponse || [],
-                            files: filesResponse || [],
-                          };
-
-                          setPieceInCache(pieceWithMetadata);
-                          return pieceWithMetadata;
-                        } catch (error) {
-                          console.error(
-                            `❌ Erreur lors du chargement des données pour ${piece.nom}:`,
-                            error
-                          );
-                          return {
-                            ...piece,
-                            metadata: [],
-                            metadataModels: [],
-                            files: [],
-                          };
-                        }
-                      })
-                    );
 
                   const piecesCount = piecesWithMetadata.length;
                   const piecesWithMetadataCount = piecesWithMetadata.filter(

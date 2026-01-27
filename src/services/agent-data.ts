@@ -78,9 +78,13 @@ export interface MetaValueData {
 
 export interface FileData {
   id: string;
-  id_piece: string;
-  file_path: string;
-  created_at: string;
+  filePath: string;        // API returns this (camelCase)
+  mimeType?: string;       // API returns this (camelCase)
+  createdAt: string;       // API returns this (camelCase)
+  // Backward compatibility / legacy
+  id_piece?: string;
+  file_path?: string;
+  created_at?: string;
 }
 
 export const agentDataService = {

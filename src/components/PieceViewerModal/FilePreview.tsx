@@ -6,7 +6,8 @@ import { getFileApiUrl } from "./fileUtils";
 
 type FileWithMimeType = {
   id: string;
-  file_path: string;
+  filePath?: string;
+  file_path?: string; // Backward compatibility
   mime_type?: string;
 };
 
@@ -19,8 +20,9 @@ export default function FilePreview({ file, fileName }: FilePreviewProps) {
   const [imageError, setImageError] = useState(false);
   const [imageBlobUrl, setImageBlobUrl] = useState<string | null>(null);
   const [loadingImage, setLoadingImage] = useState(false);
-
-  const mimeType = file.mime_type || "";
+  // Déterminer le chemin du fichier (support les deux formats)
+  const filePath = file.filePath || file.file_path || "";
+  const mimeType = (file as any).mimeType || file.mime_type || "";
   const extension = fileName.split(".").pop()?.toLowerCase();
 
   // Charger l'image avec authentification pour les images
@@ -35,7 +37,7 @@ export default function FilePreview({ file, fileName }: FilePreviewProps) {
       !loadingImage
     ) {
       setLoadingImage(true);
-      const imageUrl = getFileApiUrl(file.file_path);
+      const imageUrl = getFileApiUrl(filePath);
 
       const token =
         typeof window !== "undefined"
@@ -77,7 +79,7 @@ export default function FilePreview({ file, fileName }: FilePreviewProps) {
         URL.revokeObjectURL(imageBlobUrl);
       }
     };
-  }, [file.file_path, mimeType, extension, imageBlobUrl, imageError, loadingImage]);
+  }, [filePath, mimeType, extension, imageBlobUrl, imageError, loadingImage]);
 
   // Pour les images - afficher la vraie image
   if (

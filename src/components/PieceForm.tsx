@@ -29,7 +29,7 @@ export default function PieceForm({
   const [isSubmitting, setIsSubmitting] = useState(false);
   // selectedFile supprimé - Pas de chargement au niveau des rubriques
   const [metadonnees, setMetadonnees] = useState<
-    Omit<MetadataModel, "id" | "createdAt" | "updatedAt">[]
+    Omit<MetadataModel, "id" | "created_at" | "updated_at">[]
   >([]);
 
   const initialValues: PieceFormDataZod = {
@@ -88,7 +88,7 @@ export default function PieceForm({
 
   const updateMetadata = (
     index: number,
-    field: keyof Omit<MetadataModel, "id" | "createdAt" | "updatedAt">,
+    field: keyof Omit<MetadataModel, "id" | "created_at" | "updated_at">,
     value: string | boolean
   ) => {
     const updated = [...metadonnees];

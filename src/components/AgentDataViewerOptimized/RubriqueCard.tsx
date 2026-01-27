@@ -9,7 +9,7 @@ import {
 } from "lucide-react";
 import { isDossierCredit } from "@/utils/rubrique-utils";
 import SousDossierCard from "./SousDossierCard";
-import type { AgentWithDossiers } from "@/store/dossiersStore";
+import type { AgentWithDossiers } from "@/types";
 
 const getStatusColor = (statut?: string) => {
   switch (statut) {

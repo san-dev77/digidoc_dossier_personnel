@@ -30,24 +30,32 @@ export const piecesService = {
     }
   },
 
-  async getAllPiecesBySousDossier(sousDossierId: string): Promise<Piece[]> {
+  async getAllPiecesBySousDossier(
+    sousDossierId: string,
+    agentDossierId?: string | number
+  ): Promise<PieceWithMetadata[]> {
     try {
-      const response = await fetchWithAuth(
-        `/api/pieces?sousDossierId=${sousDossierId}`
-      );
+      const url = agentDossierId
+        ? `/api/pieces?sousDossierId=${sousDossierId}&agentDossierId=${agentDossierId}`
+        : `/api/pieces?sousDossierId=${sousDossierId}`;
+
+      const response = await fetchWithAuth(url);
       if (!response.ok) {
         throw new Error("Erreur lors de la récupération des pièces");
       }
 
       const data = await response.json();
-      return data.map((piece: Piece) => ({
+      return data.map((piece: any) => ({
         id: piece.id.toString(),
         sousDossierId: piece.sousDossierId,
         nom: piece.nom,
-        description: piece.description,
+        description: piece.description || "",
         aMetadonnees: piece.aMetadonnees,
         createdAt: piece.createdAt,
         updatedAt: piece.updatedAt,
+        metadataModels: piece.metadataModels || [],
+        files: piece.files || [],
+        metadata: piece.metadonnees || [],
       }));
     } catch (error) {
       console.error("Erreur lors du chargement des pièces:", error);
@@ -181,46 +189,8 @@ export const piecesService = {
     }
   },
 
-  async getPiecesWithMetadata(
-    sousDossierId: string
-  ): Promise<PieceWithMetadata[]> {
-    try {
-      const response = await fetchWithAuth(
-        `/api/pieces?sousDossierId=${sousDossierId}`
-      );
-      if (!response.ok) {
-        throw new Error("Erreur lors de la récupération des pièces");
-      }
-
-      interface PieceRow {
-        id: number | string;
-        sousDossierId: string;
-        nom: string;
-        description?: string | null;
-        aMetadonnees: boolean;
-        createdAt: string;
-        updatedAt: string;
-        metadonnees?: MetadataModel[];
-      }
-
-      const data: PieceRow[] = await response.json();
-      return data.map((piece) => ({
-        id: piece.id.toString(),
-        sousDossierId: piece.sousDossierId,
-        nom: piece.nom,
-        description: piece.description || "",
-        aMetadonnees: piece.aMetadonnees,
-        createdAt: piece.createdAt,
-        updatedAt: piece.updatedAt,
-        metadonnees: piece.metadonnees || [],
-      }));
-    } catch (error) {
-      console.error(
-        "Erreur lors du chargement des pièces avec métadonnées:",
-        error
-      );
-      throw error;
-    }
+  async getPiecesWithMetadata(sousDossierId: string): Promise<PieceWithMetadata[]> {
+    return this.getAllPiecesBySousDossier(sousDossierId);
   },
 
   async deletePiece(id: string): Promise<void> {

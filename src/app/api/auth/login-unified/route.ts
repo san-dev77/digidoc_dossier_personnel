@@ -2,7 +2,6 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { comparePassword } from "@/lib/auth/password";
 import { generateToken } from "@/lib/auth/jwt";
-import { checkRateLimit, rateLimitConfigs } from "@/lib/rateLimit";
 
 /**
  * POST /api/auth/login-unified
@@ -11,14 +10,12 @@ import { checkRateLimit, rateLimitConfigs } from "@/lib/rateLimit";
 export async function POST(req: NextRequest) {
   console.log("[LOGIN-UNIFIED] 📥 Requête de connexion reçue");
 
-  const rateLimitResult = checkRateLimit(req, rateLimitConfigs.login);
-  if (!rateLimitResult.allowed) {
-    return rateLimitResult.response!;
-  }
-
   try {
-    const { identifier, password } = await req.json();
-    console.log("[LOGIN-UNIFIED] 🔍 Identifiant:", identifier);
+    console.log("[LOGIN-UNIFIED] 📥 Lecture du corps de la requête...");
+    const body = await req.json();
+    const { identifier, password } = body;
+    console.log("[LOGIN-UNIFIED] 🔍 Identifiant reçu:", identifier);
+    console.log("[LOGIN-UNIFIED] 🔍 Password reçu (longueur):", password?.length || 0);
 
     if (!identifier || !password) {
       return NextResponse.json(
@@ -30,6 +27,7 @@ export async function POST(req: NextRequest) {
     // ============================================
     // TENTATIVE 1 : Chercher dans UTILISATEURS
     // ============================================
+    console.log("[LOGIN-UNIFIED] 🔎 Recherche utilisateur dans la DB...");
     const utilisateur = await prisma.utilisateurs.findFirst({
       where: {
         OR: [
@@ -42,6 +40,7 @@ export async function POST(req: NextRequest) {
         agents: true, // Inclure l'agent lié si existe
       },
     });
+    console.log("[LOGIN-UNIFIED] 🔎 Recherche utilisateur terminée. Trouvé:", !!utilisateur);
 
     if (utilisateur) {
       console.log("[LOGIN-UNIFIED] ✅ Trouvé en tant qu'UTILISATEUR");
@@ -55,7 +54,9 @@ export async function POST(req: NextRequest) {
       }
 
       // Vérifier le mot de passe
+      console.log("[LOGIN-UNIFIED] 🔐 Vérification du mot de passe...");
       const passwordValid = await comparePassword(password, utilisateur.password);
+      console.log("[LOGIN-UNIFIED] 🔐 Résultat vérification password:", passwordValid);
 
       if (!passwordValid) {
         return NextResponse.json(
@@ -65,12 +66,15 @@ export async function POST(req: NextRequest) {
       }
 
       // Mettre à jour la dernière connexion
+      console.log("[LOGIN-UNIFIED] 🕒 Mise à jour de la dernière connexion...");
       await prisma.utilisateurs.update({
         where: { id: utilisateur.id },
         data: { derniere_connexion: new Date() },
       });
+      console.log("[LOGIN-UNIFIED] ✅ Mise à jour terminée");
 
       // Générer le token
+      console.log("[LOGIN-UNIFIED] 🎫 Génération du token JWT...");
       const token = generateToken({
         userId: utilisateur.id,
         agentId: utilisateur.agent_id || undefined,
@@ -78,6 +82,7 @@ export async function POST(req: NextRequest) {
         email: utilisateur.email,
         role: utilisateur.roles.code, // ✅ Utiliser le code, pas le nom
       });
+      console.log("[LOGIN-UNIFIED] 🎫 Token généré avec succès");
 
       const { password: _, ...utilisateurSafe } = utilisateur;
 
@@ -91,9 +96,11 @@ export async function POST(req: NextRequest) {
     // ============================================
     // TENTATIVE 2 : Chercher dans AGENTS (Legacy)
     // ============================================
+    console.log("[LOGIN-UNIFIED] 🔎 Recherche AGENT (legacy) dans la DB...");
     const agent = await prisma.agents.findFirst({
       where: { matricule: identifier },
     });
+    console.log("[LOGIN-UNIFIED] 🔎 Recherche AGENT terminée. Trouvé:", !!agent);
 
     if (agent) {
       console.log("[LOGIN-UNIFIED] ⚠️  Trouvé en tant qu'AGENT (legacy)");
@@ -117,9 +124,16 @@ export async function POST(req: NextRequest) {
       { status: 401 }
     );
 
-  } catch (e) {
-    console.error("[LOGIN-UNIFIED] ❌ Erreur:", e);
-    return NextResponse.json({ message: "Erreur serveur" }, { status: 500 });
+  } catch (e: any) {
+    console.error("[LOGIN-UNIFIED] ❌ Erreur fatale:", e);
+    return NextResponse.json(
+      { 
+        message: "Erreur serveur interne", 
+        error: e?.message || "Erreur inconnue",
+        stack: process.env.NODE_ENV === "development" ? e?.stack : undefined
+      }, 
+      { status: 500 }
+    );
   }
 }
 

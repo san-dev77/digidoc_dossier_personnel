@@ -1,18 +1,8 @@
 "use client";
 
 import { Search, Loader2, Database } from "lucide-react";
-import type { Piece } from "@/types";
+import type { Piece, MetadataModel } from "@/types";
 import PieceFileUpload from "./PieceFileUpload";
-
-interface MetadataModel {
-  id: string;
-  piece_id: string;
-  libelle: string;
-  type: string;
-  obligatoire: boolean;
-  description?: string;
-  created_at: string;
-}
 
 interface PieceSelectorProps {
   pieces: Piece[];
@@ -128,7 +118,7 @@ export default function PieceSelector({
                               className="space-y-2 bg-white p-3 rounded-lg border-2 border-primary-200"
                             >
                               <label className="text-sm font-bold text-primary-900">
-                                {model.libelle}
+                                {model.libelle || model.nom}
                                 {model.obligatoire && (
                                   <span className="text-red-600 ml-1 font-bold">*</span>
                                 )}
@@ -140,7 +130,7 @@ export default function PieceSelector({
                                   onChange={(e) =>
                                     onMetadataChange(piece.id, model.id, e.target.value)
                                   }
-                                  placeholder={`Saisir ${model.libelle.toLowerCase()}`}
+                                  placeholder={`Saisir ${(model.libelle || model.nom).toLowerCase()}`}
                                   className="w-full px-3 py-2 border-2 border-primary-400 bg-white rounded-lg focus:ring-2 focus:ring-primary-600 focus:border-primary-600 text-primary-900 font-medium shadow-sm"
                                 />
                               )}
@@ -151,7 +141,7 @@ export default function PieceSelector({
                                   onChange={(e) =>
                                     onMetadataChange(piece.id, model.id, e.target.value)
                                   }
-                                  placeholder={`Saisir ${model.libelle.toLowerCase()}`}
+                                  placeholder={`Saisir ${(model.libelle || model.nom).toLowerCase()}`}
                                   className="w-full px-3 py-2 border-2 border-primary-400 bg-white rounded-lg focus:ring-2 focus:ring-primary-600 focus:border-primary-600 text-primary-900 font-medium shadow-sm"
                                 />
                               )}

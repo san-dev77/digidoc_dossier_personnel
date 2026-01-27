@@ -380,7 +380,9 @@ export default function RubriqueParametresPage() {
       // Convertir updatedPiece en PieceWithMetadata pour la compatibilité
       const updatedPieceWithMetadata: PieceWithMetadata = {
         ...updatedPiece,
-        metadonnees: selectedPiece.metadonnees || [],
+        metadataModels: selectedPiece.metadataModels || [],
+        metadata: selectedPiece.metadata || [],
+        files: selectedPiece.files || [],
       };
 
       // Mettre à jour la liste globale des pièces
@@ -491,7 +493,7 @@ export default function RubriqueParametresPage() {
         // Mettre à jour la pièce avec les métadonnées récupérées
         const updatedPiece: PieceWithMetadata = {
           ...piece,
-          metadonnees: metadataModels.map(
+          metadataModels: metadataModels.map(
             (model: {
               id: string | number;
               libelle: string;
@@ -500,14 +502,17 @@ export default function RubriqueParametresPage() {
               description: string | null;
             }) => ({
               id: model.id.toString(),
+              piece_id: piece.id,
+              libelle: model.libelle,
               nom: model.libelle,
               type: model.type,
               obligatoire: model.obligatoire || false,
               description: model.description || "",
-              createdAt: "",
-              updatedAt: "",
+              created_at: "",
             })
           ),
+          metadata: piece.metadata || [],
+          files: piece.files || [],
         };
 
         setSelectedPieceForView(updatedPiece);
@@ -571,7 +576,7 @@ export default function RubriqueParametresPage() {
         const metadataModels = await metadataResponse.json();
         const updatedPiece: PieceWithMetadata = {
           ...selectedPieceForView,
-          metadonnees: metadataModels.map(
+          metadataModels: metadataModels.map(
             (model: {
               id: string | number;
               libelle: string;
@@ -580,14 +585,17 @@ export default function RubriqueParametresPage() {
               description: string | null;
             }) => ({
               id: model.id.toString(),
+              piece_id: selectedPieceForView.id,
+              libelle: model.libelle,
               nom: model.libelle,
               type: model.type,
               obligatoire: model.obligatoire || false,
               description: model.description || "",
-              createdAt: "",
-              updatedAt: "",
+              created_at: "",
             })
           ),
+          metadata: selectedPieceForView.metadata || [],
+          files: selectedPieceForView.files || [],
           aMetadonnees: metadataModels.length > 0,
         };
         setSelectedPieceForView(updatedPiece);
@@ -612,7 +620,7 @@ export default function RubriqueParametresPage() {
   };
 
   const handleSubmitEditMetadata = async (
-    formData: Omit<MetadataModel, "id" | "createdAt" | "updatedAt">[]
+    formData: Omit<MetadataModel, "id" | "created_at" | "updated_at">[]
   ) => {
     if (!selectedMetadata || !selectedPieceForView) return;
 
@@ -648,7 +656,7 @@ export default function RubriqueParametresPage() {
         const metadataModels = await metadataResponse.json();
         const updatedPiece: PieceWithMetadata = {
           ...selectedPieceForView,
-          metadonnees: metadataModels.map(
+          metadataModels: metadataModels.map(
             (model: {
               id: string | number;
               libelle: string;
@@ -657,14 +665,17 @@ export default function RubriqueParametresPage() {
               description: string | null;
             }) => ({
               id: model.id.toString(),
+              piece_id: selectedPieceForView.id,
+              libelle: model.libelle,
               nom: model.libelle,
               type: model.type,
               obligatoire: model.obligatoire || false,
               description: model.description || "",
-              createdAt: "",
-              updatedAt: "",
+              created_at: "",
             })
           ),
+          metadata: selectedPieceForView.metadata || [],
+          files: selectedPieceForView.files || [],
         };
         setSelectedPieceForView(updatedPiece);
       }
@@ -698,7 +709,7 @@ export default function RubriqueParametresPage() {
   };
 
   const handleSubmitMetadata = async (
-    metadata: Omit<MetadataModel, "id" | "createdAt" | "updatedAt">[]
+    metadata: Omit<MetadataModel, "id" | "created_at" | "updated_at">[]
   ) => {
     if (!selectedPieceForMetadata) return;
 
@@ -768,7 +779,9 @@ export default function RubriqueParametresPage() {
                 ? {
                     ...p,
                     aMetadonnees: true,
-                    metadonnees: mappedMetadata,
+                    metadataModels: mappedMetadata,
+                    metadata: p.metadata || [],
+                    files: p.files || [],
                   }
                 : p
             ),
@@ -1476,11 +1489,15 @@ export default function RubriqueParametresPage() {
                   nom: selectedPiece.nom,
                   description: selectedPiece.description,
                   has_meta: selectedPiece.aMetadonnees || false,
-                  metadonnees: selectedPiece.metadonnees?.map((meta) => ({
-                    nom: meta.nom,
+                  metadonnees: selectedPiece.metadataModels?.map((meta) => ({
+                    id: meta.id,
+                    piece_id: selectedPiece.id,
+                    libelle: meta.libelle,
+                    nom: meta.nom || meta.libelle || "",
                     type: meta.type,
                     obligatoire: meta.obligatoire,
                     description: meta.description,
+                    created_at: meta.created_at,
                   })),
                 }
               : undefined

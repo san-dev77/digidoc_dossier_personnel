@@ -28,6 +28,7 @@ export async function GET(req: NextRequest) {
       orderBy: { id: "desc" },
     });
 
+    console.log(`[GET agent-rubriques] Relations trouvées: ${relations.length}`);
     return NextResponse.json(relations);
   } catch (error) {
     console.error(

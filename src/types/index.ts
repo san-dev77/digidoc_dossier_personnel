@@ -71,13 +71,17 @@ export interface Piece {
 
 export interface MetadataModel {
   id: string;
-  nom: string;
-  type: "text" | "number" | "date" | "boolean" | "select";
+  piece_id?: string;
+  libelle?: string;
+  nom: string; // Alias for forms
+  type: string;
   obligatoire: boolean;
-  options?: string[];
   description?: string;
-  createdAt: string;
-  updatedAt: string;
+  created_at?: string;
+  updated_at?: string;
+  createdAt?: string; // Cache/Compatibility
+  updatedAt?: string; // Cache/Compatibility
+  options?: string[];
 }
 
 export interface PieceMetadata {
@@ -89,8 +93,26 @@ export interface PieceMetadata {
   updatedAt: string;
 }
 
+export interface PieceFile {
+  id: string;
+  pieceId?: string;       // CamelCase
+  piece_id?: string;      // SnakeCase fallback
+  fileName?: string;      // CamelCase
+  file_name?: string;     // SnakeCase fallback
+  filePath: string;       // CamelCase (Required)
+  file_path?: string;     // SnakeCase fallback
+  fileSize?: number;      // CamelCase
+  file_size?: number;     // SnakeCase fallback
+  mimeType?: string;      // CamelCase
+  mime_type?: string;     // SnakeCase fallback
+  createdAt: string;      // CamelCase (Required)
+  created_at?: string;    // SnakeCase fallback
+}
+
 export interface PieceWithMetadata extends Piece {
-  metadonnees?: MetadataModel[];
+  metadata: MetaValue[];
+  metadataModels: MetadataModel[];
+  files: PieceFile[];
 }
 
 // Types pour les formulaires (sans password - géré dans utilisateurs)
@@ -123,11 +145,47 @@ export interface SousDossierFormData {
   statut?: string;
 }
 
+export interface SousDossierWithStats {
+  id: string;
+  rubrique_id: string;
+  titre: string;
+  description: string;
+  statut?: string;
+  documentsCount?: number;
+  createdAt: string;
+  updatedAt: string;
+  pieces: PieceWithMetadata[];
+  piecesCount: number;
+  piecesWithMetadataCount: number;
+  totalMetadataCount: number;
+  lastActivity: string;
+  agentDossierId?: number; // ID de l'agent_dossier pour la suppression
+}
+
+export interface DossierData {
+  rubrique: {
+    id: string;
+    nom: string;
+    description: string;
+    created_at: string;
+    updatedAt: string;
+  };
+  sousDossiers: SousDossierWithStats[];
+  totalPieces: number;
+  totalSousDossiers: number;
+  totalMetadata: number;
+}
+
+export interface AgentWithDossiers {
+  agent: Agent;
+  dossiers: DossierData[];
+}
+
 export interface PieceFormData {
   nom: string;
   description?: string;
   has_meta: boolean;
-  metadonnees?: Omit<MetadataModel, "id" | "createdAt" | "updatedAt">[];
+  metadonnees?: Omit<MetadataModel, "id" | "created_at" | "updated_at">[];
   fichier?: File;
   rubriqueId?: string;
 }

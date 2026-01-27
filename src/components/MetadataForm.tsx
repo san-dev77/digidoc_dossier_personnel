@@ -9,9 +9,9 @@ interface MetadataFormProps {
   isOpen: boolean;
   onClose: () => void;
   onSubmit: (
-    metadata: Omit<MetadataModel, "id" | "createdAt" | "updatedAt">[]
+    metadata: Omit<MetadataModel, "id" | "created_at" | "updated_at">[]
   ) => void;
-  initialMetadata?: Omit<MetadataModel, "id" | "createdAt" | "updatedAt">[];
+  initialMetadata?: Omit<MetadataModel, "id" | "created_at" | "updated_at">[];
   pieceName?: string;
 }
 
@@ -23,7 +23,7 @@ export default function MetadataForm({
   pieceName = "cette pièce",
 }: MetadataFormProps) {
   const [metadata, setMetadata] = useState<
-    Omit<MetadataModel, "id" | "createdAt" | "updatedAt">[]
+    Omit<MetadataModel, "id" | "created_at" | "updated_at">[]
   >(
     initialMetadata.length > 0
       ? initialMetadata
@@ -58,7 +58,7 @@ export default function MetadataForm({
 
   const updateMetadataField = (
     index: number,
-    field: keyof Omit<MetadataModel, "id" | "createdAt" | "updatedAt">,
+    field: keyof Omit<MetadataModel, "id" | "created_at" | "updated_at">,
     value: string | boolean | string[]
   ) => {
     const updated = [...metadata];

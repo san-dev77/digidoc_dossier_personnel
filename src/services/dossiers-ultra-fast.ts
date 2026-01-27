@@ -2,70 +2,14 @@ import { useDossiersStore } from "@/store/dossiersStore";
 import { rubriquesService } from "./rubriques";
 import { sousDossiersService } from "./sous-dossiers";
 import { agentsService } from "./agents";
-import type { MetaValue } from "@/types";
-
-interface MetadataModel {
-  id: string;
-  piece_id: string;
-  libelle: string;
-  type: string;
-  obligatoire: boolean;
-  description?: string;
-  created_at: string;
-  updated_at?: string;
-}
-
-interface PieceFile {
-  id: string;
-  piece_id: string;
-  file_name: string;
-  file_path: string;
-  file_size: number;
-  mime_type: string;
-  created_at: string;
-}
-
-interface PieceWithMetadata {
-  id: string;
-  nom: string;
-  description?: string;
-  aMetadonnees: boolean;
-  createdAt: string;
-  updatedAt: string;
-  metadata: MetaValue[];
-  metadataModels: MetadataModel[];
-  files: PieceFile[];
-}
-
-interface SousDossierWithStats {
-  id: string;
-  rubrique_id: string;
-  titre: string;
-  description: string;
-  statut?: string;
-  documentsCount?: number;
-  createdAt: string;
-  updatedAt: string;
-  pieces: PieceWithMetadata[];
-  piecesCount: number;
-  piecesWithMetadataCount: number;
-  totalMetadataCount: number;
-  lastActivity: string;
-}
-
-interface DossierData {
-  rubrique: {
-    id: string;
-    nom: string;
-    description: string;
-    created_at: string;
-    updatedAt: string;
-  };
-  sousDossiers: SousDossierWithStats[];
-  totalPieces: number;
-  totalSousDossiers: number;
-  totalMetadata: number;
-}
+import type { 
+  MetaValue, 
+  MetadataModel, 
+  PieceFile, 
+  PieceWithMetadata, 
+  SousDossierWithStats, 
+  DossierData 
+} from "@/types";
 
 export class DossiersUltraFastService {
   /**
