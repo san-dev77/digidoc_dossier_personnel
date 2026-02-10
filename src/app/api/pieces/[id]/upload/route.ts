@@ -110,40 +110,21 @@ export async function POST(
       agentNom
     );
 
-    console.log("🏗️ Upload de fichier pour pièce existante:");
-    console.log("📁 Rubrique:", rubrique.nom);
-    console.log("📂 Sous-dossier:", sousDossier.titre);
-    console.log("📄 Pièce:", piece.nom);
-    console.log("👤 Agent:", agentNom);
-    console.log("🎯 Chemin complet:", basePath);
+    console.log(`📤 Upload: ${agentNom}/${rubrique.nom}/${sousDossier.titre}/${piece.nom}`);
 
     // Créer le dossier s'il n'existe pas
     await fs.ensureDir(basePath);
-    console.log("✅ Dossier créé avec succès");
 
     // Générer le nom du fichier avec l'agent
     const originalFileName = file.name;
     const finalFileName = generateAgentFileName(originalFileName, agentNom);
     const filePath = path.join(basePath, finalFileName);
 
-    console.log("📝 Nom du fichier original:", originalFileName);
-    console.log("📝 Nom du fichier avec agent:", finalFileName);
-    console.log("📝 Chemin complet du fichier:", filePath);
-
     // Sauvegarder le fichier
     await fs.writeFile(filePath, fileBuffer);
     const fileSize = fileBuffer.length;
-    console.log("✅ Fichier sauvegardé avec succès");
 
-    // Générer un thumbnail dans le même dossier
-    const thumbnailPath = path.join(basePath, `thumb_${finalFileName}`);
-    const thumbnailResult = await ThumbnailService.generateThumbnailForFile(
-      filePath,
-      thumbnailPath,
-      file.type
-    );
-
-    // Lier le fichier à la pièce
+    // Lier le fichier à la pièce (avant le thumbnail pour répondre plus vite)
     const pieceFileData: {
       id_piece: number;
       file_path: string;
@@ -163,7 +144,17 @@ export async function POST(
 
     console.log("✅ Fichier lié à la pièce avec succès:", pieceFile);
 
-    // Préparer la réponse
+    // Générer le thumbnail en arrière-plan (fire-and-forget, ne bloque pas la réponse)
+    const thumbnailPath = path.join(basePath, `thumb_${finalFileName}`);
+    ThumbnailService.generateThumbnailForFile(
+      filePath,
+      thumbnailPath,
+      file.type
+    ).catch((err) => {
+      console.error("⚠️ Erreur génération thumbnail (non bloquant):", err);
+    });
+
+    // Préparer la réponse (retournée immédiatement, sans attendre le thumbnail)
     const response = {
       success: true,
       data: {
@@ -174,9 +165,7 @@ export async function POST(
         filePath,
         fileSize,
         mimeType: file.type,
-        thumbnailPath: thumbnailResult.success
-          ? thumbnailResult.thumbnailPath
-          : null,
+        thumbnailPath: null, // Généré en arrière-plan
         uploadedAt: new Date().toISOString(),
       },
       warnings: validation.warnings,

@@ -10,6 +10,7 @@ import {
 import { isDossierCredit } from "@/utils/rubrique-utils";
 import SousDossierCard from "./SousDossierCard";
 import type { AgentWithDossiers } from "@/types";
+import HighlightText from "@/components/ui/HighlightText";
 
 const getStatusColor = (statut?: string) => {
   switch (statut) {
@@ -27,6 +28,7 @@ const getStatusColor = (statut?: string) => {
 interface RubriqueCardProps {
   dossier: AgentWithDossiers["dossiers"][0];
   isExpanded: boolean;
+  searchTerm?: string;
   onToggleExpansion: () => void;
   onCreditDossierClick?: (sousDossierId: number, rubriqueId: number) => void;
   onPieceClick?: (piece: any) => void;
@@ -40,6 +42,7 @@ interface RubriqueCardProps {
 export default function RubriqueCard({
   dossier,
   isExpanded,
+  searchTerm = "",
   onToggleExpansion,
   onCreditDossierClick,
   onPieceClick,
@@ -82,7 +85,7 @@ export default function RubriqueCard({
               <div className="flex-1 min-w-0">
                 <div className="flex items-center gap-3 mb-2">
                   <h4 className="text-xl font-bold text-primary-900">
-                    {dossier.rubrique.nom}
+                    <HighlightText text={dossier.rubrique.nom} searchTerm={searchTerm} />
                   </h4>
                   {isCredit && (
                     <span className="px-3 py-1 bg-gradient-to-r from-success-100 to-success-50 text-success-700 text-xs font-bold rounded-full border border-success-200 shadow-sm">
@@ -137,7 +140,7 @@ export default function RubriqueCard({
       </div>
 
       {/* Sous-dossiers de la rubrique - Expanded */}
-      {isExpanded && (
+      {(isExpanded || (searchTerm && searchTerm.trim() !== "")) && (
         <div className="border-t border-primary-100 bg-gradient-to-br from-primary-50/30 to-white">
           <div className="p-6 space-y-4">
             {dossier.sousDossiers.map((sousDossier) => (
@@ -149,6 +152,7 @@ export default function RubriqueCard({
                 agentId={agentId}
                 agentName={agentName}
                 rubriqueName={dossier.rubrique.nom}
+                searchTerm={searchTerm}
                 onCreditDossierClick={onCreditDossierClick}
                 onPieceClick={onPieceClick}
                 onDeleteDossier={onDeleteDossier}

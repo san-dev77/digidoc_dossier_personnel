@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import {
   User,
   Folder,
@@ -10,6 +10,7 @@ import {
   Upload,
   Mail,
   FolderOpen,
+  Search,
 } from "lucide-react";
 import { useDossiersStore } from "@/store/dossiersStore";
 import type { PieceData } from "@/services/agent-data";
@@ -18,23 +19,49 @@ import QuickUploadModal from "@/components/dossiers/QuickUploadModal";
 import QuickCreateDossierModal from "@/components/dossiers/QuickCreateDossierModal";
 import { DossiersOptimizedService } from "@/services/dossiers-optimized";
 import RubriqueCard from "./AgentDataViewerOptimized/RubriqueCard";
+import HighlightText from "@/components/ui/HighlightText";
 
 interface AgentDataViewerOptimizedProps {
+  searchTerm?: string;
   onPieceClick?: (piece: PieceData) => void;
   onCreditDossierClick?: (sousDossierId: number, rubriqueId: number) => void;
   onDeleteDossier?: (agentDossierId: number, sousDossierTitre: string) => void;
 }
 
 export default function AgentDataViewerOptimized({
+  searchTerm = "",
   onPieceClick,
   onCreditDossierClick,
   onDeleteDossier,
 }: AgentDataViewerOptimizedProps) {
   // Utiliser des sélecteurs explicites pour forcer le re-render
-  const agentsWithDossiers = useDossiersStore(
+  const allAgentsWithDossiers = useDossiersStore(
     (state) => state.agentsWithDossiers
   );
   const loading = useDossiersStore((state) => state.loading);
+
+  // Filtrer les agents par le terme de recherche
+  const agentsWithDossiers = useMemo(() => {
+    if (!searchTerm.trim()) return allAgentsWithDossiers;
+    const term = searchTerm.toLowerCase().trim();
+    return allAgentsWithDossiers.filter((agentData) => {
+      // Chercher dans le nom/prénom/email de l'agent
+      const agentMatch =
+        (agentData.agent.nom?.toLowerCase() || "").includes(term) ||
+        (agentData.agent.prenom?.toLowerCase() || "").includes(term) ||
+        `${agentData.agent.prenom} ${agentData.agent.nom}`.toLowerCase().includes(term) ||
+        (agentData.agent.email?.toLowerCase() || "").includes(term);
+      if (agentMatch) return true;
+
+      // Chercher dans les noms de rubriques et sous-dossiers
+      return agentData.dossiers.some((dossier) => {
+        if (dossier.rubrique?.nom?.toLowerCase().includes(term)) return true;
+        return dossier.sousDossiers?.some((sd) =>
+          sd.titre?.toLowerCase().includes(term)
+        );
+      });
+    });
+  }, [allAgentsWithDossiers, searchTerm]);
   const [expandedAgents, setExpandedAgents] = useState<Set<string>>(new Set());
   const [expandedRubriques, setExpandedRubriques] = useState<Set<string>>(
     new Set()
@@ -101,6 +128,32 @@ export default function AgentDataViewerOptimized({
 
   return (
     <div className="space-y-8">
+      {/* Indicateur mode recherche */}
+      {searchTerm.trim() && (
+        <div className="flex items-center gap-3 px-5 py-3 bg-blue-50 border border-blue-200 rounded-xl animate-in fade-in slide-in-from-top-2 duration-300">
+          <div className="w-8 h-8 bg-blue-500 rounded-lg flex items-center justify-center shadow-sm">
+            <Search className="w-4 h-4 text-white" />
+          </div>
+          <p className="text-sm font-semibold text-blue-800">
+            Recherche active : <span className="text-blue-600">&quot;{searchTerm.trim()}&quot;</span>
+          </p>
+          <span className="ml-auto px-3 py-1 bg-blue-500 text-white text-xs font-bold rounded-full">
+            {agentsWithDossiers.length} résultat{agentsWithDossiers.length !== 1 ? "s" : ""}
+          </span>
+        </div>
+      )}
+
+      {/* Aucun résultat */}
+      {searchTerm.trim() && agentsWithDossiers.length === 0 && (
+        <div className="text-center py-16">
+          <div className="w-20 h-20 bg-primary-100 rounded-2xl flex items-center justify-center mx-auto mb-4">
+            <Search className="w-10 h-10 text-primary-300" />
+          </div>
+          <h4 className="text-lg font-bold text-primary-800 mb-1">Aucun résultat</h4>
+          <p className="text-sm text-primary-500">Aucun agent ne correspond à &quot;{searchTerm.trim()}&quot;</p>
+        </div>
+      )}
+
       {/* Liste des agents */}
       {agentsWithDossiers.map((agentData) => {
         const totalPieces = agentData.dossiers.reduce(
@@ -111,7 +164,9 @@ export default function AgentDataViewerOptimized({
           (sum, d) => sum + d.totalSousDossiers,
           0
         );
-        const isExpanded = expandedAgents.has(agentData.agent.id);
+        const isExpanded = searchTerm.trim()
+          ? true  // Auto-expand agents en mode recherche
+          : expandedAgents.has(agentData.agent.id);
 
         return (
           <div
@@ -144,7 +199,7 @@ export default function AgentDataViewerOptimized({
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-3 mb-2">
                         <h3 className="text-2xl font-bold text-primary-900 tracking-tight">
-                          {agentData.agent.prenom} {agentData.agent.nom}
+                          <HighlightText text={`${agentData.agent.prenom} ${agentData.agent.nom}`} searchTerm={searchTerm} />
                         </h3>
                       </div>
 
@@ -152,7 +207,7 @@ export default function AgentDataViewerOptimized({
                       <div className="flex items-center gap-2 mb-4">
                         <Mail className="w-4 h-4 text-primary-700 flex-shrink-0" />
                         <p className="text-primary-800 font-semibold text-sm truncate">
-                          {agentData.agent.email || "Aucun email"}
+                          <HighlightText text={agentData.agent.email || "Aucun email"} searchTerm={searchTerm} />
                         </p>
                       </div>
 
@@ -257,6 +312,7 @@ export default function AgentDataViewerOptimized({
                           key={dossier.rubrique.id}
                           dossier={dossier}
                           isExpanded={isRubriqueExpanded}
+                          searchTerm={searchTerm}
                           onToggleExpansion={() =>
                             toggleRubriqueExpansion(dossier.rubrique.id)
                           }
@@ -301,7 +357,6 @@ export default function AgentDataViewerOptimized({
                                 ),
                                 files: (piece.files || []).map(
                                   (file: any) => {
-                                    console.log("🔍 [Mapping AgentData] file raw:", file);
                                     return {
                                       id: file.id,
                                       id_piece: file.piece_id || file.id_piece || file.pieceId,

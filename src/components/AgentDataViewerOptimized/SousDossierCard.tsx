@@ -17,6 +17,7 @@ import type {
   SousDossierWithStats,
 } from "@/types";
 import type { Piece } from "@/types"; // Might be redundant but safe
+import HighlightText from "@/components/ui/HighlightText";
 
 interface SousDossierCardProps {
   sousDossier: AgentWithDossiers["dossiers"][0]["sousDossiers"][0];
@@ -25,6 +26,7 @@ interface SousDossierCardProps {
   agentId: string;
   agentName: string;
   rubriqueName: string;
+  searchTerm?: string;
   onCreditDossierClick?: (sousDossierId: number, rubriqueId: number) => void;
   onPieceClick?: (piece: any) => void;
   onDeleteDossier?: (agentDossierId: number, sousDossierTitre: string) => void;
@@ -44,6 +46,7 @@ export default function SousDossierCard({
   agentId,
   agentName,
   rubriqueName,
+  searchTerm = "",
   onCreditDossierClick,
   onPieceClick,
   onDeleteDossier,
@@ -100,7 +103,7 @@ export default function SousDossierCard({
             {/* Info */}
             <div className="flex-1 min-w-0">
               <h5 className="text-lg font-bold text-primary-900 mb-1">
-                {sousDossier.titre}
+                <HighlightText text={sousDossier.titre} searchTerm={searchTerm} />
               </h5>
               {sousDossier.description && (
                 <p className="text-sm text-primary-800 font-semibold leading-relaxed">
@@ -344,7 +347,6 @@ export default function SousDossierCard({
                                     })
                                   ),
                                   files: (piece.files || []).map((file: any) => {
-                                    console.log("🔍 [SousDossierCard] mapping file raw:", file);
                                     return {
                                       id: file.id,
                                       id_piece: file.piece_id || file.id_piece || file.pieceId,

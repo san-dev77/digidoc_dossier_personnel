@@ -26,20 +26,18 @@ export async function GET(
     const { searchParams } = new URL(request.url);
     const agentDossierId = searchParams.get("agentDossierId");
 
-    // Récupérer les fichiers de la pièce avec filtre optionnel par agent_dossier_id
-    interface WhereClause {
-      id_piece: number;
-      agent_dossier_id?: number;
-    }
-
-    const whereClause: WhereClause = { id_piece: pieceId };
-
-    if (agentDossierId) {
-      whereClause.agent_dossier_id = parseInt(agentDossierId);
+    // Récupérer les fichiers de la pièce avec filtre par agent_dossier_id
+    // Si agentDossierId n'est pas fourni, on retourne une erreur ou une liste vide
+    // pour éviter la fuite de données entre agents
+    if (!agentDossierId) {
+      return NextResponse.json([]);
     }
 
     const files = await prisma.piece_file.findMany({
-      where: whereClause,
+      where: { 
+        id_piece: pieceId,
+        agent_dossier_id: parseInt(agentDossierId)
+      },
       orderBy: {
         created_at: "desc",
       },

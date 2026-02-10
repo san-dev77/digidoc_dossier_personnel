@@ -9,7 +9,7 @@ export interface JWTPayload {
   // Compte utilisateur (nouveau système)
   userId?: number;
 
-  // Agent lié (optionnel) ou legacy (ancien système)
+  // Agent lié (optionnel) ou legacy (ancien système)  
   agentId?: number;
   matricule: string;
   email?: string;

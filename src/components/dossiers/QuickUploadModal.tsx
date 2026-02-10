@@ -168,35 +168,31 @@ export default function QuickUploadModal({
 
       await response.json();
 
-      // Sauvegarder les métadonnées si elles existent
+      // Sauvegarder les métadonnées en parallèle (au lieu de séquentiellement)
       if (metadataModels.length > 0 && agentDossierId) {
-        for (const model of metadataModels) {
-          const metadataKey = model.id;
-          const metadataValue = metadataValues[metadataKey];
-
-          if (metadataValue && metadataValue.trim() !== "") {
-            try {
-              const metadataResponse = await fetchWithAuth(
-                `/api/pieces/${pieceData.piece.id}/metadata`,
-                {
-                  method: "POST",
-                  headers: { "Content-Type": "application/json" },
-                  body: JSON.stringify({
-                    meta_model_id: model.id,
-                    valeur: metadataValue,
-                    agent_dossier_id: agentDossierId,
-                  }),
-                }
-              );
-
-              if (metadataResponse.ok) {
-                console.log(`Métadonnée ${model.libelle} sauvegardée`);
+        const metadataPromises = metadataModels
+          .filter((model) => {
+            const val = metadataValues[model.id];
+            return val && val.trim() !== "";
+          })
+          .map((model) =>
+            fetchWithAuth(
+              `/api/pieces/${pieceData.piece.id}/metadata`,
+              {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                  meta_model_id: model.id,
+                  valeur: metadataValues[model.id],
+                  agent_dossier_id: agentDossierId,
+                }),
               }
-            } catch (err) {
+            ).catch((err) => {
               console.error(`Erreur métadonnée ${model.libelle}:`, err);
-            }
-          }
-        }
+            })
+          );
+
+        await Promise.all(metadataPromises);
       }
 
       setSuccess(true);

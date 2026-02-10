@@ -69,7 +69,9 @@ export default function DossiersPage() {
   );
 
   useEffect(() => {
-    // Vider le cache au premier chargement pour toujours avoir les données fraîches
+    // Nettoyer l'ancien cache localStorage (migration: on n'utilise plus persist)
+    try { localStorage.removeItem("dossiers-cache"); } catch (e) { /* ignore */ }
+    // Vider le cache en mémoire au premier chargement pour toujours avoir les données fraîches
     const { clearCache } = useDossiersStore.getState();
     clearCache();
     loadDossiers(true); // Force refresh
@@ -240,6 +242,7 @@ export default function DossiersPage() {
         {/* Liste des dossiers */}
         <div className="space-y-6">
           <AgentDataViewerOptimized
+            searchTerm={searchTerm}
             onPieceClick={handlePieceClick}
             onCreditDossierClick={handleCreditDossierClick}
             onDeleteDossier={handleDeleteDossier}

@@ -95,8 +95,12 @@ export const agentDataService = {
 
       const agentsData: AgentData[] = await Promise.all(
         agents.map(async (agent) => {
+          // Récupérer tous les agent_dossiers de l'agent une seule fois
+          const agentDossiersResponse = await fetchWithAuth(`/api/agent-dossiers?agentId=${agent.id}`);
+          const agentDossiers = agentDossiersResponse.ok ? await agentDossiersResponse.json() : [];
+
           // Pour chaque agent, récupérer ses rubriques avec des données
-          const rubriques = await this.getAgentRubriques(agent.id);
+          const rubriques = await this.getAgentRubriques(agent.id, agentDossiers);
 
           return {
             agent: {
@@ -121,7 +125,7 @@ export const agentDataService = {
   },
 
   // Récupérer les rubriques pour un agent spécifique
-  async getAgentRubriques(agentId: string): Promise<RubriqueData[]> {
+  async getAgentRubriques(agentId: string, agentDossiers: any[] = []): Promise<RubriqueData[]> {
     try {
       const allRubriques = await rubriquesService.getAllRubriques();
 
@@ -129,7 +133,8 @@ export const agentDataService = {
         allRubriques.map(async (rubrique) => {
           const sousDossiers = await this.getRubriqueSousDossiers(
             agentId,
-            rubrique.id
+            rubrique.id,
+            agentDossiers
           );
 
           // Calculer les totaux
@@ -169,7 +174,8 @@ export const agentDataService = {
   // Récupérer les sous-dossiers d'une rubrique avec les données de l'agent
   async getRubriqueSousDossiers(
     agentId: string,
-    rubriqueId: string
+    rubriqueId: string,
+    agentDossiers: any[] = []
   ): Promise<SousDossierData[]> {
     try {
       const sousDossiers =
@@ -179,7 +185,8 @@ export const agentDataService = {
         sousDossiers.map(async (sousDossier) => {
           const pieces = await this.getSousDossierPieces(
             agentId,
-            sousDossier.id
+            sousDossier.id,
+            agentDossiers
           );
           const piecesWithFiles = pieces.filter((p) => p.hasFiles).length;
 
@@ -209,48 +216,60 @@ export const agentDataService = {
   // Récupérer les pièces d'un sous-dossier avec les données de l'agent
   async getSousDossierPieces(
     agentId: string,
-    sousDossierId: string
+    sousDossierId: string,
+    agentDossiers: any[] = []
   ): Promise<PieceData[]> {
     try {
+      // Trouver l'agent_dossier_id pour ce sous-dossier
+      const agentDossier = agentDossiers.find(
+        ad => ad.sous_dossier_id.toString() === sousDossierId.toString()
+      );
+      const agentDossierId = agentDossier?.id;
+
+      // Récupérer TOUTES les données en un seul appel optimisé (modèles, fichiers, valeurs)
       const pieces = await piecesService.getAllPiecesBySousDossier(
-        sousDossierId
+        sousDossierId,
+        agentDossierId
       );
 
-      const piecesData: PieceData[] = await Promise.all(
-        pieces.map(async (piece) => {
-          // Récupérer les métadonnées
-          const metadataResponse = await fetchWithAuth(
-            `/api/pieces/${piece.id}/metadata`
-          );
-          let metadata: MetaValueData[] = [];
-          if (metadataResponse.ok) {
-            metadata = await metadataResponse.json();
-          }
-
-          // Récupérer les fichiers
-          const filesResponse = await fetchWithAuth(`/api/pieces/${piece.id}/files`);
-          let files: FileData[] = [];
-          if (filesResponse.ok) {
-            files = await filesResponse.json();
-          }
-
-          return {
-            piece: {
-              id: piece.id,
-              nom: piece.nom,
-              description: piece.description,
-              has_meta: piece.aMetadonnees,
-              createdAt: piece.createdAt,
-              updatedAt: piece.updatedAt,
-            },
-            metadata,
-            files,
-            hasFiles: files.length > 0,
-          };
-        })
-      );
-
-      return piecesData;
+      return pieces.map(piece => ({
+        piece: {
+          id: piece.id,
+          nom: piece.nom,
+          description: piece.description,
+          has_meta: piece.aMetadonnees,
+          createdAt: piece.createdAt,
+          updatedAt: piece.updatedAt,
+        },
+        metadata: piece.metadata.map((m: any) => ({
+          id: m.id,
+          meta_model_id: m.meta_model_id,
+          valeur: m.valeur,
+          metadataModel: m.metadataModel,
+          created_at: m.createdAt,
+        })),
+        files: piece.files.map((f: any) => ({
+          id: f.id,
+          filePath: f.filePath,
+          mimeType: f.mimeType,
+          createdAt: f.createdAt,
+          // Backward comp
+          file_path: f.filePath,
+          mime_type: f.mimeType,
+          created_at: f.createdAt,
+        })),
+        hasFiles: piece.files.length > 0,
+        // Ajouter un contexte pour faciliter l'accès à l'agent et au dossier
+        context: {
+          agentId,
+          agentName: "", // Sera rempli par le composant si nécessaire
+          rubriqueId: "", // Sera rempli par le composant si nécessaire
+          rubriqueName: "",
+          sousDossierId,
+          sousDossierName: "",
+          agentDossierId: agentDossierId ? parseInt(agentDossierId.toString()) : undefined,
+        }
+      }));
     } catch (error) {
       console.error("Erreur lors de la récupération des pièces:", error);
       throw error;

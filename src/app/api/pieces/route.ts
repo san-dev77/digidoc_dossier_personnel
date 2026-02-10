@@ -40,7 +40,11 @@ export async function GET(request: NextRequest) {
             } : true
           }
         },
-        piece_file: true,
+        piece_file: agentDossierId ? {
+          where: {
+            agent_dossier_id: parseInt(agentDossierId)
+          }
+        } : true,
         position: true
       },
       orderBy: [

@@ -253,20 +253,11 @@ export class DossiersOptimizedService {
       const rubrique = await rubriquesService.getRubriqueById(rubriqueId);
       if (!rubrique) return null;
 
-      // Charger tous les agent_dossiers pour cette rubrique
-      const agentDossiersResponse = await fetchWithAuth(`/api/agent-dossiers`);
+      // Charger les agent_dossiers pour cette rubrique UNIQUEMENT (filtre côté serveur)
+      const agentDossiersResponse = await fetchWithAuth(`/api/agent-dossiers?rubriqueId=${rubriqueId}`);
       const allAgentDossiers: AgentDossierWithRelations[] =
         agentDossiersResponse.ok
-          ? (await agentDossiersResponse.json()).filter(
-              (ad: AgentDossierWithRelations) => {
-                const adRubriqueId =
-                  typeof ad.rubrique_id === "number"
-                    ? ad.rubrique_id
-                    : parseInt(ad.rubrique_id);
-                const targetRubriqueId = parseInt(rubriqueId);
-                return adRubriqueId === targetRubriqueId;
-              }
-            )
+          ? await agentDossiersResponse.json()
           : [];
 
       if (allAgentDossiers.length === 0) {

@@ -14,6 +14,7 @@ export async function GET(request: NextRequest) {
     const { searchParams } = new URL(request.url);
     const agentId = searchParams.get("agentId");
     const sousDossierId = searchParams.get("sousDossierId");
+    const rubriqueId = searchParams.get("rubriqueId");
 
     let agentDossiers;
 
@@ -31,6 +32,16 @@ export async function GET(request: NextRequest) {
       // Filtrer par sous-dossier
       agentDossiers = await prisma.agent_dossiers.findMany({
         where: { sous_dossier_id: parseInt(sousDossierId) },
+        include: {
+          agents: true,
+          rubriques: true,
+          sous_dossiers: true,
+        },
+      });
+    } else if (rubriqueId) {
+      // Filtrer par rubrique
+      agentDossiers = await prisma.agent_dossiers.findMany({
+        where: { rubrique_id: parseInt(rubriqueId) },
         include: {
           agents: true,
           rubriques: true,
