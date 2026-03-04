@@ -299,9 +299,17 @@ async function importCredits(data: Record<string, string>[]) {
         data: {
           nom: "Dossier de crédit",
           description: "Gestion des dossiers de demande de crédit",
+          type: "credit",
         },
       });
-      console.log("✅ Rubrique 'Dossier de crédit' créée");
+      console.log("✅ Rubrique 'Dossier de crédit' créée (type=credit)");
+    } else if (rubrique.type !== "credit") {
+      // Mettre à jour le type si la rubrique existait déjà sans le bon type
+      await prisma.rubriques.update({
+        where: { id: rubrique.id },
+        data: { type: "credit" },
+      });
+      console.log("✅ Rubrique 'Dossier de crédit' mise à jour (type=credit)");
     }
 
     // 2. Pour chaque ligne, créer un sous-dossier

@@ -4,6 +4,7 @@ import { sousDossiersService } from "./sous-dossiers";
 import { piecesService } from "./pieces";
 import { agentsService } from "./agents";
 import { fetchWithAuth } from "@/lib/api/fetchWithAuth";
+import { batchAll } from "@/utils/promise-utils";
 import type { 
   MetaValue, 
   MetadataModel, 
@@ -49,9 +50,9 @@ export class DossiersFastService {
       setRubriques(rubriques);
       setAgents(agents);
 
-      // Charger les dossiers avec une approche optimisée
-      const dossiersData: DossierData[] = await Promise.all(
-        rubriques.map(async (rubrique) => {
+      // Charge les dossiers avec une approche optimisée
+      const dossiersData: DossierData[] = await batchAll(
+        rubriques.map((rubrique) => async (): Promise<DossierData> => {
           try {
             console.log(`📁 Chargement rapide pour: ${rubrique.nom}`);
 
@@ -63,8 +64,8 @@ export class DossiersFastService {
 
             // Charger seulement les pièces de base (sans métadonnées/fichiers)
             const sousDossiersWithStats: SousDossierWithStats[] =
-              await Promise.all(
-                sousDossiers.map(async (sousDossier) => {
+              await batchAll(
+                sousDossiers.map((sousDossier) => async (): Promise<SousDossierWithStats> => {
                   try {
                     // Charger seulement les pièces de base
                     const pieces =
@@ -110,7 +111,8 @@ export class DossiersFastService {
                       lastActivity: sousDossier.updatedAt,
                     };
                   }
-                })
+                }),
+                5 // Limite à 5 sous-dossiers en parallèle
               );
 
             // Calculer les statistiques globales de la rubrique
@@ -144,7 +146,8 @@ export class DossiersFastService {
               totalMetadata: 0,
             };
           }
-        })
+        }),
+        3 // Limite à 3 rubriques en parallèle
       );
 
       // Mettre à jour le cache

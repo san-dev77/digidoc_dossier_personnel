@@ -178,26 +178,22 @@ export default function DashboardPage() {
           },
           ...sousDossier.pieces
             .filter(
-              (p: { files?: Array<{ created_at: string }> }) =>
+              (p: any) =>
                 p.files && p.files.length > 0
             )
             .map(
-              (piece: {
-                id: string;
-                nom: string;
-                updatedAt: string;
-                files?: Array<{ created_at: string }>;
-              }) => ({
-                id: piece.id,
-                type: "validation" as const,
-                title: "Fichier uploadé",
-                description: `${piece.nom} - ${agentData.agent.nom}`,
-                time: formatRelativeTime(
-                  piece.files?.[0]?.created_at || piece.updatedAt
-                ),
-                icon: CheckCircle,
-                date: piece.files?.[0]?.created_at || piece.updatedAt,
-              })
+              (piece: any) => {
+                const fileDate = piece.files?.[0]?.createdAt || piece.files?.[0]?.created_at || piece.updatedAt;
+                return {
+                  id: piece.id,
+                  type: "validation" as const,
+                  title: "Fichier uploadé",
+                  description: `${piece.nom} - ${agentData.agent.nom}`,
+                  time: formatRelativeTime(fileDate),
+                  icon: CheckCircle,
+                  date: fileDate,
+                };
+              }
             ),
         ])
       )

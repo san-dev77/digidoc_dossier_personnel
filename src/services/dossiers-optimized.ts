@@ -14,6 +14,7 @@ import { agentsService } from "./agents";
 import type { AgentDossier } from "./agent-dossiers";
 import type { SousDossier } from "./sous-dossiers";
 import { fetchWithAuth } from "@/lib/api/fetchWithAuth";
+import { batchAll } from "@/utils/promise-utils";
 
 // Type pour agent_dossier avec relations Prisma
 interface AgentDossierWithRelations extends AgentDossier {
@@ -30,6 +31,8 @@ interface AgentDossierWithRelations extends AgentDossier {
     id: number;
     titre: string;
     description?: string;
+    created_at?: string | Date;
+    updated_at?: string | Date;
   };
 }
 
@@ -94,9 +97,9 @@ export class DossiersOptimizedService {
         agentDossiersMap.get(agentId)!.push(ad);
       });
 
-      const agentsData = await Promise.all(
+      const agentsData = await batchAll(
         Array.from(agentDossiersMap.entries()).map(
-          async ([agentId, dossiers]): Promise<AgentWithDossiers | null> => {
+          ([agentId, dossiers]) => async (): Promise<AgentWithDossiers | null> => {
             const agent = agents.find((a) => a.id === agentId);
             if (!agent) return null;
 
@@ -114,8 +117,12 @@ export class DossiersOptimizedService {
                     titre: ad.sous_dossiers.titre,
                     description: ad.sous_dossiers.description || "",
                     statut: "ouvert",
-                    createdAt: "",
-                    updatedAt: "",
+                    createdAt: ad.sous_dossiers.created_at 
+                      ? (typeof ad.sous_dossiers.created_at === 'string' ? ad.sous_dossiers.created_at : ad.sous_dossiers.created_at.toISOString()) 
+                      : "",
+                    updatedAt: ad.sous_dossiers.updated_at 
+                      ? (typeof ad.sous_dossiers.updated_at === 'string' ? ad.sous_dossiers.updated_at : ad.sous_dossiers.updated_at.toISOString()) 
+                      : "",
                   }
                 : undefined;
               if (sousDossier) {
@@ -124,95 +131,100 @@ export class DossiersOptimizedService {
             });
 
             // Construire les dossiers par rubrique
-            const rubriquePromises = Array.from(rubriqueMap.entries()).map(
-              async ([rubriqueId, sousDossiersList]) => {
-                const rubrique = allRubriques.find(r => r.id === rubriqueId);
-                if (!rubrique) return null;
+            const dossiersData = await batchAll(
+              Array.from(rubriqueMap.entries()).map(
+                ([rubriqueId, sousDossiersList]) => async () => {
+                  const rubrique = allRubriques.find(r => r.id === rubriqueId);
+                  if (!rubrique) return null;
 
-                // Pour chaque sous-dossier de cette rubrique
-                const sousDossiers = sousDossiersList.filter(
-                  (sd): sd is SousDossier => sd !== undefined
-                );
-
-                // Charger les pièces pour chaque sous-dossier avec toutes leurs données
-                const sousDossiersWithStats: SousDossierWithStats[] =
-                  await Promise.all(
-                    sousDossiers.map(async (sousDossier) => {
-                      // Récupérer l'agent_dossier_id pour ce sous-dossier
-                      const agentDossier = dossiers.find(
-                        (ad) =>
-                          ad.sous_dossier_id === sousDossier.id ||
-                          parseInt(ad.sous_dossier_id) ===
-                            parseInt(sousDossier.id)
-                      );
-                      const agentDossierId = agentDossier?.id
-                        ? parseInt(agentDossier.id.toString())
-                        : undefined;
-
-                      // Récupérer TOUTES les données de la pièce en un seul appel (modèles, fichiers, valeurs)
-                      const piecesWithMetadata =
-                        await piecesService.getAllPiecesBySousDossier(
-                          sousDossier.id,
-                          agentDossierId
-                        );
-
-                      const piecesCount = piecesWithMetadata.length;
-                      const piecesWithMetadataCount = piecesWithMetadata.filter(
-                        (p) => p.aMetadonnees
-                      ).length;
-                      const totalMetadataCount = piecesWithMetadata.reduce(
-                        (sum, p) => sum + p.metadata.length,
-                        0
-                      );
-                      const lastActivity =
-                        piecesWithMetadata.length > 0
-                          ? piecesWithMetadata.reduce((latest, p) => {
-                              return new Date(p.createdAt) > new Date(latest)
-                                ? p.createdAt
-                                : latest;
-                            }, piecesWithMetadata[0].createdAt)
-                          : sousDossier.updatedAt;
-
-                      return {
-                        ...sousDossier,
-                        pieces: piecesWithMetadata,
-                        piecesCount,
-                        piecesWithMetadataCount,
-                        totalMetadataCount,
-                        lastActivity,
-                        agentDossierId: agentDossierId
-                          ? parseInt(agentDossierId.toString())
-                          : undefined,
-                      };
-                    })
+                  // Pour chaque sous-dossier de cette rubrique
+                  const sousDossiers = sousDossiersList.filter(
+                    (sd): sd is SousDossier => sd !== undefined
                   );
 
-                const totalPieces = sousDossiersWithStats.reduce(
-                  (sum, sd) => sum + sd.piecesCount,
-                  0
-                );
-                const totalSousDossiers = sousDossiersWithStats.length;
-                const totalMetadata = sousDossiersWithStats.reduce(
-                  (sum, sd) => sum + sd.totalMetadataCount,
-                  0
-                );
+                  // Charger les pièces pour chaque sous-dossier avec toutes leurs données
+                  const sousDossiersWithStats: SousDossierWithStats[] =
+                    await batchAll(
+                      sousDossiers.map((sousDossier) => async () => {
+                        // Récupérer l'agent_dossier_id pour ce sous-dossier
+                        const agentDossier = dossiers.find(
+                          (ad) =>
+                            ad.sous_dossier_id === sousDossier.id ||
+                            parseInt(ad.sous_dossier_id) ===
+                              parseInt(sousDossier.id)
+                        );
+                        const agentDossierId = agentDossier?.id
+                          ? parseInt(agentDossier.id.toString())
+                          : undefined;
 
-                return {
-                  rubrique,
-                  sousDossiers: sousDossiersWithStats,
-                  totalPieces,
-                  totalSousDossiers,
-                  totalMetadata,
-                };
-              }
+                        // Récupérer TOUTES les données de la pièce en un seul appel (modèles, fichiers, valeurs)
+                        const piecesWithMetadata =
+                          await piecesService.getAllPiecesBySousDossier(
+                            sousDossier.id,
+                            agentDossierId
+                          );
+
+                        const piecesCount = piecesWithMetadata.length;
+                        const piecesWithMetadataCount = piecesWithMetadata.filter(
+                          (p) => p.aMetadonnees
+                        ).length;
+                        const totalMetadataCount = piecesWithMetadata.reduce(
+                          (sum, p) => sum + p.metadata.length,
+                          0
+                        );
+                        const lastActivity =
+                          piecesWithMetadata.length > 0
+                            ? piecesWithMetadata.reduce((latest, p) => {
+                                return new Date(p.createdAt) > new Date(latest)
+                                  ? p.createdAt
+                                  : latest;
+                              }, piecesWithMetadata[0].createdAt)
+                            : sousDossier.updatedAt;
+
+                        return {
+                          ...sousDossier,
+                          pieces: piecesWithMetadata,
+                          piecesCount,
+                          piecesWithMetadataCount,
+                          totalMetadataCount,
+                          lastActivity,
+                          agentDossierId: agentDossierId
+                            ? parseInt(agentDossierId.toString())
+                            : undefined,
+                        };
+                      }),
+                      5 // Limite à 5 sous-dossiers en parallèle
+                    );
+
+                  const totalPieces = sousDossiersWithStats.reduce(
+                    (sum, sd) => sum + sd.piecesCount,
+                    0
+                  );
+                  const totalSousDossiers = sousDossiersWithStats.length;
+                  const totalMetadata = sousDossiersWithStats.reduce(
+                    (sum, sd) => sum + sd.totalMetadataCount,
+                    0
+                  );
+
+                  return {
+                    rubrique,
+                    sousDossiers: sousDossiersWithStats,
+                    totalPieces,
+                    totalSousDossiers,
+                    totalMetadata,
+                  };
+                }
+              ),
+              3 // Limite à 3 rubriques en parallèle par agent
             );
 
-            const dossiersData = (await Promise.all(rubriquePromises)).filter(
+            const filteredDossiersData = dossiersData.filter(
               (d) => d !== null
             ) as DossierData[];
-            return { agent, dossiers: dossiersData };
+            return { agent, dossiers: filteredDossiersData };
           }
-        )
+        ),
+        2 // Limite à 2 agents en parallèle (garde le serveur stable)
       );
 
       // 4. Filtrer les résultats null

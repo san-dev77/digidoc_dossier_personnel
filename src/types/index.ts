@@ -31,6 +31,7 @@ export interface Rubrique {
   id: string;
   nom: string;
   description: string;
+  type?: string; // "personnel" | "credit"
   created_at: string;
   updatedAt: string;
 }

@@ -5,6 +5,7 @@ export interface MetadataCredit {
   sous_dossier_id: number;
   nom_meta: string;
   type_meta: string;
+  obligatoire: boolean;
   created_at: string;
   meta_credit_values?: MetaCreditValue[];
 }

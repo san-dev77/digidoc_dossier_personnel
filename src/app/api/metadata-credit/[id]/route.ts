@@ -57,7 +57,7 @@ export async function PUT(
     }
 
     const body = await request.json();
-    const result = await MetadataService.updateMetadata(id, body);
+    const result = await MetadataService.updateMetadataServer(id, body);
     return NextResponse.json(result);
   } catch (error: unknown) {
     return createErrorResponse(error, "Erreur lors de la mise à jour de la métadonnée", 500);
@@ -87,7 +87,7 @@ export async function DELETE(
       );
     }
 
-    const result = await MetadataService.deleteMetadata(id);
+    const result = await MetadataService.deleteMetadataServer(id);
     return NextResponse.json(result);
   } catch (error: unknown) {
     return createErrorResponse(error, "Erreur lors de la suppression de la métadonnée", 500);

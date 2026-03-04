@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { useRouter, useParams } from "next/navigation";
 import {
   ArrowLeft,
@@ -46,6 +46,47 @@ function PieceCountBadge({ sousDossierId }: { sousDossierId: string }) {
     <span className="text-emerald-700 font-semibold text-sm">
       {pieceCount} pièce{pieceCount !== 1 ? "s" : ""}
     </span>
+  );
+}
+
+// Composant pour le badge de comptage des métadonnées de crédit
+function MetadataCountBadge({ sousDossierId, onClick }: { sousDossierId: string; onClick: () => void }) {
+  const [count, setCount] = useState<number | null>(null);
+
+  const loadCount = useCallback(async () => {
+    try {
+      const response = await fetchWithAuth(
+        `/api/metadata-credit?action=by-sous-dossier&sous_dossier_id=${sousDossierId}`
+      );
+      const result = await response.json();
+      if (result.success && result.data) {
+        setCount(Array.isArray(result.data) ? result.data.length : 0);
+      }
+    } catch {
+      setCount(0);
+    }
+  }, [sousDossierId]);
+
+  useEffect(() => {
+    loadCount();
+  }, [loadCount]);
+
+  if (count === null || count === 0) return null;
+
+  return (
+    <button
+      onClick={(e) => {
+        e.stopPropagation();
+        onClick();
+      }}
+      className="flex items-center gap-2 bg-white border border-purple-200 px-3 py-1.5 rounded-lg shadow-sm hover:bg-purple-50 hover:border-purple-300 transition-all cursor-pointer"
+      title="Voir les métadonnées de crédit"
+    >
+      <Database className="w-4 h-4 text-purple-600" />
+      <span className="text-purple-700 font-semibold text-sm">
+        {count} méta{count !== 1 ? "s" : ""}
+      </span>
+    </button>
   );
 }
 
@@ -1297,47 +1338,55 @@ export default function RubriqueParametresPage() {
                   </button>
                 </div>
               ) : (
-                <div className="space-y-4">
+                <div className="space-y-5">
                   {sousDossiers.map((sousDossier) => (
                     <div
                       key={sousDossier.id}
-                      className="bg-white border border-gray-200 rounded-xl shadow-sm hover:shadow-md hover:border-primary-200 transition-all duration-200 overflow-hidden"
+                      className={`rounded-xl overflow-hidden transition-all duration-300 ${
+                        expandedSousDossier === sousDossier.id
+                          ? "bg-white border-2 border-primary-400 shadow-lg shadow-primary-100/50 ring-1 ring-primary-200"
+                          : "bg-white border-2 border-primary-200 shadow-md hover:shadow-lg hover:border-primary-400"
+                      }`}
                     >
                       {/* Header du sous-dossier */}
                       <div
-                        className="p-5 bg-gradient-to-r from-primary-50 to-primary-100/50 hover:from-primary-100 hover:to-primary-150 transition-all duration-200 cursor-pointer border-b border-gray-100"
+                        className={`px-6 py-5 cursor-pointer transition-all duration-200 ${
+                          expandedSousDossier === sousDossier.id
+                            ? "bg-gradient-to-r from-primary-100 to-primary-50"
+                            : "bg-gradient-to-r from-primary-50/80 to-white hover:from-primary-100 hover:to-primary-50"
+                        }`}
                         onClick={() =>
                           toggleSousDossierExpansion(sousDossier.id)
                         }
                       >
                         <div className="flex items-center justify-between relative z-10">
                           <div className="flex items-center gap-4 flex-1 min-w-0">
-                            {/* Chevron compact */}
+                            {/* Chevron */}
                             <div className="flex-shrink-0">
                               {expandedSousDossier === sousDossier.id ? (
-                                <div className="w-6 h-6 bg-primary-500 rounded-lg flex items-center justify-center shadow-sm transition-transform duration-200">
+                                <div className="w-7 h-7 bg-primary-600 rounded-lg flex items-center justify-center shadow-sm">
                                   <ChevronDown className="w-4 h-4 text-white" />
                                 </div>
                               ) : (
-                                <div className="w-6 h-6 bg-primary-300 rounded-lg flex items-center justify-center shadow-sm transition-colors duration-200">
+                                <div className="w-7 h-7 bg-primary-200 rounded-lg flex items-center justify-center border border-primary-300">
                                   <ChevronRight className="w-4 h-4 text-primary-700" />
                                 </div>
                               )}
                             </div>
 
-                            {/* Icône compacte */}
+                            {/* Icône dossier */}
                             <div className="flex-shrink-0">
-                              <div className="w-12 h-12 bg-primary-500 rounded-xl flex items-center justify-center shadow-sm">
+                              <div className="w-12 h-12 bg-primary-600 rounded-xl flex items-center justify-center shadow-md">
                                 <FolderTree className="w-6 h-6 text-white" />
                               </div>
                             </div>
 
                             {/* Contenu principal */}
                             <div className="flex-1 min-w-0">
-                              <h4 className="text-lg font-semibold text-primary-900 truncate mb-1">
+                              <h4 className="text-lg font-bold text-primary-900 truncate">
                                 {sousDossier.titre}
                               </h4>
-                              <p className="text-sm text-gray-600 truncate">
+                              <p className="text-sm text-primary-600/70 truncate">
                                 {sousDossier.description ||
                                   "Aucune description"}
                               </p>
@@ -1345,33 +1394,39 @@ export default function RubriqueParametresPage() {
                           </div>
 
                           <div className="flex items-center gap-3 flex-shrink-0 ml-4">
-                            {/* Badge compact */}
-                            <div className="flex items-center gap-2 bg-white border border-emerald-200 px-3 py-1.5 rounded-lg shadow-sm">
+                            {/* Badge pièces */}
+                            <div className="flex items-center gap-2 bg-emerald-50 border-2 border-emerald-300 px-3 py-1.5 rounded-lg shadow-sm">
                               <FileText className="w-4 h-4 text-emerald-600" />
                               <PieceCountBadge sousDossierId={sousDossier.id} />
                             </div>
 
-                            {/* Boutons d'action compacts */}
-                            <div className="flex items-center gap-1.5 opacity-100">
+                            {/* Badge métadonnées (cliquable) */}
+                            <MetadataCountBadge
+                              sousDossierId={sousDossier.id}
+                              onClick={() => handleManageCreditMetadata(sousDossier.id)}
+                            />
+
+                            {/* Boutons d'action */}
+                            <div className="flex items-center gap-1.5">
                               <button
                                 onClick={(e) => {
                                   e.stopPropagation();
                                   handleCreatePiece(sousDossier.id);
                                 }}
-                                className="p-2 bg-emerald-50 text-emerald-700 hover:bg-emerald-100 rounded-lg border border-emerald-200 transition-colors duration-150 shadow-sm hover:shadow"
+                                className="p-2 bg-emerald-50 text-emerald-700 hover:bg-emerald-200 rounded-lg border-2 border-emerald-300 transition-all duration-150 shadow-sm hover:shadow-md"
                                 title="Ajouter une pièce"
                               >
                                 <Plus className="w-4 h-4" />
                               </button>
 
-                              {/* Bouton métadonnées de crédit - seulement pour les dossiers de crédit */}
+                              {/* Bouton métadonnées de crédit */}
                               {rubrique && isDossierCredit(rubrique) && (
                                 <button
                                   onClick={(e) => {
                                     e.stopPropagation();
                                     handleManageCreditMetadata(sousDossier.id);
                                   }}
-                                  className="p-2 bg-slate-50 text-slate-700 hover:bg-slate-100 rounded-lg border border-slate-200 transition-colors duration-150 shadow-sm hover:shadow"
+                                  className="p-2 bg-purple-50 text-purple-700 hover:bg-purple-200 rounded-lg border-2 border-purple-300 transition-all duration-150 shadow-sm hover:shadow-md"
                                   title="Gérer les métadonnées de crédit"
                                 >
                                   <DatabaseZap className="w-4 h-4" />
@@ -1383,7 +1438,7 @@ export default function RubriqueParametresPage() {
                                   e.stopPropagation();
                                   handleEditSousDossier(sousDossier);
                                 }}
-                                className="p-2 bg-blue-50 text-blue-700 hover:bg-blue-100 rounded-lg border border-blue-200 transition-colors duration-150 shadow-sm hover:shadow"
+                                className="p-2 bg-blue-50 text-blue-700 hover:bg-blue-200 rounded-lg border-2 border-blue-300 transition-all duration-150 shadow-sm hover:shadow-md"
                                 title="Modifier"
                               >
                                 <SquarePen className="w-4 h-4" />
@@ -1394,7 +1449,7 @@ export default function RubriqueParametresPage() {
                                   e.stopPropagation();
                                   handleDeleteSousDossier(sousDossier);
                                 }}
-                                className="p-2 bg-red-50 text-red-700 hover:bg-red-100 rounded-lg border border-red-200 transition-colors duration-150 shadow-sm hover:shadow"
+                                className="p-2 bg-red-50 text-red-700 hover:bg-red-200 rounded-lg border-2 border-red-300 transition-all duration-150 shadow-sm hover:shadow-md"
                                 title="Supprimer"
                               >
                                 <Trash2 className="w-4 h-4" />
@@ -1408,7 +1463,7 @@ export default function RubriqueParametresPage() {
                       {expandedSousDossier === sousDossier.id && (
                         <div
                           key={`pieces-${sousDossier.id}`}
-                          className="border-t border-gray-200 bg-gradient-to-br from-gray-50/80 to-white"
+                          className="border-t-2 border-primary-200 bg-gradient-to-br from-gray-50 to-white"
                         >
                           <SousDossierPiecesContent
                             sousDossierId={sousDossier.id}
@@ -1424,6 +1479,7 @@ export default function RubriqueParametresPage() {
                   ))}
                 </div>
               )}
+
             </div>
           </div>
         </div>

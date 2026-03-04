@@ -7,11 +7,13 @@ export interface MetadataCreate {
   sous_dossier_id: number;
   nom_meta: string;
   type_meta: string;
+  obligatoire?: boolean;
 }
 
 export interface MetadataUpdate {
   nom_meta?: string;
   type_meta?: string;
+  obligatoire?: boolean;
 }
 
 export interface MetadataResponse {
@@ -33,6 +35,7 @@ export class MetadataService {
           sous_dossier_id: metadataData.sous_dossier_id,
           nom_meta: metadataData.nom_meta,
           type_meta: metadataData.type_meta,
+          obligatoire: metadataData.obligatoire || false,
         },
         include: {
           sous_dossiers: true,
@@ -182,7 +185,7 @@ export class MetadataService {
   }
 
   /**
-   * Met à jour une métadonnée
+   * Met à jour une métadonnée (côté client)
    */
   static async updateMetadata(
     id: number,
@@ -211,7 +214,41 @@ export class MetadataService {
   }
 
   /**
-   * Supprime une métadonnée
+   * Met à jour une métadonnée (côté serveur - pour API routes)
+   */
+  static async updateMetadataServer(
+    id: number,
+    updateData: MetadataUpdate
+  ): Promise<MetadataResponse> {
+    try {
+      const metadata = await prisma.metadata_credit.update({
+        where: { id },
+        data: {
+          ...(updateData.nom_meta && { nom_meta: updateData.nom_meta }),
+          ...(updateData.type_meta && { type_meta: updateData.type_meta }),
+          ...(updateData.obligatoire !== undefined && { obligatoire: updateData.obligatoire }),
+        },
+      });
+      return {
+        success: true,
+        message: "Métadonnée mise à jour avec succès",
+        data: metadata,
+      };
+    } catch (error: unknown) {
+      const errorMessage =
+        error instanceof Error
+          ? error.message
+          : "Une erreur inconnue est survenue";
+      return {
+        success: false,
+        message: `Erreur lors de la mise à jour: ${errorMessage}`,
+        data: null,
+      };
+    }
+  }
+
+  /**
+   * Supprime une métadonnée (côté client)
    */
   static async deleteMetadata(id: number): Promise<MetadataResponse> {
     try {
@@ -221,6 +258,32 @@ export class MetadataService {
 
       const result = await response.json();
       return result;
+    } catch (error: unknown) {
+      const errorMessage =
+        error instanceof Error
+          ? error.message
+          : "Une erreur inconnue est survenue";
+      return {
+        success: false,
+        message: `Erreur lors de la suppression: ${errorMessage}`,
+        data: null,
+      };
+    }
+  }
+
+  /**
+   * Supprime une métadonnée (côté serveur - pour API routes)
+   */
+  static async deleteMetadataServer(id: number): Promise<MetadataResponse> {
+    try {
+      await prisma.metadata_credit.delete({
+        where: { id },
+      });
+      return {
+        success: true,
+        message: "Métadonnée supprimée avec succès",
+        data: null,
+      };
     } catch (error: unknown) {
       const errorMessage =
         error instanceof Error

@@ -1,21 +1,24 @@
-/**
- * Utilitaires pour la gestion des rubriques
- */
-
 export interface Rubrique {
   id: string;
   nom: string;
   description?: string;
+  type?: string; // "personnel" | "credit"
 }
 
 /**
  * Détecte si une rubrique est un dossier de crédit
+ * Utilise le champ `type` en priorité, avec fallback sur les mots-clés pour rétrocompatibilité
  */
 export function isDossierCredit(rubrique: Rubrique): boolean {
+  // Priorité au champ type
+  if (rubrique.type) {
+    return rubrique.type === "credit";
+  }
+
+  // Fallback : détection par mots-clés (pour les anciennes rubriques sans le champ type)
   const nomLower = rubrique.nom.toLowerCase();
   const descriptionLower = rubrique.description?.toLowerCase() || "";
 
-  // Mots-clés pour identifier les dossiers de crédit
   const creditKeywords = [
     "crédit",
     "credit",
@@ -26,7 +29,6 @@ export function isDossierCredit(rubrique: Rubrique): boolean {
     "pret",
     "financement",
     "emprunt",
-    "banque",
   ];
 
   return creditKeywords.some(
