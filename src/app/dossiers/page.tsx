@@ -14,7 +14,6 @@ import type { SousDossier } from "@/services/sous-dossiers";
 import DossiersHeader from "@/components/dossiers/DossiersHeader";
 import DossiersSearchBar from "@/components/dossiers/DossiersSearchBar";
 import DeleteConfirmModal from "@/components/dossiers/DeleteConfirmModal";
-import SuccessPopup from "@/components/dossiers/SuccessPopup";
 import NouveauSousDossierModal from "@/components/dossiers/NouveauDossierModal";
 import CreditDossierModal from "@/components/dossiers/CreditDossierModal";
 
@@ -35,7 +34,6 @@ export default function DossiersPage() {
   //   new Set()
   // );
   const [showNouveauModal, setShowNouveauModal] = useState(false);
-  const [showSuccessPopup, setShowSuccessPopup] = useState(false);
   const [showPieceViewer, setShowPieceViewer] = useState(false);
   const [selectedPieceData, setSelectedPieceData] = useState<PieceData | null>(
     null
@@ -182,10 +180,6 @@ export default function DossiersPage() {
       await loadDossiers(true);
       setShowDeleteConfirm(false);
       setDossierToDelete(null);
-      setShowSuccessPopup(true);
-      setTimeout(() => {
-        setShowSuccessPopup(false);
-      }, 2000);
     } catch (error) {
       console.error("Erreur lors de la suppression du dossier:", error);
       alert("Erreur lors de la suppression du dossier");
@@ -254,8 +248,6 @@ export default function DossiersPage() {
           isOpen={showNouveauModal}
           onClose={handleCloseNouveauModal}
           onSave={handleSaveNouveauSousDossier}
-          showSuccessPopup={showSuccessPopup}
-          setShowSuccessPopup={setShowSuccessPopup}
           onReset={loadDossiers}
         />
 
@@ -294,14 +286,6 @@ export default function DossiersPage() {
           }}
         />
 
-        <SuccessPopup
-          isOpen={showSuccessPopup}
-          message={
-            dossierToDelete
-              ? `Le dossier "${dossierToDelete.titre}" a été supprimé avec succès.`
-              : "Les fichiers ont été uploadés avec succès et les métadonnées ont été sauvegardées."
-          }
-        />
       </DashboardLayout>
     </AuthGuard>
   );

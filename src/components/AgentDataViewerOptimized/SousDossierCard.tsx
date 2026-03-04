@@ -88,7 +88,7 @@ export default function SousDossierCard({
               <div
                 className={`w-12 h-12 rounded-xl flex items-center justify-center shadow-md ${
                   isCredit
-                    ? "bg-gradient-to-br from-success-500 to-success-600"
+                    ? "bg-primary-600"
                     : "bg-gradient-to-br from-[var(--color-accent-blue)] to-[var(--color-primary-600)]"
                 }`}
               >
@@ -133,7 +133,7 @@ export default function SousDossierCard({
                     parseInt(rubriqueId)
                   );
                 }}
-                className="flex items-center gap-2 px-4 py-2 bg-success-600 text-white rounded-lg hover:bg-success-700 transition-all duration-200 shadow-lg hover:shadow-xl text-sm font-bold border-2 border-success-700"
+                className="flex items-center gap-2 px-4 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700 transition-all duration-200 shadow-lg hover:shadow-xl text-sm font-bold border-2 border-primary-700"
               >
                 <Eye className="w-4 h-4" />
                 Consulter
@@ -260,9 +260,9 @@ export default function SousDossierCard({
                         </td>
                         <td className="px-4 py-3 text-center">
                           {hasFiles ? (
-                            <div className="flex items-center justify-center gap-1.5 px-2.5 py-1 bg-emerald-100 rounded-lg mx-auto w-fit">
-                              <Upload className="w-3.5 h-3.5 text-emerald-600" />
-                              <span className="text-xs font-bold text-emerald-700">
+                            <div className="flex items-center justify-center gap-1.5 px-2.5 py-1 bg-primary-100 rounded-lg mx-auto w-fit">
+                              <Upload className="w-3.5 h-3.5 text-primary-600" />
+                              <span className="text-xs font-bold text-primary-700">
                                 {piece.files!.length}
                               </span>
                             </div>
@@ -389,12 +389,12 @@ export default function SousDossierCard({
 
         {/* Message pour dossiers de crédit */}
         {isCredit && (
-          <div className="mt-4 p-4 bg-gradient-to-r from-success-50 to-success-100/50 rounded-xl border border-success-200">
+          <div className="mt-4 p-4 bg-gradient-to-r from-primary-50 to-primary-100/50 rounded-xl border border-primary-200">
             <div className="flex items-center gap-3">
-              <div className="w-10 h-10 bg-success-500 rounded-lg flex items-center justify-center shadow-md">
+              <div className="w-10 h-10 bg-primary-500 rounded-lg flex items-center justify-center shadow-md">
                 <CreditCard className="w-5 h-5 text-white" />
               </div>
-              <p className="text-sm text-success-800 font-semibold">
+              <p className="text-sm text-primary-800 font-semibold">
                 Dossier de crédit - Cliquez sur &quot;Consulter&quot; pour voir
                 les métadonnées détaillées
               </p>

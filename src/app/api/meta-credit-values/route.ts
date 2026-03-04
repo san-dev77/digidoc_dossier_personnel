@@ -99,6 +99,53 @@ export async function POST(request: NextRequest) {
   }
 }
 
+export async function PUT(request: NextRequest) {
+  const authResult = await protectRoute(request);
+  if (!authResult.authorized) {
+    return authResult.response!;
+  }
+
+  try {
+    const body = await request.json();
+    const { id, valeur } = body;
+
+    if (!id || !valeur) {
+      return NextResponse.json(
+        { success: false, message: "id et valeur requis" },
+        { status: 400 }
+      );
+    }
+
+    const result = await prisma.meta_credit_values.update({
+      where: { id: parseInt(id) },
+      data: {
+        valeur,
+        updated_at: new Date(),
+      },
+      include: {
+        metadata_credit: {
+          select: {
+            nom_meta: true,
+            type_meta: true,
+          },
+        },
+      },
+    });
+
+    return NextResponse.json({
+      success: true,
+      message: "Valeur mise à jour avec succès",
+      data: result,
+    });
+  } catch (error) {
+    console.error("❌ Erreur lors de la mise à jour:", error);
+    return NextResponse.json(
+      { success: false, message: "Erreur interne du serveur" },
+      { status: 500 }
+    );
+  }
+}
+
 export async function DELETE(request: NextRequest) {
   // Protection de la route
   const authResult = await protectRoute(request);

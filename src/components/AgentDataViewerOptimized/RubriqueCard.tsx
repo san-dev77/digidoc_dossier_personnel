@@ -55,10 +55,10 @@ export default function RubriqueCard({
   const isCredit = isDossierCredit(dossier.rubrique);
 
   return (
-    <div className="bg-white rounded-xl border border-primary-200/80 shadow-md overflow-hidden transition-all duration-300 hover:shadow-lg hover:border-primary-300">
+    <div className="bg-white rounded-xl border border-primary-200 shadow-md overflow-hidden transition-all duration-300 hover:shadow-lg hover:border-primary-300">
       {/* Header Rubrique */}
       <div
-        className="cursor-pointer transition-all duration-300 hover:bg-gradient-to-r hover:from-primary-50 hover:to-white"
+        className="cursor-pointer transition-all border-2 border-primary-200 rounded-lg  duration-300 hover:bg-primary-300 "
         onClick={onToggleExpansion}
       >
         <div className="p-6">
@@ -69,7 +69,7 @@ export default function RubriqueCard({
                 <div
                   className={`w-14 h-14 rounded-xl flex items-center justify-center shadow-lg ${
                     isCredit
-                      ? "bg-gradient-to-br from-success-500 to-success-600"
+                      ? "bg-primary-500"
                       : "bg-gradient-to-br from-[var(--color-accent-purple)] to-[var(--color-primary-600)]"
                   }`}
                 >

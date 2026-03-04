@@ -171,113 +171,74 @@ export default function AgentDataViewerOptimized({
         return (
           <div
             key={agentData.agent.id}
-            className="group bg-white rounded-2xl shadow-lg border border-primary-200/80 overflow-hidden transition-all duration-300 hover:shadow-2xl hover:border-primary-300"
+            className="group bg-white rounded-xl border border-slate-200 overflow-hidden transition-all duration-200 hover:shadow-lg hover:border-slate-300"
           >
-            {/* Header Agent - Design Premium */}
+            {/* Header Agent — Clean design */}
             <div
-              className="relative cursor-pointer transition-all duration-300 hover:bg-gradient-to-r hover:from-primary-50 hover:to-white"
+              className="relative cursor-pointer transition-colors hover:bg-slate-50"
               onClick={() => toggleAgentExpansion(agentData.agent.id)}
             >
-              {/* Gradient Accent Line */}
-              <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-[var(--color-accent-blue)] via-[var(--color-accent-purple)] to-[var(--color-accent-red)]"></div>
+              <div className="absolute top-0 left-0 right-0 h-0.5 bg-primary-600"></div>
 
-              <div className="p-8">
-                <div className="flex items-start justify-between gap-6">
-                  {/* Left Section - Agent Info */}
-                  <div className="flex items-start gap-6 flex-1">
-                    {/* Avatar Container */}
+              <div className="p-5">
+                <div className="flex items-center justify-between gap-4">
+                  {/* Left — Agent Info */}
+                  <div className="flex items-center gap-4 flex-1 min-w-0">
+                    {/* Avatar compact */}
                     <div className="relative flex-shrink-0">
-                      <div className="w-20 h-20 bg-gradient-to-br from-[var(--color-accent-blue)] via-[var(--color-primary-600)] to-[var(--color-primary-700)] rounded-2xl flex items-center justify-center shadow-xl shadow-[var(--color-accent-blue)]/30 transform transition-transform duration-300 group-hover:scale-105 group-hover:rotate-3">
-                        <User className="w-10 h-10 text-white" />
+                      <div className="w-12 h-12 bg-primary-600 rounded-xl flex items-center justify-center">
+                        <User className="w-6 h-6 text-white" />
                       </div>
-                      <div className="absolute -bottom-1 -right-1 w-6 h-6 bg-success-500 rounded-full border-4 border-white shadow-lg flex items-center justify-center">
-                        <div className="w-2 h-2 bg-white rounded-full"></div>
-                      </div>
+                      <div className="absolute -bottom-0.5 -right-0.5 w-4 h-4 bg-emerald-500 rounded-full border-2 border-white"></div>
                     </div>
 
-                    {/* Agent Details */}
+                    {/* Details */}
                     <div className="flex-1 min-w-0">
-                      <div className="flex items-center gap-3 mb-2">
-                        <h3 className="text-2xl font-bold text-primary-900 tracking-tight">
-                          <HighlightText text={`${agentData.agent.prenom} ${agentData.agent.nom}`} searchTerm={searchTerm} />
-                        </h3>
-                      </div>
-
-                      {/* Email */}
-                      <div className="flex items-center gap-2 mb-4">
-                        <Mail className="w-4 h-4 text-primary-700 flex-shrink-0" />
-                        <p className="text-primary-800 font-semibold text-sm truncate">
+                      <h3 className="text-lg font-bold text-slate-800 truncate">
+                        <HighlightText text={`${agentData.agent.prenom} ${agentData.agent.nom}`} searchTerm={searchTerm} />
+                      </h3>
+                      <div className="flex items-center gap-2 mt-0.5">
+                        <Mail className="w-3.5 h-3.5 text-slate-400 flex-shrink-0" />
+                        <p className="text-sm text-slate-500 truncate">
                           <HighlightText text={agentData.agent.email || "Aucun email"} searchTerm={searchTerm} />
                         </p>
                       </div>
-
-                      {/* Stats Grid */}
-                      <div className="grid grid-cols-3 gap-4">
-                        <div className="flex items-center gap-2 px-4 py-2.5 bg-gradient-to-br from-[var(--color-accent-purple-light)] to-[var(--color-accent-purple-light)]/50 rounded-xl border border-[var(--color-accent-purple)]/20">
-                          <div className="w-8 h-8 bg-gradient-to-br from-[var(--color-accent-purple)] to-[var(--color-primary-600)] rounded-lg flex items-center justify-center shadow-md">
-                            <FolderOpen className="w-4 h-4 text-white" />
-                          </div>
-                          <div>
-                            <p className="text-xs text-primary-800 font-semibold">
-                              Rubriques
-                            </p>
-                            <p className="text-lg font-bold text-primary-900">
-                              {agentData.dossiers.length}
-                            </p>
-                          </div>
-                        </div>
-
-                        <div className="flex items-center gap-2 px-4 py-2.5 bg-gradient-to-br from-[var(--color-accent-blue-light)] to-[var(--color-accent-blue-light)]/50 rounded-xl border border-[var(--color-accent-blue)]/20">
-                          <div className="w-8 h-8 bg-gradient-to-br from-[var(--color-accent-blue)] to-[var(--color-primary-600)] rounded-lg flex items-center justify-center shadow-md">
-                            <FileText className="w-4 h-4 text-white" />
-                          </div>
-                          <div>
-                            <p className="text-xs text-primary-800 font-semibold">
-                              Pièces
-                            </p>
-                            <p className="text-lg font-bold text-primary-900">
-                              {totalPieces}
-                            </p>
-                          </div>
-                        </div>
-
-                        <div className="flex items-center gap-2 px-4 py-2.5  bg-primary-500 rounded-xl border border-success-200/50">
-                          <div className="w-8 h-8 bg-primary-100 rounded-lg flex items-center justify-center shadow-md">
-                            <Folder className="w-4 h-4 text-primary-700" />
-                          </div>
-                          <div>
-                            <p className="text-xs text-primary-100 font-semibold">
-                              Sous-dossiers
-                            </p>
-                            <p className="text-lg font-bold text-primary-100">
-                              {totalSousDossiers}
-                            </p>
-                          </div>
-                        </div>
+                      {/* Inline stats */}
+                      <div className="flex items-center gap-4 mt-2">
+                        <span className="flex items-center gap-1.5 text-xs text-slate-500">
+                          <FolderOpen className="w-3.5 h-3.5 text-primary-500" />
+                          <span className="font-semibold text-slate-700">{agentData.dossiers.length}</span> rubrique{agentData.dossiers.length > 1 ? "s" : ""}
+                        </span>
+                        <span className="flex items-center gap-1.5 text-xs text-slate-500">
+                          <FileText className="w-3.5 h-3.5 text-blue-500" />
+                          <span className="font-semibold text-slate-700">{totalPieces}</span> pièce{totalPieces > 1 ? "s" : ""}
+                        </span>
+                        <span className="flex items-center gap-1.5 text-xs text-slate-500">
+                          <Folder className="w-3.5 h-3.5 text-emerald-500" />
+                          <span className="font-semibold text-slate-700">{totalSousDossiers}</span> sous-dossier{totalSousDossiers > 1 ? "s" : ""}
+                        </span>
                       </div>
                     </div>
                   </div>
 
-                  {/* Right Section - Actions */}
-                  <div className="flex-shrink-0 flex items-center gap-3">
-                    {/* Bouton Créer rapidement */}
+                  {/* Right — Actions */}
+                  <div className="flex items-center gap-2 flex-shrink-0">
                     <button
                       onClick={(e) => {
                         e.stopPropagation();
                         setSelectedAgentForCreate(agentData.agent);
                         setShowQuickCreate(true);
                       }}
-                      className="flex items-center gap-2 px-5 py-3 bg-primary-600 text-white rounded-xl hover:bg-primary-700 transition-all duration-300 shadow-lg hover:shadow-xl transform hover:scale-105 text-sm font-bold border-2 border-primary-700"
+                      className="flex items-center gap-1.5 px-3.5 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700 transition-colors text-xs font-semibold"
                       title="Créer rapidement un dossier"
                     >
-                      <Upload className="w-4 h-4 text-white" /> Créer
+                      <Upload className="w-3.5 h-3.5" /> Créer
                     </button>
-                    {/* Expand Button */}
-                    <div className="w-12 h-12 bg-primary-600 rounded-xl flex items-center justify-center border-2 border-primary-700 shadow-lg transition-all duration-300 hover:bg-primary-700 hover:shadow-xl hover:scale-110">
+                    <div className="w-9 h-9 bg-slate-100 rounded-lg flex items-center justify-center transition-colors hover:bg-slate-200">
                       {isExpanded ? (
-                        <ChevronDown className="w-6 h-6 text-white transition-transform duration-300" />
+                        <ChevronDown className="w-5 h-5 text-slate-500" />
                       ) : (
-                        <ChevronRight className="w-6 h-6 text-white transition-transform duration-300" />
+                        <ChevronRight className="w-5 h-5 text-slate-500" />
                       )}
                     </div>
                   </div>
@@ -285,19 +246,19 @@ export default function AgentDataViewerOptimized({
               </div>
             </div>
 
-            {/* Rubriques de l'agent - Expanded Content */}
+            {/* Expanded content */}
             {isExpanded && (
-              <div className="border-t border-primary-200 bg-gradient-to-br from-primary-50/50 to-white">
-                <div className="p-8 space-y-6">
+              <div className="border-t border-slate-100 bg-slate-50/50">
+                <div className="p-5 space-y-4">
                   {agentData.dossiers.length === 0 ? (
-                    <div className="text-center py-16">
-                      <div className="w-24 h-24 bg-gradient-to-br from-primary-100 to-primary-200 rounded-3xl flex items-center justify-center mx-auto mb-6 shadow-lg border border-primary-300/50">
-                        <Folder className="w-12 h-12 text-primary-400" />
+                    <div className="text-center py-10">
+                      <div className="w-14 h-14 bg-slate-100 rounded-2xl flex items-center justify-center mx-auto mb-3">
+                        <Folder className="w-7 h-7 text-slate-400" />
                       </div>
-                      <h4 className="text-xl font-bold text-primary-900 mb-2">
+                      <h4 className="text-sm font-bold text-slate-700 mb-1">
                         Aucune rubrique avec des données
                       </h4>
-                      <p className="text-primary-800 font-semibold">
+                      <p className="text-xs text-slate-500">
                         Cet agent n&apos;a pas encore de données associées
                       </p>
                     </div>

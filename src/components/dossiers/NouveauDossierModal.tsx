@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import {
   Search,
   FileText,
@@ -32,9 +32,10 @@ import { fetchWithAuth } from "@/lib/api/fetchWithAuth";
 import { DossiersOptimizedService } from "@/services/dossiers-optimized";
 
 interface CreditMetadata {
-  id: string;
+  id: number;
   nom_meta: string;
   type_meta: string;
+  obligatoire?: boolean;
   [key: string]: unknown;
 }
 
@@ -49,8 +50,6 @@ interface NouveauSousDossierModalProps {
   isOpen: boolean;
   onClose: () => void;
   onSave: (data: ModalData) => void;
-  showSuccessPopup: boolean;
-  setShowSuccessPopup: (show: boolean) => void;
   onReset: () => void;
 }
 
@@ -60,6 +59,11 @@ export default function NouveauSousDossierModal({
   onReset,
 }: NouveauSousDossierModalProps) {
   const [step, setStep] = useState(1);
+
+  // Refs pour scroll-to-error
+  const creditMetaRef = useRef<HTMLDivElement>(null);
+  const creditUploadRef = useRef<HTMLDivElement>(null);
+  const creditErrorRef = useRef<HTMLDivElement>(null);
 
   // Utiliser le store au lieu de l'état local
   const { agents, rubriques } = useDossiersStore();
@@ -74,6 +78,7 @@ export default function NouveauSousDossierModal({
   const [pieces, setPieces] = useState<PieceWithMetadata[]>([]);
   const [creditMetadata, setCreditMetadata] = useState<CreditMetadata[]>([]);
   const [creditValues, setCreditValues] = useState<Record<string, string>>({});
+  const [creditFiles, setCreditFiles] = useState<File[]>([]);
   const [pieceFiles, setPieceFiles] = useState<Record<string, File[]>>({});
   const [previewFile, setPreviewFile] = useState<File | null>(null);
   const [metadataValues, setMetadataValues] = useState<Record<string, string>>(
@@ -89,6 +94,11 @@ export default function NouveauSousDossierModal({
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
   const [isUploading, setIsUploading] = useState(false);
   const [loadingPieces, setLoadingPieces] = useState(false);
+
+  // Détection du mode crédit
+  const isCredit = selectedRubrique ? isDossierCredit(selectedRubrique) : false;
+  const totalSteps = isCredit ? 5 : 4;
+  const currentStepLabel = step === 1 ? "Agent" : step === 2 ? "Rubrique" : step === 3 ? "Sous-dossier" : step === 5 ? "Dossier Crédit" : "Pièces";
 
   // Fonction pour créer l'aperçu d'un fichier
   const createFilePreview = (file: File) => {
@@ -113,6 +123,7 @@ export default function NouveauSousDossierModal({
     setSelectedSousDossier(null);
     setPieces([]);
     setPieceFiles({});
+    setCreditFiles([]);
     setPreviewFile(null);
     setMetadataValues({});
     setLoadingPieces(false);
@@ -204,12 +215,11 @@ export default function NouveauSousDossierModal({
     if (
       selectedSousDossier &&
       selectedRubrique &&
-      (selectedRubrique.nom?.toLowerCase().includes("crédit") ||
-        selectedRubrique.nom?.toLowerCase().includes("credit"))
+      isDossierCredit(selectedRubrique)
     ) {
       const loadCreditMetadata = async () => {
         try {
-          const response = await fetch(
+          const response = await fetchWithAuth(
             `/api/metadata-credit?action=by-sous-dossier&sous_dossier_id=${selectedSousDossier.id}`
           );
           if (response.ok) {
@@ -295,33 +305,27 @@ export default function NouveauSousDossierModal({
                 </h2>
                 <div className="flex items-center gap-2 mt-1">
                   <span className="text-xs text-primary-200 font-semibold">
-                    Étape {step}/4
+                    Étape {step === 5 ? totalSteps : step}/{totalSteps}
                   </span>
                   <span className="text-primary-300">•</span>
                   <span className="text-xs text-primary-200">
-                    {step === 1
-                      ? "Agent"
-                      : step === 2
-                      ? "Rubrique"
-                      : step === 3
-                      ? "Sous-dossier"
-                      : "Pièces"}
+                    {currentStepLabel}
                   </span>
                 </div>
                 <div className="mt-2 w-48 bg-primary-700 rounded-full h-1.5 border border-primary-600">
                   <div
                     className="bg-primary-400 h-1.5 rounded-full transition-all duration-500 shadow-sm"
-                    style={{ width: `${(step / 4) * 100}%` }}
+                    style={{ width: `${((step === 5 ? totalSteps : step) / totalSteps) * 100}%` }}
                   ></div>
                 </div>
               </div>
             </div>
-            {/* Boutons de navigation dans le header à l'étape 4 */}
-            {step === 4 ? (
+            {/* Boutons de navigation dans le header à l'étape 4 ou 5 */}
+            {(step === 4 || step === 5) ? (
               <div className="flex items-center gap-3 flex-shrink-0">
                 <button
                   type="button"
-                  onClick={() => setStep(step - 1)}
+                  onClick={() => setStep(step === 5 ? 3 : step - 1)}
                   className="group flex items-center gap-2 px-4 py-2 bg-primary-600 text-white font-bold rounded-lg hover:bg-primary-700 transition-all duration-200 shadow-md border-2 border-primary-700"
                 >
                   <ChevronLeft className="w-4 h-4 group-hover:-translate-x-1 transition-transform duration-200" />
@@ -349,7 +353,7 @@ export default function NouveauSousDossierModal({
         {/* Contenu du modal */}
         <div
           className={`p-5 overflow-y-auto ${
-            step === 4 ? "max-h-[calc(90vh-100px)]" : "max-h-[calc(90vh-200px)]"
+            step === 4 || step === 5 ? "max-h-[calc(90vh-100px)]" : "max-h-[calc(90vh-200px)]"
           }`}
         >
           {step === 1 && (
@@ -1338,6 +1342,298 @@ export default function NouveauSousDossierModal({
               )}
             </div>
           )}
+
+          {step === 5 && (
+            <div>
+              <h3 className="text-lg font-semibold text-primary-800 mb-4">
+                Dossier de crédit
+              </h3>
+
+              {/* Info Banner */}
+              <div className="bg-gradient-to-r from-purple-50 to-indigo-50 border-2 border-purple-200 rounded-xl p-4 mb-6">
+                <div className="flex items-center gap-4">
+                  <div className="w-10 h-10 bg-gradient-to-br from-purple-500 to-indigo-600 rounded-lg flex items-center justify-center shadow-md">
+                    <Database className="w-5 h-5 text-white" />
+                  </div>
+                  <div>
+                    <p className="text-sm text-purple-700">
+                      Agent: <strong className="text-purple-900">{selectedAgent?.nom}</strong>
+                    </p>
+                    <p className="text-sm text-purple-700">
+                      Type de prêt: <strong className="text-purple-900">{selectedSousDossier?.titre}</strong>
+                    </p>
+                  </div>
+                </div>
+              </div>
+
+              {/* Section Métadonnées */}
+              <div ref={creditMetaRef} className="bg-white border-2 border-primary-200 rounded-xl p-5 mb-6">
+                <h5 className="text-md font-bold text-primary-800 mb-4 flex items-center gap-2">
+                  <Database className="w-5 h-5 text-primary-600" />
+                  Informations du crédit
+                </h5>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  {creditMetadata.length > 0 ? (
+                    creditMetadata.map((metadata) => (
+                      <div key={metadata.id} className="space-y-2">
+                        <label className="text-sm font-semibold text-primary-800 flex items-center gap-2">
+                          {metadata.nom_meta}
+                          {metadata.obligatoire ? (
+                            <span className="text-xs bg-red-100 text-red-700 px-2 py-0.5 rounded-full font-bold border border-red-200">
+                              Obligatoire
+                            </span>
+                          ) : (
+                            <span className="text-xs bg-gray-100 text-gray-500 px-2 py-0.5 rounded-full border border-gray-200">
+                              Optionnel
+                            </span>
+                          )}
+                        </label>
+                        {metadata.type_meta === "textarea" ? (
+                          <textarea
+                            value={creditValues[metadata.id] || ""}
+                            onChange={(e) => setCreditValues({ ...creditValues, [metadata.id]: e.target.value })}
+                            placeholder={`Saisir ${metadata.nom_meta.toLowerCase()}`}
+                            rows={3}
+                            className="w-full text-primary-900 px-3 py-2 border-2 border-primary-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500 text-sm"
+                          />
+                        ) : (
+                          <input
+                            type={metadata.type_meta === "number" ? "number" : metadata.type_meta === "date" ? "date" : "text"}
+                            value={creditValues[metadata.id] || ""}
+                            onChange={(e) => setCreditValues({ ...creditValues, [metadata.id]: e.target.value })}
+                            placeholder={`Saisir ${metadata.nom_meta.toLowerCase()}`}
+                            className="w-full text-primary-900 px-3 py-2 border-2 border-primary-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500 text-sm"
+                          />
+                        )}
+                      </div>
+                    ))
+                  ) : (
+                    <div className="col-span-full text-center py-8 text-primary-500">
+                      <Database className="w-8 h-8 mx-auto mb-2" />
+                      <p>Aucune métadonnée définie pour ce type de prêt</p>
+                      <p className="text-xs mt-1">
+                        Configurez les métadonnées dans les paramètres de la rubrique
+                      </p>
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              {/* Section Upload Fichiers */}
+              <div ref={creditUploadRef} className="bg-white border-2 border-primary-200 rounded-xl p-5 mb-6">
+                <h5 className="text-md font-bold text-primary-800 mb-4 flex items-center gap-2">
+                  <Upload className="w-5 h-5 text-primary-600" />
+                  Documents du crédit
+                  {creditFiles.length > 0 && (
+                    <span className="text-xs bg-emerald-100 text-emerald-700 px-2 py-0.5 rounded-full font-bold border border-emerald-200">
+                      {creditFiles.length} fichier(s)
+                    </span>
+                  )}
+                </h5>
+
+                {/* Dropzone */}
+                <div
+                  className="border-2 border-dashed border-primary-300 hover:border-primary-500 bg-primary-50 hover:bg-primary-100 rounded-xl p-8 text-center cursor-pointer transition-all duration-200"
+                  onClick={() => {
+                    const input = document.createElement("input");
+                    input.type = "file";
+                    input.multiple = true;
+                    input.accept = ".pdf,.jpg,.jpeg,.png,.doc,.docx,.xls,.xlsx";
+                    input.onchange = (e) => {
+                      const files = (e.target as HTMLInputElement).files;
+                      if (files) {
+                        setCreditFiles((prev) => [...prev, ...Array.from(files)]);
+                      }
+                    };
+                    input.click();
+                  }}
+                  onDragOver={(e) => { e.preventDefault(); e.currentTarget.classList.add("border-primary-600", "bg-primary-200"); }}
+                  onDragLeave={(e) => { e.preventDefault(); e.currentTarget.classList.remove("border-primary-600", "bg-primary-200"); }}
+                  onDrop={(e) => {
+                    e.preventDefault();
+                    e.currentTarget.classList.remove("border-primary-600", "bg-primary-200");
+                    const droppedFiles = e.dataTransfer.files;
+                    if (droppedFiles.length > 0) {
+                      setCreditFiles((prev) => [...prev, ...Array.from(droppedFiles)]);
+                    }
+                  }}
+                >
+                  <Upload className="w-10 h-10 text-primary-400 mx-auto mb-3" />
+                  <p className="text-primary-700 font-semibold">
+                    Cliquez ou déposez vos fichiers ici
+                  </p>
+                  <p className="text-xs text-primary-500 mt-1">
+                    PDF, Images, Word, Excel — Upload en lot
+                  </p>
+                </div>
+
+                {/* Liste des fichiers sélectionnés */}
+                {creditFiles.length > 0 && (
+                  <div className="mt-4 space-y-2">
+                    {creditFiles.map((file, index) => (
+                      <div
+                        key={`${file.name}-${index}`}
+                        className="flex items-center justify-between p-3 bg-primary-50 border-2 border-primary-200 rounded-lg"
+                      >
+                        <div className="flex items-center gap-3 flex-1 min-w-0">
+                          <div className="w-8 h-8 bg-primary-200 rounded-lg flex items-center justify-center flex-shrink-0">
+                            <FileText className="w-4 h-4 text-primary-700" />
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <p className="text-sm font-medium text-primary-800 truncate">
+                              {file.name}
+                            </p>
+                            <p className="text-xs text-primary-500">
+                              {(file.size / 1024 / 1024).toFixed(2)} MB
+                            </p>
+                          </div>
+                        </div>
+                        <div className="flex items-center gap-2 flex-shrink-0">
+                          <button
+                            type="button"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              createFilePreview(file);
+                            }}
+                            className="p-1.5 text-primary-600 hover:bg-primary-200 rounded-lg transition-colors"
+                            title="Aperçu"
+                          >
+                            <Eye className="w-4 h-4" />
+                          </button>
+                          <button
+                            type="button"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setCreditFiles((prev) => prev.filter((_, i) => i !== index));
+                            }}
+                            className="p-1.5 text-red-500 hover:bg-red-100 rounded-lg transition-colors"
+                            title="Retirer"
+                          >
+                            <X className="w-4 h-4" />
+                          </button>
+                        </div>
+                      </div>
+                    ))}
+                    <p className="text-xs text-primary-500 text-right">
+                      Total: {(creditFiles.reduce((acc, f) => acc + f.size, 0) / 1024 / 1024).toFixed(2)} MB
+                    </p>
+                  </div>
+                )}
+              </div>
+
+              {/* Message d'erreur de validation inline */}
+              {validationError && (
+                <div ref={creditErrorRef} className="mb-4 p-4 bg-red-50 border-2 border-red-300 rounded-xl animate-pulse">
+                  <div className="flex items-center gap-3">
+                    <div className="w-6 h-6 bg-red-500 rounded-full flex items-center justify-center flex-shrink-0">
+                      <span className="text-white text-xs font-bold">!</span>
+                    </div>
+                    <p className="text-red-700 font-semibold text-sm">{validationError}</p>
+                  </div>
+                </div>
+              )}
+
+              {/* Bouton Créer */}
+              <div className="flex justify-center">
+                <button
+                  onClick={async () => {
+                    // Vérifier les champs obligatoires
+                    const requiredFields = creditMetadata.filter((m) => m.obligatoire);
+                    const missingRequired = requiredFields
+                      .filter((m) => !creditValues[m.id] || !creditValues[m.id].trim());
+
+                    if (missingRequired.length > 0) {
+                      setValidationError(
+                        `Champs obligatoires manquants: ${missingRequired.map((m) => m.nom_meta).join(", ")}`
+                      );
+                      // Scroll vers la section métadonnées
+                      setTimeout(() => creditMetaRef.current?.scrollIntoView({ behavior: "smooth", block: "start" }), 100);
+                      return;
+                    }
+
+                    // Vérifier qu'au moins un fichier est uploadé (OBLIGATOIRE)
+                    const hasFiles = creditFiles.length > 0;
+
+                    if (!hasFiles) {
+                      setValidationError(
+                        "Vous devez uploader au moins un fichier pour créer un dossier de crédit"
+                      );
+                      // Scroll vers la section upload
+                      setTimeout(() => creditUploadRef.current?.scrollIntoView({ behavior: "smooth", block: "start" }), 100);
+                      return;
+                    }
+
+                    // Confirmation
+                    const confirmed = confirm(
+                      `Voulez-vous créer ce dossier de crédit ?\n\n` +
+                      `• ${creditFiles.length} fichier(s) à uploader\n` +
+                      `• ${Object.values(creditValues).filter((v) => v && v.trim()).length} métadonnée(s) renseignée(s)\n\n` +
+                      `Cette action est irréversible.`
+                    );
+                    if (!confirmed) return;
+
+                    setValidationError(null);
+                    setIsUploading(true);
+
+                    try {
+                      const formData = new FormData();
+                      formData.append("agentId", String(selectedAgent!.id));
+                      formData.append("rubriqueId", String(selectedRubrique!.id));
+                      formData.append("sousDossierId", String(selectedSousDossier!.id));
+                      formData.append("metadataValues", JSON.stringify(creditValues));
+
+                      creditFiles.forEach((file) => {
+                        formData.append("files", file);
+                      });
+
+                      const response = await fetchWithAuth("/api/credit-upload", {
+                        method: "POST",
+                        body: formData,
+                      });
+
+                      const result = await response.json();
+
+                      if (result.success) {
+                        setSuccessMessage(
+                          `✅ Dossier de crédit créé ! ${result.data.filesCount} fichier(s), ${result.data.metadataCount} métadonnée(s) sauvegardées`
+                        );
+                        setTimeout(async () => {
+                          try {
+                            await DossiersOptimizedService.loadDossiers(true);
+                            handleClose();
+                          } catch (error) {
+                            console.error("Erreur rafraîchissement:", error);
+                            window.location.reload();
+                          }
+                        }, 1500);
+                      } else {
+                        setValidationError(result.message || "Erreur lors de la création");
+                      }
+                    } catch (error) {
+                      console.error("❌ Erreur création dossier crédit:", error);
+                      setValidationError("Erreur lors de la création du dossier de crédit");
+                    } finally {
+                      setIsUploading(false);
+                    }
+                  }}
+                  disabled={isUploading}
+                  className="group flex items-center gap-2 px-8 py-4 bg-emerald-700 text-white rounded-lg hover:bg-emerald-800 transition-all duration-200 shadow-md border-2 border-emerald-800 font-bold text-lg disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  {isUploading ? (
+                    <>
+                      <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                      Upload en cours...
+                    </>
+                  ) : (
+                    <>
+                      <CheckCircle className="w-5 h-5 group-hover:scale-110 transition-transform duration-300" />
+                      Créer le dossier de crédit
+                    </>
+                  )}
+                </button>
+              </div>
+            </div>
+          )}
         </div>
 
         {validationError && (
@@ -1351,7 +1647,7 @@ export default function NouveauSousDossierModal({
           </div>
         )}
 
-        {/* Footer avec boutons de navigation - Masqué à l'étape 4 */}
+        {/* Footer avec boutons de navigation - Masqué aux étapes 4 et 5 */}
         {step < 4 && (
           <div className="flex items-center justify-between p-5 border-t-2 border-primary-300 bg-primary-50">
             <div className="flex items-center gap-3">
@@ -1376,7 +1672,13 @@ export default function NouveauSousDossierModal({
               </button>
               <button
                 type="button"
-                onClick={() => setStep(step + 1)}
+                onClick={() => {
+                  if (step === 3 && isCredit) {
+                    setStep(5);
+                  } else {
+                    setStep(step + 1);
+                  }
+                }}
                 disabled={
                   (step === 1 && !selectedAgent) ||
                   (step === 2 && !selectedRubrique) ||
