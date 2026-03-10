@@ -1,5 +1,6 @@
 "use client";
 
+import { useState, useCallback } from "react";
 import {
   Eye,
   CreditCard,
@@ -16,8 +17,9 @@ import type {
   AgentWithDossiers,
   SousDossierWithStats,
 } from "@/types";
-import type { Piece } from "@/types"; // Might be redundant but safe
+import type { Piece } from "@/types";
 import HighlightText from "@/components/ui/HighlightText";
+import { DossiersOptimizedService } from "@/services/dossiers-optimized";
 
 interface SousDossierCardProps {
   sousDossier: AgentWithDossiers["dossiers"][0]["sousDossiers"][0];
@@ -54,6 +56,51 @@ export default function SousDossierCard({
   onUploadClick,
   getStatusColor,
 }: SousDossierCardProps) {
+  // État local pour le chargement lazy des pièces
+  const [loadingPieces, setLoadingPieces] = useState(false);
+  const [piecesError, setPiecesError] = useState<string | null>(null);
+
+  /**
+   * Charge les pièces à la demande quand l'utilisateur clique sur "Voir contenu"
+   * ou interagit avec un sous-dossier non-crédit.
+   */
+  const ensurePiecesLoaded = useCallback(async (): Promise<PieceWithMetadata[]> => {
+    // Si pièces déjà chargées, les retourner directement
+    if (sousDossier.piecesLoaded && sousDossier.pieces) {
+      return sousDossier.pieces;
+    }
+
+    setLoadingPieces(true);
+    setPiecesError(null);
+
+    try {
+      const pieces = await DossiersOptimizedService.loadPiecesForSousDossier(
+        sousDossier.id,
+        sousDossier.agentDossierId
+      );
+      return pieces;
+    } catch (err) {
+      console.error("Erreur chargement pièces:", err);
+      setPiecesError("Impossible de charger les pièces");
+      return [];
+    } finally {
+      setLoadingPieces(false);
+    }
+  }, [sousDossier.id, sousDossier.agentDossierId, sousDossier.piecesLoaded, sousDossier.pieces]);
+
+  /**
+   * Gère le clic sur "Voir contenu" — charge les pièces inline dans la carte.
+   * Le tableau s'affiche automatiquement dès que piecesLoaded passe à true.
+   */
+  const handleViewContent = useCallback(async (e: React.MouseEvent) => {
+    e.stopPropagation();
+    await ensurePiecesLoaded();
+  }, [ensurePiecesLoaded]);
+
+  // Détermine si les pièces sont disponibles pour l'affichage
+  const piecesAvailable = sousDossier.piecesLoaded && sousDossier.pieces;
+  const pieces = piecesAvailable ? sousDossier.pieces! : [];
+
   return (
     <div
       className={`group relative bg-white rounded-xl border border-primary-200 shadow-sm overflow-hidden transition-all duration-300 ${
@@ -110,6 +157,19 @@ export default function SousDossierCard({
                   {sousDossier.description}
                 </p>
               )}
+              {/* Compteurs inline (toujours affichés, même sans pièces chargées) */}
+              {!isCredit && sousDossier.piecesCount > 0 && (
+                <div className="flex items-center gap-3 mt-2">
+                  <span className="text-xs font-semibold text-primary-600 bg-primary-50 px-2 py-0.5 rounded-md">
+                    {sousDossier.piecesCount} pièce{sousDossier.piecesCount > 1 ? "s" : ""}
+                  </span>
+                  {(sousDossier.filesCount || 0) > 0 && (
+                    <span className="text-xs font-semibold text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded-md">
+                      {sousDossier.filesCount} fichier{(sousDossier.filesCount || 0) > 1 ? "s" : ""}
+                    </span>
+                  )}
+                </div>
+              )}
             </div>
           </div>
 
@@ -140,31 +200,16 @@ export default function SousDossierCard({
               </button>
             ) : (
               <button
-                onClick={(e) => {
-                  e.stopPropagation();
-                  onPieceClick?.({
-                    piece: {
-                      id: sousDossier.id,
-                      nom: sousDossier.titre,
-                      description: sousDossier.description,
-                      has_meta: sousDossier.piecesWithMetadataCount > 0,
-                      createdAt: sousDossier.createdAt,
-                      updatedAt: sousDossier.updatedAt,
-                      metadata: [],
-                      metadataModels: [],
-                      files: [],
-                    },
-                    metadata: [],
-                    files: [],
-                    hasFiles: sousDossier.pieces.some(
-                      (p: PieceWithMetadata) => p.files && p.files.length > 0
-                    ),
-                  });
-                }}
-                className="flex items-center gap-2 px-4 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700 transition-all duration-200 shadow-lg hover:shadow-xl text-sm font-bold border-2 border-primary-700"
+                onClick={handleViewContent}
+                disabled={loadingPieces}
+                className="flex items-center gap-2 px-4 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700 transition-all duration-200 shadow-lg hover:shadow-xl text-sm font-bold border-2 border-primary-700 disabled:opacity-50"
               >
-                <Eye className="w-4 h-4" />
-                Voir contenu
+                {loadingPieces ? (
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                ) : (
+                  <Eye className="w-4 h-4" />
+                )}
+                {loadingPieces ? "Chargement..." : "Voir contenu"}
               </button>
             )}
             {sousDossier.agentDossierId && onDeleteDossier && (
@@ -185,8 +230,23 @@ export default function SousDossierCard({
           </div>
         </div>
 
-        {/* Pièces du sous-dossier - Tableau */}
-        {!isCredit && sousDossier.pieces.length > 0 && (
+        {/* Spinner pendant le chargement des pièces */}
+        {loadingPieces && (
+          <div className="mt-4 flex items-center justify-center gap-2 py-6 text-primary-600">
+            <Loader2 className="w-5 h-5 animate-spin" />
+            <span className="text-sm font-semibold">Chargement des pièces...</span>
+          </div>
+        )}
+
+        {/* Message d'erreur */}
+        {piecesError && (
+          <div className="mt-4 p-3 bg-error-50 border border-error-200 rounded-lg text-sm text-error-700 font-medium">
+            {piecesError}
+          </div>
+        )}
+
+        {/* Pièces du sous-dossier — Tableau (seulement si chargées via lazy loading) */}
+        {!isCredit && piecesAvailable && pieces.length > 0 && (
           <div className="mt-4 pt-4 border-t border-primary-100">
             <div className="overflow-x-auto">
               <table className="w-full">
@@ -213,7 +273,7 @@ export default function SousDossierCard({
                   </tr>
                 </thead>
                 <tbody className="bg-white divide-y divide-primary-100">
-                  {sousDossier.pieces.map((piece: PieceWithMetadata) => {
+                  {pieces.map((piece: PieceWithMetadata) => {
                     const hasFiles = piece.files && piece.files.length > 0;
                     const hasMetadata =
                       piece.metadata && piece.metadata.length > 0;
@@ -384,6 +444,15 @@ export default function SousDossierCard({
                 </tbody>
               </table>
             </div>
+          </div>
+        )}
+
+        {/* Indicateur pour sous-dossiers non-crédit sans pièces chargées (mais avec des données) */}
+        {!isCredit && !piecesAvailable && !loadingPieces && sousDossier.piecesCount > 0 && (
+          <div className="mt-4 p-3 bg-primary-50 rounded-lg border border-primary-200">
+            <p className="text-sm text-primary-600 font-medium text-center">
+              {sousDossier.piecesCount} pièce{sousDossier.piecesCount > 1 ? "s" : ""} disponible{sousDossier.piecesCount > 1 ? "s" : ""} — Cliquez sur &quot;Voir contenu&quot; pour charger
+            </p>
           </div>
         )}
 

@@ -117,7 +117,7 @@ export default function DashboardPage() {
           dossier.sousDossiers.reduce((sousDossierSum, sousDossier) => {
             return (
               sousDossierSum +
-              sousDossier.pieces.filter((p) => p.files && p.files.length > 0)
+              (sousDossier.pieces || []).filter((p) => p.files && p.files.length > 0)
                 .length
             );
           }, 0)
@@ -176,7 +176,7 @@ export default function DashboardPage() {
             icon: FileText,
             date: sousDossier.createdAt,
           },
-          ...sousDossier.pieces
+          ...(sousDossier.pieces || [])
             .filter(
               (p: any) =>
                 p.files && p.files.length > 0

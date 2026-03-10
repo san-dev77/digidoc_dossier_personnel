@@ -155,10 +155,14 @@ export interface SousDossierWithStats {
   documentsCount?: number;
   createdAt: string;
   updatedAt: string;
-  pieces: PieceWithMetadata[];
+  /** Pièces chargées à la demande (lazy). Undefined = pas encore chargé. */
+  pieces?: PieceWithMetadata[];
+  /** Indique si les pièces ont été chargées (pour distinguer [] de undefined) */
+  piecesLoaded?: boolean;
   piecesCount: number;
   piecesWithMetadataCount: number;
   totalMetadataCount: number;
+  filesCount?: number;
   lastActivity: string;
   agentDossierId?: number; // ID de l'agent_dossier pour la suppression
 }

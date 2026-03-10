@@ -183,7 +183,7 @@ export const useDossiersStore = create<CacheState>()(
                     sousDossier.id === sousDossierId
                       ? {
                             ...sousDossier,
-                            pieces: sousDossier.pieces.map((piece) =>
+                            pieces: (sousDossier.pieces || []).map((piece) =>
                               piece.id === pieceId
                                 ? { ...piece, ...updates }
                                 : piece
@@ -207,7 +207,7 @@ export const useDossiersStore = create<CacheState>()(
                     sousDossier.id === sousDossierId
                       ? {
                             ...sousDossier,
-                            pieces: [...sousDossier.pieces, newPiece],
+                            pieces: [...(sousDossier.pieces || []), newPiece],
                             piecesCount: sousDossier.piecesCount + 1,
                           }
                         : sousDossier
@@ -229,7 +229,7 @@ export const useDossiersStore = create<CacheState>()(
                     sousDossier.id === sousDossierId
                       ? {
                             ...sousDossier,
-                            pieces: sousDossier.pieces.filter(
+                            pieces: (sousDossier.pieces || []).filter(
                               (piece) => piece.id !== pieceId
                             ),
                             piecesCount: Math.max(0, sousDossier.piecesCount - 1),

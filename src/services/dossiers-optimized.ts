@@ -1,45 +1,80 @@
+/**
+ * DossiersOptimizedService
+ *
+ * Service centralisé pour le chargement des données dossiers.
+ *
+ * Architecture lazy-loading :
+ * - loadDossiers()            → charge la LISTE (agents + rubriques + sous-dossiers avec compteurs)
+ * - loadPiecesForSousDossier() → charge les PIÈCES à la demande (quand l'utilisateur expand)
+ *
+ * Cela élimine le problème de mémoire : on ne charge plus toutes les pièces de tous les agents
+ * au démarrage mais uniquement quand l'utilisateur en a besoin.
+ */
+
 import {
   type PieceWithMetadata,
-  type MetadataModel,
-  type PieceFile,
   type DossierData,
-  type SousDossierWithStats,
   type AgentWithDossiers,
+  type SousDossierWithStats,
 } from "@/types";
 import { useDossiersStore } from "@/store/dossiersStore";
-import { rubriquesService } from "./rubriques";
-import { sousDossiersService } from "./sous-dossiers";
-import { piecesService } from "./pieces";
 import { agentsService } from "./agents";
-import type { AgentDossier } from "./agent-dossiers";
-import type { SousDossier } from "./sous-dossiers";
+import { rubriquesService } from "./rubriques";
+import { piecesService } from "./pieces";
 import { fetchWithAuth } from "@/lib/api/fetchWithAuth";
-import { batchAll } from "@/utils/promise-utils";
 
-// Type pour agent_dossier avec relations Prisma
-interface AgentDossierWithRelations extends AgentDossier {
-  agents?: {
-    id: number;
-    matricule: string;
-    nom_complet: string;
-  };
-  rubriques?: {
-    id: number;
-    nom: string;
-  };
-  sous_dossiers?: {
-    id: number;
-    titre: string;
-    description?: string;
-    created_at?: string | Date;
-    updated_at?: string | Date;
-  };
+/**
+ * Shape retournée par /api/agent-dossiers-summary
+ */
+interface SummaryResponse {
+  success: boolean;
+  data: Array<{
+    agent: {
+      id: number;
+      matricule: string;
+      nom_complet: string;
+      email: string;
+      fonction: string;
+      date_naissance: string | null;
+      lieu_naissance: string | null;
+      sexe: string | null;
+      situation_matrimoniale: string | null;
+      adresse: string | null;
+      telephone: string | null;
+      statut: string | null;
+      created_at: string | null;
+      updated_at: string | null;
+    };
+    rubriques: Array<{
+      rubrique: {
+        id: number;
+        nom: string;
+        description: string | null;
+        type: string | null;
+        created_at: string | null;
+      };
+      sousDossiers: Array<{
+        id: number;
+        titre: string;
+        description: string | null;
+        created_at: string | null;
+        updated_at: string | null;
+        agentDossierId: number;
+        piecesCount: number;
+        filesCount: number;
+        metadataCount: number;
+      }>;
+      totalPieces: number;
+      totalSousDossiers: number;
+    }>;
+  }>;
+  count: number;
 }
 
 export class DossiersOptimizedService {
   /**
-   * Charge les dossiers groupés par agent avec leurs rubriques assignées
-   * Ne garde que les agents avec de vraies données (fichiers ou métadonnées)
+   * Charge la liste des dossiers (agents + rubriques + sous-dossiers) avec compteurs UNIQUEMENT.
+   * Les pièces ne sont PAS chargées ici — elles le seront à la demande via loadPiecesForSousDossier().
    */
   static async loadDossiers(
     forceRefresh: boolean = false
@@ -54,195 +89,99 @@ export class DossiersOptimizedService {
       setAgentsWithDossiers,
     } = useDossiersStore.getState();
 
-    // Vérifier si le cache est valide et qu'on ne force pas le refresh
+    // Vérifier si le cache est valide
     if (!forceRefresh && dossiers.length > 0 && isCacheValid()) {
-      console.log("✅ Cache valide");
+      console.log("✅ Cache valide — données depuis le store");
       return dossiers;
     }
 
-    console.log("🔄 Chargement des dossiers...");
+    console.log("🔄 Chargement des dossiers (summary léger)...");
     setLoading(true);
 
     try {
-      // 1. Charger TOUTES les rubriques et agents EN PREMIER (pour la modale de création)
-      // Important : charger les agents même s'il n'y a pas de dossiers
+      // 1. Charger agents et rubriques (pour la modale de création)
       const [agents, allRubriques] = await Promise.all([
         agentsService.getAllAgents(),
         rubriquesService.getAllRubriques(),
       ]);
-
       setAgents(agents);
-      setRubriques(allRubriques); // Important pour la modale !
+      setRubriques(allRubriques);
 
-      // 2. Charger tous les agent_dossiers (dossiers créés)
-      const response = await fetchWithAuth("/api/agent-dossiers");
-      if (!response.ok) throw new Error("Erreur agent-dossiers");
-      const agentDossiers: AgentDossierWithRelations[] = await response.json();
+      // 2. Charger le summary (1 seul appel API au lieu de milliers)
+      const response = await fetchWithAuth("/api/agent-dossiers-summary");
+      if (!response.ok) throw new Error("Erreur chargement summary");
+      const result: SummaryResponse = await response.json();
 
-      if (agentDossiers.length === 0) {
-        console.log("ℹ️ Aucun dossier créé");
+      if (!result.success || !result.data || result.data.length === 0) {
+        console.log("ℹ️ Aucun dossier trouvé");
         setDossiers([]);
         setAgentsWithDossiers([]);
         setLoading(false);
         return [];
       }
 
-      // 3. Grouper par agent
-      const agentDossiersMap = new Map<string, AgentDossierWithRelations[]>();
-      agentDossiers.forEach((ad) => {
-        const agentId = ad.agent_id.toString();
-        if (!agentDossiersMap.has(agentId)) {
-          agentDossiersMap.set(agentId, []);
-        }
-        agentDossiersMap.get(agentId)!.push(ad);
+      // 3. Transformer le summary en AgentWithDossiers[] (sans pièces)
+      const agentsWithData: AgentWithDossiers[] = result.data.map((item) => {
+        const agent = {
+          id: item.agent.id.toString(),
+          matricule: item.agent.matricule,
+          nom: item.agent.nom_complet,
+          prenom: "",
+          email: item.agent.email,
+          fonction: item.agent.fonction,
+          date_naissance: item.agent.date_naissance || "",
+          lieu_naissance: item.agent.lieu_naissance || "",
+          sexe: (item.agent.sexe || "M") as "M" | "F",
+          situationMatrimoniale: (item.agent.situation_matrimoniale || "Célibataire") as any,
+          adresse: item.agent.adresse || "",
+          telephone: item.agent.telephone || "",
+          createdAt: item.agent.created_at || "",
+          updatedAt: item.agent.updated_at || "",
+        };
+
+        const dossiers: DossierData[] = item.rubriques.map((rub) => {
+          const sousDossiers: SousDossierWithStats[] = rub.sousDossiers.map((sd) => ({
+            id: sd.id.toString(),
+            rubrique_id: rub.rubrique.id.toString(),
+            titre: sd.titre,
+            description: sd.description || "",
+            createdAt: sd.created_at || "",
+            updatedAt: sd.updated_at || "",
+            // Pas de pièces chargées (lazy loading)
+            pieces: undefined,
+            piecesLoaded: false,
+            piecesCount: sd.piecesCount,
+            piecesWithMetadataCount: 0,
+            totalMetadataCount: sd.metadataCount,
+            filesCount: sd.filesCount,
+            lastActivity: sd.updated_at || sd.created_at || "",
+            agentDossierId: sd.agentDossierId,
+          }));
+
+          return {
+            rubrique: {
+              id: rub.rubrique.id.toString(),
+              nom: rub.rubrique.nom,
+              description: rub.rubrique.description || "",
+              created_at: rub.rubrique.created_at || "",
+              updatedAt: "",
+            },
+            sousDossiers,
+            totalPieces: rub.totalPieces,
+            totalSousDossiers: rub.totalSousDossiers,
+            totalMetadata: sousDossiers.reduce((sum, sd) => sum + sd.totalMetadataCount, 0),
+          };
+        });
+
+        return { agent, dossiers };
       });
 
-      const agentsData = await batchAll(
-        Array.from(agentDossiersMap.entries()).map(
-          ([agentId, dossiers]) => async (): Promise<AgentWithDossiers | null> => {
-            const agent = agents.find((a) => a.id === agentId);
-            if (!agent) return null;
-
-            // Grouper les dossiers par rubrique
-            const rubriqueMap = new Map<string, (SousDossier | undefined)[]>();
-            dossiers.forEach((ad) => {
-              const rubriqueId = ad.rubrique_id.toString();
-              if (!rubriqueMap.has(rubriqueId)) {
-                rubriqueMap.set(rubriqueId, []);
-              }
-              const sousDossier = ad.sous_dossiers
-                ? {
-                    id: ad.sous_dossiers.id.toString(),
-                    rubrique_id: rubriqueId,
-                    titre: ad.sous_dossiers.titre,
-                    description: ad.sous_dossiers.description || "",
-                    statut: "ouvert",
-                    createdAt: ad.sous_dossiers.created_at 
-                      ? (typeof ad.sous_dossiers.created_at === 'string' ? ad.sous_dossiers.created_at : ad.sous_dossiers.created_at.toISOString()) 
-                      : "",
-                    updatedAt: ad.sous_dossiers.updated_at 
-                      ? (typeof ad.sous_dossiers.updated_at === 'string' ? ad.sous_dossiers.updated_at : ad.sous_dossiers.updated_at.toISOString()) 
-                      : "",
-                  }
-                : undefined;
-              if (sousDossier) {
-                rubriqueMap.get(rubriqueId)!.push(sousDossier);
-              }
-            });
-
-            // Construire les dossiers par rubrique
-            const dossiersData = await batchAll(
-              Array.from(rubriqueMap.entries()).map(
-                ([rubriqueId, sousDossiersList]) => async () => {
-                  const rubrique = allRubriques.find(r => r.id === rubriqueId);
-                  if (!rubrique) return null;
-
-                  // Pour chaque sous-dossier de cette rubrique
-                  const sousDossiers = sousDossiersList.filter(
-                    (sd): sd is SousDossier => sd !== undefined
-                  );
-
-                  // Charger les pièces pour chaque sous-dossier avec toutes leurs données
-                  const sousDossiersWithStats: SousDossierWithStats[] =
-                    await batchAll(
-                      sousDossiers.map((sousDossier) => async () => {
-                        // Récupérer l'agent_dossier_id pour ce sous-dossier
-                        const agentDossier = dossiers.find(
-                          (ad) =>
-                            ad.sous_dossier_id === sousDossier.id ||
-                            parseInt(ad.sous_dossier_id) ===
-                              parseInt(sousDossier.id)
-                        );
-                        const agentDossierId = agentDossier?.id
-                          ? parseInt(agentDossier.id.toString())
-                          : undefined;
-
-                        // Récupérer TOUTES les données de la pièce en un seul appel (modèles, fichiers, valeurs)
-                        const piecesWithMetadata =
-                          await piecesService.getAllPiecesBySousDossier(
-                            sousDossier.id,
-                            agentDossierId
-                          );
-
-                        const piecesCount = piecesWithMetadata.length;
-                        const piecesWithMetadataCount = piecesWithMetadata.filter(
-                          (p) => p.aMetadonnees
-                        ).length;
-                        const totalMetadataCount = piecesWithMetadata.reduce(
-                          (sum, p) => sum + p.metadata.length,
-                          0
-                        );
-                        const lastActivity =
-                          piecesWithMetadata.length > 0
-                            ? piecesWithMetadata.reduce((latest, p) => {
-                                return new Date(p.createdAt) > new Date(latest)
-                                  ? p.createdAt
-                                  : latest;
-                              }, piecesWithMetadata[0].createdAt)
-                            : sousDossier.updatedAt;
-
-                        return {
-                          ...sousDossier,
-                          pieces: piecesWithMetadata,
-                          piecesCount,
-                          piecesWithMetadataCount,
-                          totalMetadataCount,
-                          lastActivity,
-                          agentDossierId: agentDossierId
-                            ? parseInt(agentDossierId.toString())
-                            : undefined,
-                        };
-                      }),
-                      5 // Limite à 5 sous-dossiers en parallèle
-                    );
-
-                  const totalPieces = sousDossiersWithStats.reduce(
-                    (sum, sd) => sum + sd.piecesCount,
-                    0
-                  );
-                  const totalSousDossiers = sousDossiersWithStats.length;
-                  const totalMetadata = sousDossiersWithStats.reduce(
-                    (sum, sd) => sum + sd.totalMetadataCount,
-                    0
-                  );
-
-                  return {
-                    rubrique,
-                    sousDossiers: sousDossiersWithStats,
-                    totalPieces,
-                    totalSousDossiers,
-                    totalMetadata,
-                  };
-                }
-              ),
-              3 // Limite à 3 rubriques en parallèle par agent
-            );
-
-            const filteredDossiersData = dossiersData.filter(
-              (d) => d !== null
-            ) as DossierData[];
-            return { agent, dossiers: filteredDossiersData };
-          }
-        ),
-        2 // Limite à 2 agents en parallèle (garde le serveur stable)
-      );
-
-      // 4. Filtrer les résultats null
-      const agentsWithData = agentsData.filter(
-        (ad: AgentWithDossiers | null): ad is AgentWithDossiers => ad !== null
-      );
-
-      // 5. Stocker les agents avec leurs dossiers
+      // 4. Stocker dans le store
       setAgentsWithDossiers(agentsWithData);
-
-      // Aplatir en liste de dossiers pour compatibilité
-      const allDossiers = agentsWithData.flatMap(({ dossiers }: AgentWithDossiers) => dossiers);
+      const allDossiers = agentsWithData.flatMap(({ dossiers }) => dossiers);
       setDossiers(allDossiers);
 
-      console.log(
-        `✅ ${agentsWithData.length} agent(s) avec données chargé(s)`
-      );
-
+      console.log(`✅ ${agentsWithData.length} agent(s) chargés (summary léger, sans pièces)`);
       return allDossiers;
     } catch (error) {
       console.error("❌ Erreur chargement:", error);
@@ -253,228 +192,71 @@ export class DossiersOptimizedService {
   }
 
   /**
-   * Recharge une rubrique spécifique pour chaque agent séparément
+   * Charge les pièces pour un sous-dossier spécifique (lazy loading).
+   * Appelé quand l'utilisateur expand un sous-dossier dans le UI.
+   *
+   * @param sousDossierId   ID du sous-dossier
+   * @param agentDossierId  ID de l'agent_dossier (pour filtrer les fichiers de cet agent)
+   * @returns Les pièces chargées avec métadonnées et fichiers
    */
-  static async reloadRubrique(rubriqueId: string): Promise<DossierData | null> {
-    const { dossiers, setDossiers, agents, setAgentsWithDossiers } =
-      useDossiersStore.getState();
+  static async loadPiecesForSousDossier(
+    sousDossierId: string,
+    agentDossierId?: number
+  ): Promise<PieceWithMetadata[]> {
+    console.log(`🔄 Chargement pièces pour sous-dossier ${sousDossierId}...`);
 
     try {
-      console.log(`🔄 Rechargement de la rubrique ${rubriqueId}`);
+      const pieces = await piecesService.getAllPiecesBySousDossier(
+        sousDossierId,
+        agentDossierId
+      );
 
-      const rubrique = await rubriquesService.getRubriqueById(rubriqueId);
-      if (!rubrique) return null;
-
-      // Charger les agent_dossiers pour cette rubrique UNIQUEMENT (filtre côté serveur)
-      const agentDossiersResponse = await fetchWithAuth(`/api/agent-dossiers?rubriqueId=${rubriqueId}`);
-      const allAgentDossiers: AgentDossierWithRelations[] =
-        agentDossiersResponse.ok
-          ? await agentDossiersResponse.json()
-          : [];
-
-      if (allAgentDossiers.length === 0) {
-        console.log(`ℹ️ Aucun agent_dossier pour la rubrique ${rubriqueId}`);
-        return null;
-      }
-
-      // Grouper les agent_dossiers par agent
-      const agentDossiersMap = new Map<string, AgentDossierWithRelations[]>();
-      allAgentDossiers.forEach((ad) => {
-        const agentId = ad.agent_id.toString();
-        if (!agentDossiersMap.has(agentId)) {
-          agentDossiersMap.set(agentId, []);
-        }
-        agentDossiersMap.get(agentId)!.push(ad);
-      });
-
-      // Reconstruire agentsWithDossiers en mettant à jour uniquement la rubrique pour chaque agent
-      const { agentsWithDossiers: currentAgentsWithDossiers } =
+      // Mettre à jour le store avec les pièces chargées
+      const { agentsWithDossiers, setAgentsWithDossiers, setDossiers } =
         useDossiersStore.getState();
-      const updatedAgentsWithDossiers = await Promise.all(
-        currentAgentsWithDossiers.map(async (agentData) => {
-          // Vérifier si cet agent a des dossiers dans cette rubrique
-          const agentDossiersForRubrique = agentDossiersMap.get(
-            agentData.agent.id
-          );
 
-          if (
-            !agentDossiersForRubrique ||
-            agentDossiersForRubrique.length === 0
-          ) {
-            // Cet agent n'a pas de dossiers dans cette rubrique, garder les données existantes
-            return agentData;
-          }
-
-          // Grouper les sous-dossiers de cet agent pour cette rubrique
-          // IMPORTANT: Dédupliquer les sous-dossiers en gardant uniquement ceux de cet agent
-          // Chaque agent doit avoir ses propres instances de sous-dossiers avec ses propres données
-          const sousDossiersMap = new Map<
-            string,
-            {
-              sousDossier: NonNullable<
-                AgentDossierWithRelations["sous_dossiers"]
-              >;
-              agentDossier: AgentDossierWithRelations;
+      const updatedAgents = agentsWithDossiers.map((agentData) => ({
+        ...agentData,
+        dossiers: agentData.dossiers.map((dossier) => ({
+          ...dossier,
+          sousDossiers: dossier.sousDossiers.map((sd) => {
+            if (sd.id === sousDossierId) {
+              return {
+                ...sd,
+                pieces,
+                piecesLoaded: true,
+                piecesCount: pieces.length,
+                piecesWithMetadataCount: pieces.filter((p) => p.aMetadonnees).length,
+                totalMetadataCount: pieces.reduce((sum, p) => sum + p.metadata.length, 0),
+              };
             }
-          >();
-          agentDossiersForRubrique.forEach((ad) => {
-            if (ad.sous_dossiers) {
-              const sousDossierId = ad.sous_dossier_id.toString();
-              // Garder uniquement les sous-dossiers de cet agent
-              if (!sousDossiersMap.has(sousDossierId)) {
-                sousDossiersMap.set(sousDossierId, {
-                  sousDossier: ad.sous_dossiers,
-                  agentDossier: ad,
-                });
-              }
-            }
-          });
-          const sousDossiersList = Array.from(sousDossiersMap.values());
+            return sd;
+          }),
+        })),
+      }));
 
-          // Charger les données complètes pour chaque sous-dossier de cet agent
-          const sousDossiersWithStats: SousDossierWithStats[] =
-            await Promise.all(
-              sousDossiersList.map(async ({ sousDossier, agentDossier }) => {
-                try {
-                  // Utiliser directement l'agent_dossier associé
-                  const agentDossierId = agentDossier.id
-                    ? parseInt(agentDossier.id.toString())
-                    : undefined;
-
-                  // Convertir le sous-dossier en format SousDossier
-                  const sousDossierFormatted: SousDossier = {
-                    id: sousDossier.id.toString(),
-                    rubrique_id: rubriqueId,
-                    titre: sousDossier.titre,
-                    description: sousDossier.description || "",
-                    statut: "ouvert",
-                    createdAt: "",
-                    updatedAt: "",
-                  };
-
-                  // Récupérer TOUTES les données de la pièce en un seul appel (modèles, fichiers, valeurs)
-                  const piecesWithMetadata = await piecesService.getAllPiecesBySousDossier(
-                    sousDossier.id.toString(),
-                    agentDossierId
-                  );
-
-                  const piecesCount = piecesWithMetadata.length;
-                  const piecesWithMetadataCount = piecesWithMetadata.filter(
-                    (p) => p.aMetadonnees
-                  ).length;
-                  const totalMetadataCount = piecesWithMetadata.reduce(
-                    (sum, p) => sum + p.metadata.length,
-                    0
-                  );
-                  const lastActivity =
-                    piecesWithMetadata.length > 0
-                      ? piecesWithMetadata.reduce((latest, p) => {
-                          return new Date(p.createdAt) > new Date(latest)
-                            ? p.createdAt
-                            : latest;
-                        }, piecesWithMetadata[0].createdAt)
-                      : "";
-
-                  return {
-                    ...sousDossierFormatted,
-                    pieces: piecesWithMetadata,
-                    piecesCount,
-                    piecesWithMetadataCount,
-                    totalMetadataCount,
-                    lastActivity,
-                    agentDossierId: agentDossierId
-                      ? parseInt(agentDossierId.toString())
-                      : undefined,
-                  };
-                } catch (error) {
-                  console.error(
-                    `❌ Erreur lors du chargement du sous-dossier ${sousDossier.titre}:`,
-                    error
-                  );
-                  // Convertir le sous-dossier en format SousDossier pour le catch
-                  const sousDossierFormattedError: SousDossier = {
-                    id: sousDossier.id.toString(),
-                    rubrique_id: rubriqueId,
-                    titre: sousDossier.titre,
-                    description: sousDossier.description || "",
-                    statut: "ouvert",
-                    createdAt: "",
-                    updatedAt: "",
-                  };
-                  return {
-                    ...sousDossierFormattedError,
-                    pieces: [],
-                    piecesCount: 0,
-                    piecesWithMetadataCount: 0,
-                    totalMetadataCount: 0,
-                    lastActivity: "",
-                  };
-                }
-              })
-            );
-
-          const totalPieces = sousDossiersWithStats.reduce(
-            (sum, sd) => sum + sd.piecesCount,
-            0
-          );
-          const totalSousDossiers = sousDossiersWithStats.length;
-          const totalMetadata = sousDossiersWithStats.reduce(
-            (sum, sd) => sum + sd.totalMetadataCount,
-            0
-          );
-
-          const updatedDossierData: DossierData = {
-            rubrique,
-            sousDossiers: sousDossiersWithStats,
-            totalPieces,
-            totalSousDossiers,
-            totalMetadata,
-          };
-
-          // Mettre à jour uniquement la rubrique de cet agent
-          const updatedAgentDossiers = agentData.dossiers.map((d) =>
-            d.rubrique.id === rubriqueId ? updatedDossierData : d
-          );
-
-          return {
-            ...agentData,
-            dossiers: [...updatedAgentDossiers],
-          };
-        })
-      );
-
-      // Mettre à jour le store
-      setAgentsWithDossiers([...updatedAgentsWithDossiers]);
-
-      // Mettre à jour aussi le cache des dossiers (aplati)
-      const allDossiers = updatedAgentsWithDossiers.flatMap(
-        ({ dossiers }) => dossiers
-      );
+      setAgentsWithDossiers(updatedAgents);
+      const allDossiers = updatedAgents.flatMap(({ dossiers }) => dossiers);
       setDossiers(allDossiers);
 
-      console.log(
-        "🔄 agentsWithDossiers mis à jour avec données filtrées par agent"
-      );
-
-      console.log(`✅ Rubrique ${rubrique.nom} rechargée pour tous les agents`);
-
-      // Retourner le premier dossier mis à jour (pour compatibilité)
-      const firstUpdated = updatedAgentsWithDossiers
-        .flatMap((ad) => ad.dossiers)
-        .find((d) => d.rubrique.id === rubriqueId);
-
-      return firstUpdated || null;
+      console.log(`✅ ${pieces.length} pièce(s) chargées pour sous-dossier ${sousDossierId}`);
+      return pieces;
     } catch (error) {
-      console.error(
-        `❌ Erreur lors du rechargement de la rubrique ${rubriqueId}:`,
-        error
-      );
-      return null;
+      console.error(`❌ Erreur chargement pièces (sd=${sousDossierId}):`, error);
+      throw error;
     }
   }
 
   /**
-   * Invalide le cache et force un rechargement
+   * Recharge les données d'une rubrique spécifique.
+   * Alias de refreshCache() pour la compatibilité ascendante.
+   */
+  static async reloadRubrique(_rubriqueId: string): Promise<void> {
+    await this.refreshCache();
+  }
+
+  /**
+   * Invalide le cache et force un rechargement complet.
    */
   static async refreshCache(): Promise<DossierData[]> {
     const { clearCache } = useDossiersStore.getState();
@@ -483,7 +265,7 @@ export class DossiersOptimizedService {
   }
 
   /**
-   * Met à jour une pièce dans le cache
+   * Met à jour une pièce dans le cache (sans recharger depuis le serveur).
    */
   static updatePieceInCache(
     rubriqueId: string,
@@ -496,7 +278,7 @@ export class DossiersOptimizedService {
   }
 
   /**
-   * Ajoute une pièce au cache
+   * Ajoute une pièce au cache (sans recharger depuis le serveur).
    */
   static addPieceToCache(
     rubriqueId: string,
@@ -508,7 +290,7 @@ export class DossiersOptimizedService {
   }
 
   /**
-   * Supprime une pièce du cache
+   * Supprime une pièce du cache.
    */
   static removePieceFromCache(
     rubriqueId: string,
