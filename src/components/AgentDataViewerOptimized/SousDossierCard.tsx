@@ -29,7 +29,7 @@ interface SousDossierCardProps {
   agentName: string;
   rubriqueName: string;
   searchTerm?: string;
-  onCreditDossierClick?: (sousDossierId: number, rubriqueId: number) => void;
+  onCreditDossierClick?: (sousDossierId: number, rubriqueId: number, agentDossierId: number) => void;
   onPieceClick?: (piece: any) => void;
   onDeleteDossier?: (agentDossierId: number, sousDossierTitre: string) => void;
   refreshingPieces: Set<string>;
@@ -103,16 +103,17 @@ export default function SousDossierCard({
 
   return (
     <div
-      className={`group relative bg-white rounded-xl border border-primary-200 shadow-sm overflow-hidden transition-all duration-300 ${
+      className={`group relative bg-white rounded-xl border shadow-sm overflow-hidden transition-all duration-300 ${
         isCredit
-          ? "cursor-pointer hover:border-success-300 hover:shadow-md hover:scale-[1.01]"
-          : "hover:border-primary-300 hover:shadow-md"
+          ? "border-emerald-200 cursor-pointer hover:border-emerald-400 hover:shadow-md hover:scale-[1.01]"
+          : "border-indigo-200 hover:border-indigo-400 hover:shadow-md"
       }`}
       onClick={() => {
         if (isCredit) {
           onCreditDossierClick?.(
             parseInt(sousDossier.id),
-            parseInt(rubriqueId)
+            parseInt(rubriqueId),
+            sousDossier.agentDossierId ? Number(sousDossier.agentDossierId) : 0
           );
         }
       }}
@@ -121,8 +122,8 @@ export default function SousDossierCard({
       <div
         className={`absolute top-0 left-0 right-0 h-1 ${
           isCredit
-            ? "bg-gradient-to-r from-success-400 to-success-500"
-            : "bg-gradient-to-r from-[var(--color-accent-blue)] to-[var(--color-primary-500)]"
+            ? "bg-gradient-to-r from-emerald-400 to-teal-500"
+            : "bg-gradient-to-r from-indigo-400 to-indigo-600"
         }`}
       ></div>
 
@@ -135,8 +136,8 @@ export default function SousDossierCard({
               <div
                 className={`w-12 h-12 rounded-xl flex items-center justify-center shadow-md ${
                   isCredit
-                    ? "bg-primary-600"
-                    : "bg-gradient-to-br from-[var(--color-accent-blue)] to-[var(--color-primary-600)]"
+                    ? "bg-gradient-to-br from-emerald-500 to-teal-600"
+                    : "bg-gradient-to-br from-indigo-500 to-indigo-700"
                 }`}
               >
                 {isCredit ? (
@@ -190,10 +191,11 @@ export default function SousDossierCard({
                   e.stopPropagation();
                   onCreditDossierClick?.(
                     parseInt(sousDossier.id),
-                    parseInt(rubriqueId)
+                    parseInt(rubriqueId),
+                    sousDossier.agentDossierId ? Number(sousDossier.agentDossierId) : 0
                   );
                 }}
-                className="flex items-center gap-2 px-4 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700 transition-all duration-200 shadow-lg hover:shadow-xl text-sm font-bold border-2 border-primary-700"
+                className="flex items-center gap-2 px-4 py-2 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 transition-all duration-200 shadow-lg hover:shadow-xl text-sm font-bold border-2 border-emerald-700"
               >
                 <Eye className="w-4 h-4" />
                 Consulter
@@ -202,7 +204,7 @@ export default function SousDossierCard({
               <button
                 onClick={handleViewContent}
                 disabled={loadingPieces}
-                className="flex items-center gap-2 px-4 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700 transition-all duration-200 shadow-lg hover:shadow-xl text-sm font-bold border-2 border-primary-700 disabled:opacity-50"
+                className="flex items-center gap-2 px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-all duration-200 shadow-lg hover:shadow-xl text-sm font-bold border-2 border-indigo-700 disabled:opacity-50"
               >
                 {loadingPieces ? (
                   <Loader2 className="w-4 h-4 animate-spin" />
@@ -458,12 +460,12 @@ export default function SousDossierCard({
 
         {/* Message pour dossiers de crédit */}
         {isCredit && (
-          <div className="mt-4 p-4 bg-gradient-to-r from-primary-50 to-primary-100/50 rounded-xl border border-primary-200">
+          <div className="mt-4 p-4 bg-gradient-to-r from-emerald-50 to-teal-50 rounded-xl border border-emerald-200">
             <div className="flex items-center gap-3">
-              <div className="w-10 h-10 bg-primary-500 rounded-lg flex items-center justify-center shadow-md">
+              <div className="w-10 h-10 bg-gradient-to-br from-emerald-500 to-teal-600 rounded-lg flex items-center justify-center shadow-md">
                 <CreditCard className="w-5 h-5 text-white" />
               </div>
-              <p className="text-sm text-primary-800 font-semibold">
+              <p className="text-sm text-emerald-800 font-semibold">
                 Dossier de crédit - Cliquez sur &quot;Consulter&quot; pour voir
                 les métadonnées détaillées
               </p>

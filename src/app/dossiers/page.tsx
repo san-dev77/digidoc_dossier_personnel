@@ -44,6 +44,7 @@ export default function DossiersPage() {
   const [selectedCreditSousDossier, setSelectedCreditSousDossier] = useState<{
     id: number;
     rubriqueId: number;
+    agentDossierId: number;
   } | null>(null);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [dossierToDelete, setDossierToDelete] = useState<{
@@ -154,9 +155,10 @@ export default function DossiersPage() {
 
   const handleCreditDossierClick = (
     sousDossierId: number,
-    rubriqueId: number
+    rubriqueId: number,
+    agentDossierId: number
   ) => {
-    setSelectedCreditSousDossier({ id: sousDossierId, rubriqueId });
+    setSelectedCreditSousDossier({ id: sousDossierId, rubriqueId, agentDossierId });
     setShowCreditViewer(true);
   };
 
@@ -268,6 +270,7 @@ export default function DossiersPage() {
             isOpen={showCreditViewer}
             sousDossierId={selectedCreditSousDossier.id}
             rubriqueId={selectedCreditSousDossier.rubriqueId}
+            agentDossierId={selectedCreditSousDossier.agentDossierId}
             onClose={() => {
               setShowCreditViewer(false);
               setSelectedCreditSousDossier(null);

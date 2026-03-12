@@ -7,6 +7,7 @@ interface CreditDossierModalProps {
   isOpen: boolean;
   sousDossierId: number;
   rubriqueId: number;
+  agentDossierId: number;
   onClose: () => void;
 }
 
@@ -14,6 +15,7 @@ export default function CreditDossierModal({
   isOpen,
   sousDossierId,
   rubriqueId,
+  agentDossierId,
   onClose,
 }: CreditDossierModalProps) {
   if (!isOpen) return null;
@@ -38,6 +40,7 @@ export default function CreditDossierModal({
           <CreditDossierViewer
             sousDossierId={sousDossierId}
             rubriqueId={rubriqueId}
+            agentDossierId={agentDossierId}
             onClose={onClose}
           />
         </div>

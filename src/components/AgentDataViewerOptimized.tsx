@@ -24,7 +24,7 @@ import HighlightText from "@/components/ui/HighlightText";
 interface AgentDataViewerOptimizedProps {
   searchTerm?: string;
   onPieceClick?: (piece: PieceData) => void;
-  onCreditDossierClick?: (sousDossierId: number, rubriqueId: number) => void;
+  onCreditDossierClick?: (sousDossierId: number, rubriqueId: number, agentDossierId: number) => void;
   onDeleteDossier?: (agentDossierId: number, sousDossierTitre: string) => void;
 }
 

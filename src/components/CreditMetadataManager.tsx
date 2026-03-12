@@ -1,8 +1,9 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
-import { Plus, Edit, Trash2, X, Database } from "lucide-react";
+import { Plus, Edit, Trash2, X, Database, Copy, CheckCircle, AlertCircle } from "lucide-react";
 import { MetadataService } from "@/services/metadata";
+import { fetchWithAuth } from "@/lib/api/fetchWithAuth";
 import { CREDIT_METADATA_TYPES } from "@/utils/rubrique-utils";
 import CreditMetadataFormModal from "./CreditMetadataFormModal";
 
@@ -29,6 +30,8 @@ export default function CreditMetadataManager({
   const [loading, setLoading] = useState(false);
   const [showFormModal, setShowFormModal] = useState(false);
   const [editingMeta, setEditingMeta] = useState<CreditMetadata | null>(null);
+  const [replicating, setReplicating] = useState(false);
+  const [replicateMessage, setReplicateMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
 
   const loadMetadata = useCallback(async () => {
     setLoading(true);
@@ -84,6 +87,46 @@ export default function CreditMetadataManager({
     return typeObj?.label || type;
   };
 
+  /**
+   * Réplique la config metadata de ce sous-dossier vers tous les autres
+   * sous-dossiers de crédit.
+   */
+  const handleReplicate = async () => {
+    if (metadata.length === 0) {
+      setReplicateMessage({ type: 'error', text: 'Aucune métadonnée à répliquer.' });
+      return;
+    }
+    if (!confirm(
+      `Voulez-vous appliquer ces ${metadata.length} métadonnée(s) à tous les autres sous-dossiers de crédit ?\n\nLes métadonnées déjà existantes sur les cibles ne seront pas dupliquées.`
+    )) return;
+
+    setReplicating(true);
+    setReplicateMessage(null);
+    try {
+      const response = await fetchWithAuth('/api/metadata-credit', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          action: 'replicate',
+          sourceSousDossierId: sousDossierId,
+        }),
+      });
+      const result = await response.json();
+      if (result.success) {
+        setReplicateMessage({ type: 'success', text: result.message });
+      } else {
+        setReplicateMessage({ type: 'error', text: result.message || 'Erreur lors de la réplication.' });
+      }
+    } catch (error) {
+      console.error('Erreur réplication:', error);
+      setReplicateMessage({ type: 'error', text: 'Erreur réseau lors de la réplication.' });
+    } finally {
+      setReplicating(false);
+      // Auto-dismiss après 5s
+      setTimeout(() => setReplicateMessage(null), 5000);
+    }
+  };
+
   if (!isOpen) return null;
 
   return (
@@ -106,6 +149,21 @@ export default function CreditMetadataManager({
               </div>
             </div>
             <div className="flex items-center gap-3">
+              {metadata.length > 0 && (
+                <button
+                  onClick={handleReplicate}
+                  className="flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-emerald-500 to-teal-600 text-white rounded-lg hover:from-emerald-600 hover:to-teal-700 transition-all duration-200 shadow-md hover:shadow-lg text-sm font-bold border border-emerald-600 disabled:opacity-50"
+                  disabled={loading || replicating}
+                  title="Copier cette configuration vers tous les autres sous-dossiers de crédit"
+                >
+                  {replicating ? (
+                    <span className="loading loading-spinner loading-xs"></span>
+                  ) : (
+                    <Copy className="w-4 h-4" />
+                  )}
+                  {replicating ? 'Réplication...' : 'Appliquer à tous'}
+                </button>
+              )}
               <button
                 onClick={handleCreate}
                 className="button-primary btn-sm gap-2 text-primary-50"
@@ -122,6 +180,22 @@ export default function CreditMetadataManager({
               </button>
             </div>
           </div>
+
+          {/* Message de réplication */}
+          {replicateMessage && (
+            <div className={`mb-4 p-4 rounded-xl flex items-center gap-3 border ${
+              replicateMessage.type === 'success'
+                ? 'bg-emerald-50 border-emerald-200 text-emerald-800'
+                : 'bg-red-50 border-red-200 text-red-800'
+            }`}>
+              {replicateMessage.type === 'success' ? (
+                <CheckCircle className="w-5 h-5 text-emerald-600 flex-shrink-0" />
+              ) : (
+                <AlertCircle className="w-5 h-5 text-red-600 flex-shrink-0" />
+              )}
+              <p className="text-sm font-medium">{replicateMessage.text}</p>
+            </div>
+          )}
 
           {/* Content */}
           <div className="overflow-y-auto max-h-[70vh]">

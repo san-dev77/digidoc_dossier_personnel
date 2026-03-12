@@ -57,11 +57,13 @@ interface CreditEntry {
 interface CreditDossierViewerProps {
   sousDossierId: number;
   rubriqueId: number;
+  agentDossierId: number;
   onClose?: () => void;
 }
 
 export default function CreditDossierViewer({
   sousDossierId,
+  agentDossierId,
 }: CreditDossierViewerProps) {
   const [entries, setEntries] = useState<CreditEntry[]>([]);
   const [loading, setLoading] = useState(true);
@@ -102,7 +104,11 @@ export default function CreditDossierViewer({
     try {
       setLoading(true);
       setError(null);
-      const response = await fetchWithAuth(`/api/credit-upload?sous_dossier_id=${sousDossierId}`);
+      const response = await fetchWithAuth(
+        agentDossierId
+          ? `/api/credit-upload?agent_dossier_id=${agentDossierId}`
+          : `/api/credit-upload?sous_dossier_id=${sousDossierId}`
+      );
       if (!response.ok) throw new Error("Erreur lors du chargement");
       const result = await response.json();
       if (result.success) {
@@ -117,7 +123,7 @@ export default function CreditDossierViewer({
     } finally {
       setLoading(false);
     }
-  }, [sousDossierId]);
+  }, [sousDossierId, agentDossierId]);
 
   useEffect(() => { loadEntries(); }, [loadEntries]);
 
