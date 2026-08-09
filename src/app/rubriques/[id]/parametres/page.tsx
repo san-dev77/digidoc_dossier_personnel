@@ -150,7 +150,13 @@ export default function RubriqueParametresPage() {
   const [selectedSousDossierForMetadata, setSelectedSousDossierForMetadata] =
     useState<string | null>(null);
   const [showPositionManager, setShowPositionManager] = useState(false);
-  const { toasts, removeToast, success, error: showError } = useToast();
+  const {
+    toasts,
+    removeToast,
+    success,
+    error: showError,
+    confirm: confirmToast,
+  } = useToast();
 
   useEffect(() => {
     if (rubriqueId) {
@@ -219,42 +225,40 @@ export default function RubriqueParametresPage() {
     setShowCreditMetadataManager(true);
   };
 
-  const handleDeleteSousDossier = async (sousDossier: SousDossier) => {
-    if (
-      !confirm(
-        `Êtes-vous sûr de vouloir supprimer le sous-dossier "${sousDossier.titre}" et toutes ses pièces ?`
-      )
-    ) {
-      return;
-    }
+  const handleDeleteSousDossier = (sousDossier: SousDossier) => {
+    confirmToast(
+      "Supprimer le sous-dossier ?",
+      `« ${sousDossier.titre} » et toutes ses pièces seront définitivement supprimés.`,
+      async () => {
+        try {
+          console.log("🗑️ Suppression du sous-dossier:", sousDossier);
 
-    try {
-      console.log("🗑️ Suppression du sous-dossier:", sousDossier);
+          await sousDossiersService.deleteSousDossier(sousDossier.id);
 
-      await sousDossiersService.deleteSousDossier(sousDossier.id);
+          // Mettre à jour la liste des sous-dossiers
+          setSousDossiers(sousDossiers.filter((sd) => sd.id !== sousDossier.id));
 
-      // Mettre à jour la liste des sous-dossiers
-      setSousDossiers(sousDossiers.filter((sd) => sd.id !== sousDossier.id));
+          // Nettoyer le store Zustand
+          usePiecesStore.getState().clearPieces(sousDossier.id);
 
-      // Nettoyer le store Zustand
-      usePiecesStore.getState().clearPieces(sousDossier.id);
+          // Fermer l'expansion si c'était ce sous-dossier
+          if (expandedSousDossier === sousDossier.id) {
+            setExpandedSousDossier(null);
+          }
 
-      // Fermer l'expansion si c'était ce sous-dossier
-      if (expandedSousDossier === sousDossier.id) {
-        setExpandedSousDossier(null);
+          success(
+            "Sous-dossier supprimé",
+            `Le sous-dossier "${sousDossier.titre}" a été supprimé avec succès.`
+          );
+        } catch (err) {
+          console.error("❌ Erreur lors de la suppression du sous-dossier:", err);
+          showError(
+            "Erreur de suppression",
+            "Impossible de supprimer le sous-dossier. Veuillez réessayer."
+          );
+        }
       }
-
-      success(
-        "Sous-dossier supprimé",
-        `Le sous-dossier "${sousDossier.titre}" a été supprimé avec succès.`
-      );
-    } catch (err) {
-      console.error("❌ Erreur lors de la suppression du sous-dossier:", err);
-      showError(
-        "Erreur de suppression",
-        "Impossible de supprimer le sous-dossier. Veuillez réessayer."
-      );
-    }
+    );
   };
 
   const loadPieces = async () => {
@@ -492,32 +496,32 @@ export default function RubriqueParametresPage() {
     }
   };
 
-  const handleDeletePiece = async (piece: PieceWithMetadata) => {
-    if (
-      !confirm(`Êtes-vous sûr de vouloir supprimer la pièce "${piece.nom}" ?`)
-    ) {
-      return;
-    }
+  const handleDeletePiece = (piece: PieceWithMetadata) => {
+    confirmToast(
+      "Supprimer la pièce ?",
+      `« ${piece.nom} » sera définitivement supprimée.`,
+      async () => {
+        try {
+          await piecesService.deletePiece(piece.id);
 
-    try {
-      await piecesService.deletePiece(piece.id);
+          // Rafraîchir les pièces du sous-dossier
+          if (expandedSousDossier) {
+            await loadSousDossierPieces(expandedSousDossier);
+          }
 
-      // Rafraîchir les pièces du sous-dossier
-      if (expandedSousDossier) {
-        await loadSousDossierPieces(expandedSousDossier);
+          success(
+            "Pièce supprimée",
+            `La pièce "${piece.nom}" a été supprimée avec succès.`
+          );
+        } catch (err) {
+          console.error("Erreur lors de la suppression de la pièce:", err);
+          showError(
+            "Erreur de suppression",
+            "Impossible de supprimer la pièce. Veuillez réessayer."
+          );
+        }
       }
-
-      success(
-        "Pièce supprimée",
-        `La pièce "${piece.nom}" a été supprimée avec succès.`
-      );
-    } catch (err) {
-      console.error("Erreur lors de la suppression de la pièce:", err);
-      showError(
-        "Erreur de suppression",
-        "Impossible de supprimer la pièce. Veuillez réessayer."
-      );
-    }
+    );
   };
 
   const handleViewPieceDetails = async (piece: PieceWithMetadata) => {
@@ -581,83 +585,81 @@ export default function RubriqueParametresPage() {
     setShowMetadataViewer(false);
   };
 
-  const handleDeleteMetadataFromViewer = async (metadata: MetadataModel) => {
+  const handleDeleteMetadataFromViewer = (metadata: MetadataModel) => {
     if (!selectedPieceForView) return;
 
-    if (
-      !confirm(
-        `Êtes-vous sûr de vouloir supprimer le champ "${metadata.nom}" ?`
-      )
-    ) {
-      return;
-    }
+    confirmToast(
+      "Supprimer ce champ ?",
+      `Le champ « ${metadata.nom} » sera définitivement supprimé.`,
+      async () => {
+        try {
+          console.log("🗑️ Suppression de la métadonnée:", metadata.id);
 
-    try {
-      console.log("🗑️ Suppression de la métadonnée:", metadata.id);
+          const response = await fetchWithAuth(
+            `/api/pieces/${selectedPieceForView.id}/metadata-models/${metadata.id}`,
+            {
+              method: "DELETE",
+            }
+          );
 
-      const response = await fetchWithAuth(
-        `/api/pieces/${selectedPieceForView.id}/metadata-models/${metadata.id}`,
-        {
-          method: "DELETE",
+          if (!response.ok) {
+            throw new Error("Erreur lors de la suppression de la métadonnée");
+          }
+
+          const result = await response.json();
+          console.log("✅ Métadonnée supprimée:", result);
+
+          // Recharger les métadonnées de la pièce
+          const metadataResponse = await fetchWithAuth(
+            `/api/pieces/${selectedPieceForView.id}/metadata-models`
+          );
+          if (metadataResponse.ok) {
+            const metadataModels = await metadataResponse.json();
+            const updatedPiece: PieceWithMetadata = {
+              ...selectedPieceForView,
+              metadataModels: metadataModels.map(
+                (model: {
+                  id: string | number;
+                  libelle: string;
+                  type: string;
+                  obligatoire: boolean;
+                  description: string | null;
+                }) => ({
+                  id: model.id.toString(),
+                  piece_id: selectedPieceForView.id,
+                  libelle: model.libelle,
+                  nom: model.libelle,
+                  type: model.type,
+                  obligatoire: model.obligatoire || false,
+                  description: model.description || "",
+                  created_at: "",
+                })
+              ),
+              metadata: selectedPieceForView.metadata || [],
+              files: selectedPieceForView.files || [],
+              aMetadonnees: metadataModels.length > 0,
+            };
+            setSelectedPieceForView(updatedPiece);
+          }
+
+          // Mettre à jour les pièces du sous-dossier
+          if (expandedSousDossier) {
+            await loadSousDossierPieces(expandedSousDossier);
+          }
+
+          success(
+            "Métadonnée supprimée",
+            `Le champ "${metadata.nom}" a été supprimé avec succès.`
+          );
+        } catch (err) {
+          console.error("❌ Erreur lors de la suppression de la métadonnée:", err);
+          showError(
+            "Erreur de suppression",
+            "Impossible de supprimer la métadonnée. Veuillez réessayer."
+          );
         }
-      );
-
-      if (!response.ok) {
-        throw new Error("Erreur lors de la suppression de la métadonnée");
       }
-
-      const result = await response.json();
-      console.log("✅ Métadonnée supprimée:", result);
-
-      // Recharger les métadonnées de la pièce
-      const metadataResponse = await fetchWithAuth(
-        `/api/pieces/${selectedPieceForView.id}/metadata-models`
-      );
-      if (metadataResponse.ok) {
-        const metadataModels = await metadataResponse.json();
-        const updatedPiece: PieceWithMetadata = {
-          ...selectedPieceForView,
-          metadataModels: metadataModels.map(
-            (model: {
-              id: string | number;
-              libelle: string;
-              type: string;
-              obligatoire: boolean;
-              description: string | null;
-            }) => ({
-              id: model.id.toString(),
-              piece_id: selectedPieceForView.id,
-              libelle: model.libelle,
-              nom: model.libelle,
-              type: model.type,
-              obligatoire: model.obligatoire || false,
-              description: model.description || "",
-              created_at: "",
-            })
-          ),
-          metadata: selectedPieceForView.metadata || [],
-          files: selectedPieceForView.files || [],
-          aMetadonnees: metadataModels.length > 0,
-        };
-        setSelectedPieceForView(updatedPiece);
-      }
-
-      // Mettre à jour les pièces du sous-dossier
-      if (expandedSousDossier) {
-        await loadSousDossierPieces(expandedSousDossier);
-      }
-
-      success(
-        "Métadonnée supprimée",
-        `Le champ "${metadata.nom}" a été supprimé avec succès.`
-      );
-    } catch (err) {
-      console.error("❌ Erreur lors de la suppression de la métadonnée:", err);
-      showError(
-        "Erreur de suppression",
-        "Impossible de supprimer la métadonnée. Veuillez réessayer."
-      );
-    }
+    );
   };
 
   const handleSubmitEditMetadata = async (
@@ -1386,7 +1388,7 @@ export default function RubriqueParametresPage() {
                               <h4 className="text-lg font-bold text-primary-900 truncate">
                                 {sousDossier.titre}
                               </h4>
-                              <p className="text-sm text-primary-600/70 truncate">
+                              <p className="text-sm text-primary-600 truncate">
                                 {sousDossier.description ||
                                   "Aucune description"}
                               </p>
@@ -1632,6 +1634,8 @@ export default function RubriqueParametresPage() {
             loadSousDossiers();
             loadPieces();
           }}
+          onError={showError}
+          onSuccess={success}
         />
 
         {/* Toast Notifications */}

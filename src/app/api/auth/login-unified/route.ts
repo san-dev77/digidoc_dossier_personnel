@@ -65,11 +65,17 @@ export async function POST(req: NextRequest) {
         );
       }
 
-      // Mettre à jour la dernière connexion
+      // Mettre à jour la dernière connexion et le compteur de connexions
       console.log("[LOGIN-UNIFIED] 🕒 Mise à jour de la dernière connexion...");
       await prisma.utilisateurs.update({
         where: { id: utilisateur.id },
-        data: { derniere_connexion: new Date() },
+        data: {
+          derniere_connexion: new Date(),
+          nombre_connexions: { increment: 1 },
+        },
+      });
+      await prisma.connexion_logs.create({
+        data: { utilisateur_id: utilisateur.id },
       });
       console.log("[LOGIN-UNIFIED] ✅ Mise à jour terminée");
 

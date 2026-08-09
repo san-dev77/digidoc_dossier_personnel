@@ -42,7 +42,13 @@ export default function RubriquesPage() {
   const [showCreateForm, setShowCreateForm] = useState(false);
   const [editingRubrique, setEditingRubrique] = useState<Rubrique | null>(null);
   const [showEditForm, setShowEditForm] = useState(false);
-  const { toasts, removeToast, success, error: showError } = useToast();
+  const {
+    toasts,
+    removeToast,
+    success,
+    error: showError,
+    confirm: confirmToast,
+  } = useToast();
 
   useEffect(() => {
     loadRubriques();
@@ -153,24 +159,30 @@ export default function RubriquesPage() {
     }
   };
 
-  const handleDeleteRubrique = async (id: string) => {
+  const handleDeleteRubrique = (id: string) => {
     const rubriqueToDelete = rubriques.find((r) => r.id === id);
-    if (confirm("Êtes-vous sûr de vouloir supprimer cette rubrique ?")) {
-      try {
-        await rubriquesService.deleteRubrique(id);
-        setRubriques(rubriques.filter((r) => r.id !== id));
-        success(
-          "Rubrique supprimée",
-          `La rubrique "${rubriqueToDelete?.nom}" a été supprimée avec succès.`
-        );
-      } catch (err) {
-        console.error("Error in handleDeleteRubrique:", err);
-        showError(
-          "Erreur de suppression",
-          "Impossible de supprimer la rubrique. Veuillez réessayer."
-        );
+    if (!rubriqueToDelete) return;
+
+    confirmToast(
+      "Supprimer la rubrique ?",
+      `« ${rubriqueToDelete.nom} » sera définitivement supprimée.`,
+      async () => {
+        try {
+          await rubriquesService.deleteRubrique(id);
+          setRubriques(rubriques.filter((r) => r.id !== id));
+          success(
+            "Rubrique supprimée",
+            `La rubrique "${rubriqueToDelete.nom}" a été supprimée avec succès.`
+          );
+        } catch (err) {
+          console.error("Error in handleDeleteRubrique:", err);
+          showError(
+            "Erreur de suppression",
+            "Impossible de supprimer la rubrique. Veuillez réessayer."
+          );
+        }
       }
-    }
+    );
   };
 
   const handleEditClick = (rubrique: Rubrique) => {

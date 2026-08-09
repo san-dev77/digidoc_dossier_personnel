@@ -8,33 +8,14 @@ import DashboardLayout from "@/components/DashboardLayout";
 import AuditHeader from "@/components/audit/AuditHeader";
 import StatsDetailedView from "@/components/audit/StatsDetailedView";
 import type { StatsData } from "@/components/audit/StatsDetailedView";
-import {
-  BarChart3,
-  Activity,
-  Clock,
-  Users,
-  TrendingUp,
-  Shield,
-  Calendar,
-  Database,
-  Server,
-  Lock,
-  CheckCircle,
-  Zap,
-} from "lucide-react";
-
-interface ConnectionLog {
-  id: number;
-  utilisateur: {
-    nom_complet: string;
-    username: string;
-    roles: {
-      nom: string;
-      couleur: string | null;
-    };
-  };
-  derniere_connexion: string;
-}
+import UsersCreatedTable from "@/components/audit/UsersCreatedTable";
+import FrequentConnections from "@/components/audit/FrequentConnections";
+import ConnectionsByMonth from "@/components/audit/ConnectionsByMonth";
+import type { ConnectionLogEntry } from "@/components/audit/ConnectionsByMonth";
+import StorageUsage from "@/components/audit/StorageUsage";
+import DiagnosticAgent from "@/components/audit/DiagnosticAgent";
+import { ToastContainer, useToast } from "@/components/Toast";
+import { BarChart3, Activity, Clock, Users, TrendingUp, Shield } from "lucide-react";
 
 interface UserStats {
   total: number;
@@ -52,6 +33,9 @@ interface UtilisateurForAudit {
   nom_complet: string;
   statut: UtilisateurStatut;
   derniere_connexion: string | null;
+  nombre_connexions: number;
+  created_at: string;
+  created_by: number | null;
   roles?: {
     nom: string;
     couleur: string | null;
@@ -62,7 +46,7 @@ interface UtilisateurForAudit {
 export default function AuditPage() {
   const router = useRouter();
   const { canManageUsers } = usePermissions();
-  const [logs, setLogs] = useState<ConnectionLog[]>([]);
+  const [connexionLogs, setConnexionLogs] = useState<ConnectionLogEntry[]>([]);
   const [stats, setStats] = useState<UserStats | null>(null);
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState<"stats" | "connexions" | "system">(
@@ -72,6 +56,9 @@ export default function AuditPage() {
   const [totalDossiers, setTotalDossiers] = useState(0);
   const [totalPieces, setTotalPieces] = useState(0);
   const [detailedStats, setDetailedStats] = useState<StatsData | null>(null);
+  const [utilisateurs, setUtilisateurs] = useState<UtilisateurForAudit[]>([]);
+  const [togglingId, setTogglingId] = useState<number | null>(null);
+  const { toasts, removeToast, success, error: showError } = useToast();
 
   useEffect(() => {
     if (!canManageUsers) {
@@ -114,6 +101,7 @@ export default function AuditPage() {
 
       if (response.ok) {
         const utilisateurs = (await response.json()) as UtilisateurForAudit[];
+        setUtilisateurs(utilisateurs);
 
         // Calculer les stats
         const stats: UserStats = {
@@ -130,32 +118,60 @@ export default function AuditPage() {
         });
 
         setStats(stats);
+      }
 
-        // Logs de connexion (dernières connexions)
-        const logsData = utilisateurs
-          .filter((u) => u.derniere_connexion)
-          .sort(
-            (a, b) =>
-              new Date(b.derniere_connexion!).getTime() -
-              new Date(a.derniere_connexion!).getTime()
-          )
-          .slice(0, 20)
-          .map((u) => ({
-            id: u.id,
-            utilisateur: {
-              nom_complet: u.nom_complet,
-              username: u.username,
-              roles: u.roles ?? { nom: "Sans rôle", couleur: null },
-            },
-            derniere_connexion: u.derniere_connexion!,
-          }));
-
-        setLogs(logsData);
+      // Charger l'historique des connexions (regroupement par mois)
+      const connexionsRes = await fetch("/api/audit/connexions", {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (connexionsRes.ok) {
+        setConnexionLogs((await connexionsRes.json()) as ConnectionLogEntry[]);
       }
     } catch (error) {
       console.error("Erreur chargement:", error);
     } finally {
       setLoading(false);
+    }
+  }
+
+  async function handleToggleStatus(user: UtilisateurForAudit) {
+    const nextStatut: UtilisateurStatut =
+      user.statut === "actif" ? "inactif" : "actif";
+
+    setTogglingId(user.id);
+    try {
+      const token = sessionStorage.getItem("auth-token");
+      const res = await fetch(`/api/utilisateurs/${user.id}`, {
+        method: "PUT",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({ statut: nextStatut }),
+      });
+
+      if (!res.ok) {
+        throw new Error("Erreur lors de la mise à jour du statut");
+      }
+
+      setUtilisateurs((prev) =>
+        prev.map((u) => (u.id === user.id ? { ...u, statut: nextStatut } : u))
+      );
+
+      success(
+        nextStatut === "actif" ? "Compte activé" : "Compte désactivé",
+        `${user.nom_complet} est maintenant ${
+          nextStatut === "actif" ? "actif" : "inactif"
+        }.`
+      );
+    } catch (err) {
+      console.error("Erreur lors du changement de statut:", err);
+      showError(
+        "Erreur",
+        "Impossible de mettre à jour le statut de ce compte."
+      );
+    } finally {
+      setTogglingId(null);
     }
   }
 
@@ -174,7 +190,7 @@ export default function AuditPage() {
   return (
     <AuthGuard>
       <DashboardLayout>
-        <div className="min-h-screen bg-gradient-to-br from-gray-50 via-blue-50/30 to-purple-50/20 p-8">
+        <div className="min-h-screen bg-gray-50 p-8">
           <div className="max-w-7xl mx-auto">
             {/* Header */}
             <AuditHeader
@@ -299,219 +315,36 @@ export default function AuditPage() {
                   </div>
                 )}
 
-                {/* Stats détaillées */}
+                {/* Agents avec pièces manquantes */}
                 {detailedStats && <StatsDetailedView stats={detailedStats} />}
+
+                {/* Utilisateurs créés */}
+                <UsersCreatedTable
+                  users={utilisateurs}
+                  onToggleStatus={handleToggleStatus}
+                  togglingId={togglingId}
+                />
               </div>
             )}
 
             {/* Onglet Connexions */}
             {activeTab === "connexions" && (
-              <div className="bg-white rounded-2xl shadow-xl overflow-hidden border-2 border-gray-100">
-                <div className="px-6 py-5 bg-gradient-to-r from-primary-800 to-primary-900 border-b">
-                  <h2 className="text-xl font-bold text-white flex items-center gap-3">
-                    <Clock className="h-6 w-6" />
-                    Dernières Connexions ({logs.length})
-                  </h2>
-                </div>
-
-                <div className="overflow-x-auto">
-                  <table className="min-w-full">
-                    <thead className="bg-gray-50 border-b-2 border-gray-200">
-                      <tr>
-                        <th className="px-6 py-4 text-left text-xs font-bold text-gray-700 uppercase">
-                          Utilisateur
-                        </th>
-                        <th className="px-6 py-4 text-left text-xs font-bold text-gray-700 uppercase">
-                          Rôle
-                        </th>
-                        <th className="px-6 py-4 text-left text-xs font-bold text-gray-700 uppercase">
-                          Date & Heure
-                        </th>
-                      </tr>
-                    </thead>
-                    <tbody className="divide-y divide-gray-200">
-                      {logs.map((log) => (
-                        <tr
-                          key={log.id}
-                          className="hover:bg-blue-50/50 transition-colors"
-                        >
-                          <td className="px-6 py-4">
-                            <div>
-                              <p className="font-bold text-gray-900">
-                                {log.utilisateur.nom_complet}
-                              </p>
-                              <p className="text-sm text-gray-600">
-                                @{log.utilisateur.username}
-                              </p>
-                            </div>
-                          </td>
-                          <td className="px-6 py-4">
-                            <div className="flex items-center gap-2">
-                              <Shield
-                                className="h-4 w-4"
-                                style={{
-                                  color:
-                                    log.utilisateur.roles.couleur || "#6B7280",
-                                }}
-                              />
-                              <span className="font-semibold text-gray-900">
-                                {log.utilisateur.roles.nom}
-                              </span>
-                            </div>
-                          </td>
-                          <td className="px-6 py-4">
-                            <div className="flex items-center gap-2">
-                              <Calendar className="h-4 w-4 text-gray-500" />
-                              <span className="text-sm text-gray-700 font-medium">
-                                {new Date(
-                                  log.derniere_connexion
-                                ).toLocaleString("fr-FR", {
-                                  day: "2-digit",
-                                  month: "long",
-                                  year: "numeric",
-                                  hour: "2-digit",
-                                  minute: "2-digit",
-                                })}
-                              </span>
-                            </div>
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-
-                  {logs.length === 0 && (
-                    <div className="text-center py-12">
-                      <Clock className="mx-auto h-12 w-12 text-gray-400 mb-3" />
-                      <p className="text-gray-600 font-semibold">
-                        Aucune connexion enregistrée
-                      </p>
-                    </div>
-                  )}
-                </div>
+              <div className="space-y-8">
+                <ConnectionsByMonth logs={connexionLogs} />
+                <FrequentConnections users={utilisateurs} />
               </div>
             )}
 
             {/* Onglet Système */}
             {activeTab === "system" && (
               <div className="space-y-6">
-                {/* Base de données */}
-                <div className="bg-white rounded-2xl shadow-xl p-6 border-2 border-gray-100">
-                  <div className="flex items-center gap-3 mb-6">
-                    <Database className="h-8 w-8 text-primary-700" />
-                    <h2 className="text-2xl font-bold text-gray-900">
-                      Base de Données
-                    </h2>
-                  </div>
-                  <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-                    <div className="p-4 bg-gradient-to-br from-blue-50 to-blue-100 rounded-xl border-2 border-blue-200">
-                      <p className="text-sm text-blue-700 font-bold mb-2">Type</p>
-                      <p className="text-2xl font-black text-blue-900">MySQL</p>
-                      <p className="text-xs text-blue-600 mt-1">via Prisma ORM</p>
-                    </div>
-                    <div className="p-4 bg-gradient-to-br from-green-50 to-green-100 rounded-xl border-2 border-green-200">
-                      <p className="text-sm text-green-700 font-bold mb-2">Tables</p>
-                      <p className="text-2xl font-black text-green-900">15</p>
-                      <p className="text-xs text-green-600 mt-1">Tables principales</p>
-                    </div>
-                    <div className="p-4 bg-gradient-to-br from-purple-50 to-purple-100 rounded-xl border-2 border-purple-200">
-                      <p className="text-sm text-purple-700 font-bold mb-2">Agents</p>
-                      <p className="text-2xl font-black text-purple-900">{totalAgents}</p>
-                      <p className="text-xs text-purple-600 mt-1">Enregistrements</p>
-                    </div>
-                    <div className="p-4 bg-gradient-to-br from-orange-50 to-orange-100 rounded-xl border-2 border-orange-200">
-                      <p className="text-sm text-orange-700 font-bold mb-2">Fichiers</p>
-                      <p className="text-2xl font-black text-orange-900">
-                        {detailedStats?.totalFichiers || 0}
-                      </p>
-                      <p className="text-xs text-orange-600 mt-1">Pièces uploadées</p>
-                    </div>
-                  </div>
-                </div>
-
-                {/* Sécurité & Permissions */}
-                <div className="bg-white rounded-2xl shadow-xl p-6 border-2 border-gray-100">
-                  <div className="flex items-center gap-3 mb-6">
-                    <Lock className="h-8 w-8 text-primary-700" />
-                    <h2 className="text-2xl font-bold text-gray-900">
-                      Sécurité & Permissions
-                    </h2>
-                  </div>
-                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                    <div className="p-4 bg-gradient-to-br from-primary-50 to-primary-100 rounded-xl border-2 border-primary-200">
-                      <p className="text-sm text-primary-700 font-bold mb-2">
-                        Rôles Actifs
-                      </p>
-                      <p className="text-2xl font-black text-primary-900">
-                        {stats?.parRole ? Object.keys(stats.parRole).length : 0}
-                      </p>
-                      <p className="text-xs text-primary-600 mt-1">Système RBAC</p>
-                    </div>
-                    <div className="p-4 bg-gradient-to-br from-green-50 to-green-100 rounded-xl border-2 border-green-200">
-                      <p className="text-sm text-green-700 font-bold mb-2">
-                        Authentification
-                      </p>
-                      <div className="flex items-center gap-2 mt-2">
-                        <CheckCircle className="h-5 w-5 text-green-700" />
-                        <p className="text-lg font-black text-green-900">JWT</p>
-                      </div>
-                      <p className="text-xs text-green-600 mt-1">Token sécurisé</p>
-                    </div>
-                    <div className="p-4 bg-gradient-to-br from-blue-50 to-blue-100 rounded-xl border-2 border-blue-200">
-                      <p className="text-sm text-blue-700 font-bold mb-2">
-                        Hash Passwords
-                      </p>
-                      <div className="flex items-center gap-2 mt-2">
-                        <CheckCircle className="h-5 w-5 text-blue-700" />
-                        <p className="text-lg font-black text-blue-900">BCrypt</p>
-                      </div>
-                      <p className="text-xs text-blue-600 mt-1">10 rounds</p>
-                    </div>
-                  </div>
-                </div>
-
-                {/* État du système */}
-                <div className="bg-white rounded-2xl shadow-xl p-6 border-2 border-gray-100">
-                  <div className="flex items-center gap-3 mb-6">
-                    <Server className="h-8 w-8 text-primary-700" />
-                    <h2 className="text-2xl font-bold text-gray-900">
-                      État du Système
-                    </h2>
-                  </div>
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div className="p-5 bg-gradient-to-br from-green-50 to-green-100 rounded-xl border-2 border-green-200">
-                      <div className="flex items-center justify-between mb-3">
-                        <p className="text-sm text-green-700 font-bold">
-                          Base de Données
-                        </p>
-                        <CheckCircle className="h-6 w-6 text-green-600" />
-                      </div>
-                      <p className="text-xl font-black text-green-900">
-                        ✅ Connectée
-                      </p>
-                      <p className="text-xs text-green-600 mt-2">
-                        Toutes les requêtes répondent
-                      </p>
-                    </div>
-                    <div className="p-5 bg-gradient-to-br from-green-50 to-green-100 rounded-xl border-2 border-green-200">
-                      <div className="flex items-center justify-between mb-3">
-                        <p className="text-sm text-green-700 font-bold">API</p>
-                        <Zap className="h-6 w-6 text-green-600" />
-                      </div>
-                      <p className="text-xl font-black text-green-900">
-                        ✅ Opérationnelle
-                      </p>
-                      <p className="text-xs text-green-600 mt-2">
-                        Toutes les routes fonctionnelles
-                      </p>
-                    </div>
-                  </div>
-                </div>
-
+                <StorageUsage />
+                <DiagnosticAgent />
               </div>
             )}
           </div>
         </div>
+        <ToastContainer toasts={toasts} onClose={removeToast} />
       </DashboardLayout>
     </AuthGuard>
   );

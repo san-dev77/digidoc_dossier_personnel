@@ -8,6 +8,8 @@ interface UtilisateursTableProps {
   onUserClick: (user: Utilisateur) => void;
   onEdit: (user: Utilisateur) => void;
   onDelete: (user: Utilisateur) => void;
+  onToggleActive: (user: Utilisateur) => void;
+  togglingId: number | null;
   canUpdate: boolean;
   canDelete: boolean;
 }
@@ -17,6 +19,8 @@ export default function UtilisateursTable({
   onUserClick,
   onEdit,
   onDelete,
+  onToggleActive,
+  togglingId,
   canUpdate,
   canDelete,
 }: UtilisateursTableProps) {
@@ -60,6 +64,9 @@ export default function UtilisateursTable({
               </th>
               <th className="px-6 py-4 text-left text-xs font-bold text-white uppercase tracking-wider">
                 Statut
+              </th>
+              <th className="px-6 py-4 text-left text-xs font-bold text-white uppercase tracking-wider">
+                Compte actif
               </th>
               <th className="px-6 py-4 text-left text-xs font-bold text-white uppercase tracking-wider">
                 Dernière connexion
@@ -115,6 +122,41 @@ export default function UtilisateursTable({
                   >
                     {user.statut}
                   </span>
+                </td>
+                <td
+                  className="px-6 py-4 whitespace-nowrap"
+                  onClick={(e) => e.stopPropagation()}
+                >
+                  <div className="flex items-center gap-2.5">
+                    <button
+                      onClick={() => onToggleActive(user)}
+                      disabled={togglingId === user.id}
+                      title={
+                        user.statut === "actif"
+                          ? "Désactiver ce compte (ne pourra plus se connecter)"
+                          : "Activer ce compte (pourra se connecter)"
+                      }
+                      className={`relative rounded-full transition-colors disabled:opacity-40 disabled:cursor-not-allowed ${
+                        user.statut === "actif" ? "bg-accent-green" : "bg-gray-300"
+                      }`}
+                      style={{ width: "38px", height: "21px" }}
+                    >
+                      <span
+                        className={`absolute top-0.5 left-0.5 w-4 h-4 rounded-full bg-white shadow transition-transform ${
+                          user.statut === "actif"
+                            ? "translate-x-[17px]"
+                            : "translate-x-0"
+                        }`}
+                      />
+                    </button>
+                    <span
+                      className={`text-xs font-bold ${
+                        user.statut === "actif" ? "text-accent-green" : "text-gray-400"
+                      }`}
+                    >
+                      {user.statut === "actif" ? "Peut se connecter" : "Bloqué"}
+                    </span>
+                  </div>
                 </td>
                 <td className="px-6 py-4 whitespace-nowrap">
                   <div className="flex items-center gap-2 text-sm text-gray-600">

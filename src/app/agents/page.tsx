@@ -24,6 +24,7 @@ import {
   Calendar,
   User,
   Phone,
+  Check,
 } from "lucide-react";
 import { AgentFormData } from "@/types";
 import AgentForm from "@/components/AgentForm";
@@ -518,6 +519,12 @@ export default function AgentsPage() {
   const [agentToDelete, setAgentToDelete] = useState<AgentWithRubrique | null>(
     null
   );
+  const [selectedRowId, setSelectedRowId] = useState<string | null>(null);
+  const [flaringAgentId, setFlaringAgentId] = useState<string | null>(null);
+  const [collapsingAgentId, setCollapsingAgentId] = useState<string | null>(
+    null
+  );
+  const [toastMessage, setToastMessage] = useState<string | null>(null);
   const [affectationFilter, setAffectationFilter] = useState<
     "all" | "assigned" | "unassigned"
   >("all");
@@ -758,22 +765,45 @@ export default function AgentsPage() {
     setExpandedRubriqueId(null);
   };
 
+  // Sélection légère d'une ligne (surlignage), indépendante de la modale de détail
+  const handleRowSelect = (agentId: string) => {
+    if (agentId === flaringAgentId || agentId === collapsingAgentId) return;
+    setSelectedRowId((prev) => (prev === agentId ? null : agentId));
+  };
+
   const handleDeleteAgent = (agent: AgentWithRubrique) => {
     setAgentToDelete(agent);
     setShowDeleteConfirm(true);
   };
 
   const confirmDelete = async () => {
-    if (agentToDelete) {
-      try {
-        await agentsService.deleteAgent(agentToDelete.id);
-        setAgents(agents.filter((agent) => agent.id !== agentToDelete.id));
-        setShowDeleteConfirm(false);
-        setAgentToDelete(null);
-      } catch (err) {
-        setError("Erreur lors de la suppression de l'agent");
-        console.error(err);
-      }
+    if (!agentToDelete) return;
+    const id = agentToDelete.id;
+    const nom = agentToDelete.nom;
+    try {
+      await agentsService.deleteAgent(id);
+      setShowDeleteConfirm(false);
+      setAgentToDelete(null);
+
+      if (selectedRowId === id) setSelectedRowId(null);
+
+      // Étape 1 : la ligne rougit pour signaler la suppression
+      setFlaringAgentId(id);
+      setToastMessage(`« ${nom} » supprimé`);
+      setTimeout(() => setToastMessage(null), 2200);
+
+      // Étape 2 : la ligne s'effondre puis disparaît de la liste
+      setTimeout(() => {
+        setCollapsingAgentId(id);
+        setTimeout(() => {
+          setAgents((prev) => prev.filter((agent) => agent.id !== id));
+          setFlaringAgentId(null);
+          setCollapsingAgentId(null);
+        }, 320);
+      }, 450);
+    } catch (err) {
+      setError("Erreur lors de la suppression de l'agent");
+      console.error(err);
     }
   };
 
@@ -1106,122 +1136,182 @@ export default function AgentsPage() {
                     filteredAgents.map((agent) => {
                       const hasRubriques =
                         getAgentRubriques(agent.id).length > 0;
+                      const isSelected = selectedRowId === agent.id;
+                      const isFlaring = flaringAgentId === agent.id;
+                      const isCollapsing = collapsingAgentId === agent.id;
+
+                      const rowStateClass = isFlaring
+                        ? "bg-red-50 border-l-2 border-red-500"
+                        : isSelected
+                        ? "bg-primary-50 border-l-4 border-primary-600"
+                        : hasRubriques
+                        ? "bg-accent-green-light/5 hover:bg-accent-green-light/15 border-l-2 border-accent-green"
+                        : "bg-warning-50/20 hover:bg-warning-100/40 border-l-2 border-warning-500";
+
+                      const cellInnerClass = `transition-all duration-300 ease-in-out overflow-hidden ${
+                        isCollapsing ? "max-h-0 opacity-0" : "max-h-24 opacity-100"
+                      }`;
+
                       return (
                         <tr
                           key={agent.id}
-                          className={`${
-                            hasRubriques
-                              ? "bg-accent-green-light/5 hover:bg-accent-green-light/15 border-l-2 border-accent-green"
-                              : "bg-warning-50/20 hover:bg-warning-100/40 border-l-2 border-warning-500"
-                          } transition-all duration-200`}
+                          onClick={() => handleRowSelect(agent.id)}
+                          className={`cursor-pointer transition-all duration-300 ease-in-out ${rowStateClass} ${
+                            isCollapsing ? "opacity-0" : "opacity-100"
+                          }`}
                         >
-                          <td className="px-4 py-3">
-                            <div className="flex items-center gap-3 min-w-0">
-                              <div
-                                className={`w-10 h-10 rounded-lg flex items-center justify-center shadow-sm border flex-shrink-0 ${
-                                  hasRubriques
-                                    ? "bg-accent-green text-white border-accent-green"
-                                    : "bg-warning-600 text-white border-warning-700"
-                                }`}
-                              >
-                                <span className="text-xs font-bold text-white">
-                                  {agent.nom.charAt(0).toUpperCase()}
-                                  {agent.nom
-                                    .split(" ")[1]
-                                    ?.charAt(0)
-                                    .toUpperCase() ||
-                                    agent.nom.charAt(1)?.toUpperCase() ||
-                                    ""}
+                          <td className="p-0">
+                            <div className={cellInnerClass}>
+                              <div className="flex items-center gap-3 min-w-0 px-4 py-3">
+                                <div className="relative w-10 h-10 flex-shrink-0">
+                                  <div
+                                    className={`w-10 h-10 rounded-lg flex items-center justify-center shadow-sm border transition-colors duration-200 ${
+                                      isFlaring
+                                        ? "bg-red-500 text-white border-red-600"
+                                        : isSelected
+                                        ? "bg-primary-600 text-white border-primary-700"
+                                        : hasRubriques
+                                        ? "bg-accent-green text-white border-accent-green"
+                                        : "bg-warning-600 text-white border-warning-700"
+                                    }`}
+                                  >
+                                    <span
+                                      className={`text-xs font-bold text-white transition-opacity duration-150 ${
+                                        isSelected ? "opacity-0" : "opacity-100"
+                                      }`}
+                                    >
+                                      {agent.nom.charAt(0).toUpperCase()}
+                                      {agent.nom
+                                        .split(" ")[1]
+                                        ?.charAt(0)
+                                        .toUpperCase() ||
+                                        agent.nom.charAt(1)?.toUpperCase() ||
+                                        ""}
+                                    </span>
+                                  </div>
+                                  <div
+                                    className={`absolute inset-0 flex items-center justify-center rounded-lg bg-primary-600 text-white transition-all duration-150 ${
+                                      isSelected
+                                        ? "opacity-100 scale-100"
+                                        : "opacity-0 scale-50 pointer-events-none"
+                                    }`}
+                                  >
+                                    <Check className="w-4 h-4" />
+                                  </div>
+                                </div>
+                                <div className="min-w-0 flex-1">
+                                  <div
+                                    className="text-sm font-semibold text-gray-900 truncate"
+                                    title={agent.nom}
+                                  >
+                                    {highlightMatch(
+                                      truncateName(agent.nom, 22),
+                                      searchQuery
+                                    )}
+                                  </div>
+                                  <div className="text-xs text-gray-500 mt-0.5 flex items-center gap-1">
+                                    <Phone className="w-3 h-3" />
+                                    <span className="truncate">
+                                      {highlightMatch(
+                                        agent.telephone,
+                                        searchQuery
+                                      )}
+                                    </span>
+                                  </div>
+                                </div>
+                              </div>
+                            </div>
+                          </td>
+                          <td className="p-0">
+                            <div className={cellInnerClass}>
+                              <div className="flex flex-col gap-1 px-4 py-3">
+                                <span className="inline-flex items-center px-2 py-1 rounded-md text-xs font-semibold bg-primary-100 text-primary-700 border border-primary-200 w-fit">
+                                  <BadgeCheck className="w-3 h-3 mr-1" />
+                                  {highlightMatch(agent.matricule, searchQuery)}
                                 </span>
                               </div>
-                              <div className="min-w-0 flex-1">
-                                <div
-                                  className="text-sm font-semibold text-gray-900 truncate"
-                                  title={agent.nom}
-                                >
+                            </div>
+                          </td>
+                          <td className="p-0">
+                            <div className={cellInnerClass}>
+                              <div className="px-4 py-3">
+                                <span className="inline-flex items-center px-2.5 py-1 rounded-md text-xs font-medium bg-slate-100 text-slate-700 border border-slate-200">
                                   {highlightMatch(
-                                    truncateName(agent.nom, 22),
+                                    agent.fonction.length > 20
+                                      ? truncateName(agent.fonction, 20)
+                                      : agent.fonction,
+                                    searchQuery
+                                  )}
+                                </span>
+                              </div>
+                            </div>
+                          </td>
+                          <td className="p-0">
+                            <div className={cellInnerClass}>
+                              <div className="text-xs text-gray-600 max-w-[180px] px-4 py-3">
+                                <div className="truncate" title={agent.adresse}>
+                                  {highlightMatch(
+                                    truncateAddress(agent.adresse, 25),
                                     searchQuery
                                   )}
                                 </div>
-                                <div className="text-xs text-gray-500 mt-0.5 flex items-center gap-1">
-                                  <Phone className="w-3 h-3" />
-                                  <span className="truncate">
-                                    {highlightMatch(
-                                      agent.telephone,
-                                      searchQuery
-                                    )}
-                                  </span>
-                                </div>
                               </div>
                             </div>
                           </td>
-                          <td className="px-4 py-3">
-                            <div className="flex flex-col gap-1">
-                              <span className="inline-flex items-center px-2 py-1 rounded-md text-xs font-semibold bg-primary-100 text-primary-700 border border-primary-200 w-fit">
-                                <BadgeCheck className="w-3 h-3 mr-1" />
-                                {highlightMatch(agent.matricule, searchQuery)}
-                              </span>
-                            </div>
-                          </td>
-                          <td className="px-4 py-3">
-                            <span className="inline-flex items-center px-2.5 py-1 rounded-md text-xs font-medium bg-slate-100 text-slate-700 border border-slate-200">
-                              {highlightMatch(
-                                agent.fonction.length > 20
-                                  ? truncateName(agent.fonction, 20)
-                                  : agent.fonction,
-                                searchQuery
-                              )}
-                            </span>
-                          </td>
-                          <td className="px-4 py-3">
-                            <div className="text-xs text-gray-600 max-w-[180px]">
-                              <div className="truncate" title={agent.adresse}>
-                                {highlightMatch(
-                                  truncateAddress(agent.adresse, 25),
-                                  searchQuery
+                          <td className="p-0">
+                            <div className={cellInnerClass}>
+                              <div className="px-4 py-3">
+                                {getAgentRubriques(agent.id).length > 0 ? (
+                                  <div className="flex flex-col gap-1">
+                                    <span className="inline-flex items-center px-2.5 py-1 rounded-md text-xs font-semibold bg-accent-green/10 text-accent-green border border-accent-green/30 w-fit">
+                                      <Building2 className="w-3 h-3 mr-1" />
+                                      {getAgentRubriques(agent.id).length}
+                                    </span>
+                                  </div>
+                                ) : (
+                                  <span className="inline-flex text-primary-700 items-center px-2.5 py-1 rounded-md text-xs font-semibold bg-warning-100 text-warning-700 border border-warning-300 w-fit">
+                                    <AlertCircle className="w-3 h-3 mr-1" />
+                                    Non affecté
+                                  </span>
                                 )}
                               </div>
                             </div>
                           </td>
-                          <td className="px-4 py-3">
-                            {getAgentRubriques(agent.id).length > 0 ? (
-                              <div className="flex flex-col gap-1">
-                                <span className="inline-flex items-center px-2.5 py-1 rounded-md text-xs font-semibold bg-accent-green/10 text-accent-green border border-accent-green/30 w-fit">
-                                  <Building2 className="w-3 h-3 mr-1" />
-                                  {getAgentRubriques(agent.id).length}
-                                </span>
+                          <td className="p-0">
+                            <div className={cellInnerClass}>
+                              <div className="flex items-center justify-end gap-1.5 px-4 py-3">
+                                <button
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    handleAgentSelect(agent);
+                                  }}
+                                  className="p-2 text-primary-600 bg-primary-50 hover:text-primary-700 hover:bg-primary-100 rounded-md transition-all duration-200 group border border-primary-200 hover:border-primary-300"
+                                  title={`Voir les détails de ${agent.nom}`}
+                                >
+                                  <Info className="w-4 h-4 group-hover:scale-110 transition-transform" />
+                                </button>
+                                <button
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    handleEditAgent(agent);
+                                  }}
+                                  className="p-2 text-blue-600 bg-blue-50 hover:text-blue-700 hover:bg-blue-100 rounded-md transition-all duration-200 group border border-blue-200 hover:border-blue-300"
+                                  title={`Modifier ${agent.nom}`}
+                                >
+                                  <Edit className="w-4 h-4 group-hover:scale-110 transition-transform" />
+                                </button>
+                                <button
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    handleDeleteAgent(agent);
+                                  }}
+                                  disabled={isFlaring || isCollapsing}
+                                  className="p-2 text-red-600 bg-red-50 hover:text-red-700 hover:bg-red-100 rounded-md transition-all duration-200 group border border-red-200 hover:border-red-300 disabled:opacity-50 disabled:cursor-not-allowed"
+                                  title={`Supprimer ${agent.nom}`}
+                                >
+                                  <Trash2 className="w-4 h-4 group-hover:scale-110 transition-transform" />
+                                </button>
                               </div>
-                            ) : (
-                              <span className="inline-flex text-primary-700 items-center px-2.5 py-1 rounded-md text-xs font-semibold bg-warning-100 text-warning-700 border border-warning-300 w-fit">
-                                <AlertCircle className="w-3 h-3 mr-1" />
-                                Non affecté
-                              </span>
-                            )}
-                          </td>
-                          <td className="px-4 py-3">
-                            <div className="flex items-center justify-end gap-1.5">
-                              <button
-                                onClick={() => handleAgentSelect(agent)}
-                                className="p-2 text-primary-600 bg-primary-50 hover:text-primary-700 hover:bg-primary-100 rounded-md transition-all duration-200 group border border-primary-200 hover:border-primary-300"
-                                title={`Voir les détails de ${agent.nom}`}
-                              >
-                                <Info className="w-4 h-4 group-hover:scale-110 transition-transform" />
-                              </button>
-                              <button
-                                onClick={() => handleEditAgent(agent)}
-                                className="p-2 text-blue-600 bg-blue-50 hover:text-blue-700 hover:bg-blue-100 rounded-md transition-all duration-200 group border border-blue-200 hover:border-blue-300"
-                                title={`Modifier ${agent.nom}`}
-                              >
-                                <Edit className="w-4 h-4 group-hover:scale-110 transition-transform" />
-                              </button>
-                              <button
-                                onClick={() => handleDeleteAgent(agent)}
-                                className="p-2 text-red-600 bg-red-50 hover:text-red-700 hover:bg-red-100 rounded-md transition-all duration-200 group border border-red-200 hover:border-red-300"
-                                title={`Supprimer ${agent.nom}`}
-                              >
-                                <Trash2 className="w-4 h-4 group-hover:scale-110 transition-transform" />
-                              </button>
                             </div>
                           </td>
                         </tr>
@@ -1233,6 +1323,29 @@ export default function AgentsPage() {
             </div>
           )}
         </div>
+
+        {/* Barre de sélection de ligne */}
+        {selectedRowId &&
+          (() => {
+            const rowSelectedAgent = agents.find(
+              (agent) => agent.id === selectedRowId
+            );
+            if (!rowSelectedAgent) return null;
+            return (
+              <div className="mt-4 flex items-center gap-3 rounded-xl border border-primary-200 bg-primary-50 px-5 py-3">
+                <div className="w-2 h-2 rounded-full bg-primary-600 flex-shrink-0"></div>
+                <span className="text-sm text-primary-800">
+                  Agent sélectionné :{" "}
+                  <span className="font-semibold">
+                    {rowSelectedAgent.nom}
+                  </span>
+                </span>
+                <span className="ml-auto text-xs text-primary-600/70 hidden sm:inline">
+                  Recliquer sur la ligne désélectionne
+                </span>
+              </div>
+            );
+          })()}
 
         {/* Pagination */}
         {!loading && (
@@ -1726,6 +1839,14 @@ export default function AgentsPage() {
                 </div>
               </div>
             </div>
+          </div>
+        )}
+
+        {/* Toast de confirmation de suppression */}
+        {toastMessage && (
+          <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-50 flex items-center gap-2 rounded-lg bg-primary-700 px-4 py-2.5 text-sm font-semibold text-white shadow-xl animate-rise">
+            <Trash2 className="w-4 h-4 text-red-300" />
+            {toastMessage}
           </div>
         )}
 

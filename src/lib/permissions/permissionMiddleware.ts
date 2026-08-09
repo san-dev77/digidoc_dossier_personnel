@@ -13,7 +13,9 @@ import { verifyToken } from "@/lib/auth/jwt";
 /**
  * Extrait l'ID utilisateur du token JWT
  */
-async function getUserIdFromRequest(req: NextRequest): Promise<number | null> {
+export async function getUserIdFromRequest(
+  req: NextRequest
+): Promise<number | null> {
   const authHeader = req.headers.get("authorization");
   if (!authHeader || !authHeader.startsWith("Bearer ")) {
     return null;

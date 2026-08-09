@@ -62,7 +62,7 @@ export default function LoginPage() {
     try {
       setIsSubmitting(true);
       setRateLimitError("");
-      
+
       // Utiliser la route unifiée
       const response = await fetch("/api/auth/login-unified", {
         method: "POST",
@@ -84,13 +84,13 @@ export default function LoginPage() {
       // DEBUG: Vérifier le token reçu
       console.log("[LOGIN DEBUG] data reçue:", data);
       console.log("[LOGIN DEBUG] data.token:", data.token);
-      
+
       // Sauvegarder dans sessionStorage (compatible avec le store)
       sessionStorage.setItem("auth-token", data.token); // ✅ Nom correct !
       sessionStorage.setItem("user", JSON.stringify(data));
-      
+
       console.log("[LOGIN DEBUG] Token stocké:", sessionStorage.getItem("auth-token"));
-      
+
       // Mettre à jour le store Zustand
       const authStore = useAuthStore.getState();
       authStore.setAppUser(data);
@@ -131,74 +131,54 @@ export default function LoginPage() {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-200 via-gray-200 to-slate-700/40 flex items-center justify-center relative overflow-hidden">
-      {/* Éléments de fond animés */}
-      <div className="absolute inset-0 bg-[radial-gradient(circle_at_20%_20%,rgba(99,102,241,0.08)_0%,transparent_50%)] animate-pulse"></div>
-      <div
-        className="absolute inset-0 bg-[radial-gradient(circle_at_80%_80%,rgba(6,182,212,0.06)_0%,transparent_50%)] animate-pulse"
-        style={{ animationDelay: "1s" }}
-      ></div>
+    <div className="min-h-screen bg-slate-50 flex items-center justify-center relative overflow-hidden px-6 py-16">
+      {/* Fond ambiant discret : halos qui dérivent lentement + grain léger */}
+      <div className="absolute inset-0 pointer-events-none" aria-hidden="true">
+        <span className="absolute -top-44 left-[4%] w-[30rem] h-[30rem] rounded-full blur-[64px] opacity-[0.05] bg-blue-500 bg-drift-a motion-reduce:animate-none"></span>
+        <span className="absolute -bottom-40 right-[6%] w-[26rem] h-[26rem] rounded-full blur-[64px] opacity-[0.045] bg-slate-400 bg-drift-b motion-reduce:animate-none"></span>
+        <span className="absolute top-[35%] left-[55%] w-80 h-80 rounded-full blur-[64px] opacity-[0.028] bg-blue-500 bg-drift-c motion-reduce:animate-none"></span>
+        <span className="absolute -inset-[10%] opacity-[0.035] mix-blend-overlay bg-grain"></span>
+      </div>
 
-      {/* Formes décoratives flottantes */}
-      <div
-        className="absolute top-20 left-20 w-40 h-40 bg-gradient-to-br from-indigo-200/30 to-purple-200/30 rounded-full blur-3xl animate-bounce"
-        style={{ animationDuration: "6s" }}
-      ></div>
-      <div
-        className="absolute bottom-20 right-20 w-48 h-48 bg-gradient-to-br from-cyan-200/30 to-blue-200/30 rounded-full blur-3xl animate-bounce"
-        style={{ animationDuration: "8s", animationDelay: "1s" }}
-      ></div>
-      <div
-        className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 w-64 h-64 bg-gradient-to-br from-pink-100/20 to-rose-100/20 rounded-full blur-3xl animate-pulse"
-        style={{ animationDuration: "10s" }}
-      ></div>
-
-      {/* Bouton retour amélioré */}
+      {/* Bouton retour */}
       <Link
         href="/"
-        className="absolute top-8 left-8 flex items-center space-x-2 text-slate-700 hover:text-indigo-600 transition-all duration-300 group bg-white/90 backdrop-blur-md px-5 py-3 rounded-2xl border border-slate-200/60 shadow-lg hover:shadow-xl hover:scale-105 hover:-translate-y-1"
+        className="absolute top-7 left-7 z-10 flex items-center gap-2 text-slate-600 hover:text-slate-900 transition-colors duration-200 bg-white border border-slate-200 px-4 py-2.5 rounded-full text-sm font-semibold hover:border-slate-300"
       >
-        <ArrowLeft className="w-5 h-5 group-hover:-translate-x-1 transition-transform duration-300" />
-        <span className="font-semibold">Retour</span>
+        <ArrowLeft className="w-4 h-4" />
+        <span>Retour</span>
       </Link>
 
-      <div className="w-full max-w-lg mx-auto px-6 relative z-10">
-        {/* Logo et titre améliorés */}
-        <div className="text-center mb-16">
-          <h1 className="text-5xl font-bold bg-gradient-to-r from-slate-900 via-indigo-800 to-slate-900 bg-clip-text text-transparent mb-4 tracking-tight">
+      <div className="w-full max-w-md mx-auto relative z-10 animate-rise motion-reduce:animate-none">
+        {/* Titre */}
+        <div className="text-center mb-9">
+          <h1 className="text-4xl font-bold text-slate-900 mb-2 tracking-tight">
             Connexion
           </h1>
-          <p className="text-primary-600 text-xl font-medium">
+          <p className="text-slate-600 text-base">
             Accédez à votre espace personnel
           </p>
         </div>
 
-        {/* Formulaire amélioré */}
-        <div className="bg-white/95 backdrop-blur-2xl rounded-3xl shadow-[0_35px_60px_-12px_rgba(0,0,0,0.25)] border border-white/20 p-10 relative overflow-hidden group hover:shadow-[0_40px_80px_-15px_rgba(0,0,0,0.3)] transition-all duration-500">
-          {/* Éléments décoratifs de la carte */}
-          <div className="absolute top-0 right-0 w-40 h-40 bg-gradient-to-br from-indigo-50/80 to-purple-50/80 rounded-full -translate-y-20 translate-x-20 blur-3xl group-hover:scale-110 transition-transform duration-700"></div>
-          <div
-            className="absolute bottom-0 left-0 w-32 h-32 bg-gradient-to-br from-cyan-50/80 to-blue-50/80 rounded-full translate-y-16 -translate-x-16 blur-3xl group-hover:scale-110 transition-transform duration-700"
-            style={{ transitionDelay: "0.2s" }}
-          ></div>
-
-          {/* Effet de brillance */}
-          <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/10 to-transparent -skew-x-12 -translate-x-full group-hover:translate-x-full transition-transform duration-1000"></div>
+        {/* Formulaire */}
+        <div className="bg-white rounded-2xl shadow-[0_30px_60px_-20px_rgba(30,41,59,0.22),0_8px_18px_-6px_rgba(30,41,59,0.08)] border border-slate-200 p-9 relative overflow-hidden">
+          {/* Fil d'accent discret en haut de la carte */}
+          <div className="absolute top-0 left-0 right-0 h-[3px] bg-gradient-to-r from-blue-500 via-blue-500/40 to-transparent"></div>
 
           {/* Affichage des erreurs */}
           {authError && !rateLimitError && (
-            <div className="mb-6 p-4 bg-red-50 border border-red-200 rounded-xl flex items-center space-x-3">
-              <AlertCircle className="w-5 h-5 text-red-600" />
-              <span className="text-red-700 font-medium">{authError}</span>
+            <div className="mb-5 p-3.5 bg-red-50 border border-red-200 rounded-xl flex items-start gap-3">
+              <AlertCircle className="w-5 h-5 text-red-600 flex-none mt-0.5" />
+              <span className="text-red-700 font-medium text-sm">{authError}</span>
             </div>
           )}
 
           {/* Compteur de tentatives restantes */}
           {rateLimitInfo && rateLimitInfo.remaining < rateLimitInfo.limit && (
-            <div className="mb-6 p-4 bg-amber-50 border border-amber-200 rounded-xl">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center space-x-3">
-                  <AlertTriangle className="w-5 h-5 text-amber-600" />
+            <div className="mb-5 p-3.5 bg-amber-50 border border-amber-200 rounded-xl">
+              <div className="flex items-center justify-between gap-3">
+                <div className="flex items-center gap-3">
+                  <AlertTriangle className="w-5 h-5 text-amber-600 flex-none" />
                   <div>
                     <p className="text-amber-800 font-semibold text-sm">
                       Tentatives restantes
@@ -209,32 +189,30 @@ export default function LoginPage() {
                     </p>
                   </div>
                 </div>
-                <div className="flex items-center space-x-2">
-                  <div className="w-24 h-2 bg-amber-200 rounded-full overflow-hidden">
-                    <div
-                      className="h-full bg-amber-600 transition-all duration-300"
-                      style={{
-                        width: `${
-                          (rateLimitInfo.remaining / rateLimitInfo.limit) * 100
-                        }%`,
-                      }}
-                    />
-                  </div>
+                <div className="w-20 h-1.5 bg-amber-200 rounded-full overflow-hidden flex-none">
+                  <div
+                    className="h-full bg-amber-600 transition-all duration-300"
+                    style={{
+                      width: `${
+                        (rateLimitInfo.remaining / rateLimitInfo.limit) * 100
+                      }%`,
+                    }}
+                  />
                 </div>
               </div>
             </div>
           )}
 
-          <form onSubmit={handleSubmit} className="space-y-8 relative z-10">
-            <div className="group">
+          <form onSubmit={handleSubmit} className="space-y-6 relative z-10">
+            <div>
               <label
                 htmlFor="identifier"
-                className="flex text-sm font-bold text-slate-800 mb-3 items-center group-hover:text-indigo-600 transition-colors duration-300"
+                className="flex text-sm font-semibold text-slate-800 mb-2 items-center"
               >
-                <User className="w-4 h-4 mr-3 text-indigo-600 group-hover:scale-110 transition-transform duration-300" />
+                <User className="w-4 h-4 mr-2.5 text-blue-600" />
                 Identifiant
               </label>
-              <div className="relative group">
+              <div className="relative">
                 <Input
                   type="text"
                   id="identifier"
@@ -244,27 +222,27 @@ export default function LoginPage() {
                   error={errors.identifier}
                   required
                   disabled={isSubmitting || loading}
-                  className="w-full px-5 py-5 pl-14 border-2 border-slate-200 rounded-2xl focus:ring-4 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all duration-300 bg-white/80 backdrop-blur-sm hover:bg-white hover:border-primary-300 text-primary-900 placeholder-slate-500 font-medium shadow-sm hover:shadow-md disabled:opacity-50 disabled:cursor-not-allowed"
+                  className="w-full px-4 py-3.5 pl-11 border border-slate-200 rounded-xl focus:ring-4 focus:ring-blue-500/15 focus:border-blue-500 transition-all duration-200 bg-slate-50 focus:bg-white text-slate-900 placeholder-slate-400 disabled:opacity-50 disabled:cursor-not-allowed"
                   placeholder="Username, email ou matricule"
                   fullWidth={false}
                   label=""
                 />
-                <User className="absolute left-5 top-1/2 transform -translate-y-1/2 w-5 h-5 text-slate-400 group-hover:text-indigo-500 transition-colors duration-300 pointer-events-none" />
+                <User className="absolute left-3.5 top-1/2 transform -translate-y-1/2 w-4 h-4 text-slate-400 pointer-events-none" />
               </div>
-              <p className="text-xs text-slate-500 mt-2 ml-1">
-                💡 Utilisez votre <strong>username</strong> (ex: digidoc) pour les utilisateurs, ou <strong>matricule</strong> pour les agents
+              <p className="text-xs text-slate-500 mt-2">
+                Utilisez votre <strong className="text-slate-600">username</strong> (ex: digidoc) pour les utilisateurs, ou <strong className="text-slate-600">matricule</strong> pour les agents
               </p>
             </div>
 
-            <div className="group">
+            <div>
               <label
                 htmlFor="password"
-                className="flex text-sm font-bold text-slate-800 mb-3 items-center group-hover:text-indigo-600 transition-colors duration-300"
+                className="flex text-sm font-semibold text-slate-800 mb-2 items-center"
               >
-                <Lock className="w-4 h-4 mr-3 text-indigo-600 group-hover:scale-110 transition-transform duration-300" />
+                <Lock className="w-4 h-4 mr-2.5 text-blue-600" />
                 Mot de passe
               </label>
-              <div className="relative group">
+              <div className="relative">
                 <Input
                   type={showPassword ? "text" : "password"}
                   id="password"
@@ -274,22 +252,22 @@ export default function LoginPage() {
                   error={errors.password}
                   required
                   disabled={isSubmitting || loading}
-                  className="w-full px-5 py-5 pl-14 pr-14 border-2 border-slate-200 rounded-2xl focus:ring-4 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all duration-300 bg-white/80 backdrop-blur-sm hover:bg-white hover:border-primary-300 text-primary-900 placeholder-slate-500 font-medium shadow-sm hover:shadow-md disabled:opacity-50 disabled:cursor-not-allowed"
+                  className="w-full px-4 py-3.5 pl-11 pr-11 border border-slate-200 rounded-xl focus:ring-4 focus:ring-blue-500/15 focus:border-blue-500 transition-all duration-200 bg-slate-50 focus:bg-white text-slate-900 placeholder-slate-400 disabled:opacity-50 disabled:cursor-not-allowed"
                   placeholder="Entrez votre mot de passe"
                   fullWidth={false}
                   label=""
                 />
-                <Lock className="absolute left-5 top-1/2 transform -translate-y-1/2 w-5 h-5 text-slate-400 group-hover:text-indigo-500 transition-colors duration-300 pointer-events-none" />
+                <Lock className="absolute left-3.5 top-1/2 transform -translate-y-1/2 w-4 h-4 text-slate-400 pointer-events-none" />
                 <button
                   type="button"
                   onClick={() => setShowPassword(!showPassword)}
                   disabled={isSubmitting || loading}
-                  className="absolute right-4 top-1/2 transform -translate-y-1/2 text-slate-400 hover:text-indigo-600 transition-all duration-300 p-2 hover:bg-indigo-50 rounded-xl hover:scale-110 disabled:opacity-50 disabled:cursor-not-allowed z-10"
+                  className="absolute right-2.5 top-1/2 transform -translate-y-1/2 text-slate-400 hover:text-slate-700 transition-colors duration-150 p-1.5 hover:bg-slate-100 rounded-lg disabled:opacity-50 disabled:cursor-not-allowed z-10"
                 >
                   {showPassword ? (
-                    <EyeOff className="w-5 h-5" />
+                    <EyeOff className="w-4 h-4" />
                   ) : (
-                    <Eye className="w-5 h-5" />
+                    <Eye className="w-4 h-4" />
                   )}
                 </button>
               </div>
@@ -298,23 +276,18 @@ export default function LoginPage() {
             <button
               type="submit"
               disabled={isSubmitting || loading}
-              className="w-full bg-slate-800 cursor-pointer text-white py-5 px-8 rounded-2xl hover:from-indigo-700 hover:via-purple-700 hover:to-indigo-800 transition-all duration-500 font-bold text-lg shadow-[0_20px_40px_-10px_rgba(99,102,241,0.4)] hover:shadow-[0_25px_50px_-15px_rgba(99,102,241,0.5)] transform hover:-translate-y-2 border border-indigo-500/20 relative overflow-hidden group disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none"
+              className="w-full bg-slate-900 cursor-pointer text-white py-3.5 px-6 rounded-xl hover:bg-slate-800 transition-all duration-200 font-semibold text-base shadow-[0_14px_28px_-14px_rgba(30,41,59,0.35)] hover:shadow-[0_20px_40px_-15px_rgba(30,41,59,0.4)] hover:-translate-y-0.5 disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none"
             >
-              <span className="relative z-10 flex items-center justify-center">
-                <div className="w-6 h-6 mr-3 flex items-center justify-center">
+              <span className="flex items-center justify-center">
+                <div className="w-5 h-5 mr-2.5 flex items-center justify-center">
                   {isSubmitting ? (
-                    <Loader2 key="loading" className="w-6 h-6 animate-spin" />
+                    <Loader2 key="loading" className="w-5 h-5 animate-spin" />
                   ) : (
-                    <Shield
-                      key="shield"
-                      className="w-6 h-6 group-hover:scale-110 group-hover:rotate-12 transition-all duration-300"
-                    />
+                    <Shield key="shield" className="w-5 h-5" />
                   )}
                 </div>
                 <span>{isSubmitting ? "Connexion..." : "Se connecter"}</span>
               </span>
-              <div className="absolute inset-0 bg-gradient-to-r from-white/20 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500"></div>
-              <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/10 to-transparent -skew-x-12 -translate-x-full group-hover:translate-x-full transition-transform duration-1000"></div>
             </button>
           </form>
         </div>

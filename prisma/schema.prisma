@@ -92,6 +92,7 @@ model utilisateurs {
   telephone                String?                    @db.VarChar(50)
   departement              String?                    @db.VarChar(100)
   derniere_connexion       DateTime?                  @db.DateTime(6)
+  nombre_connexions        Int                        @default(0)
   created_at               DateTime                   @default(now()) @db.DateTime(6)
   updated_at               DateTime                   @default(now()) @db.DateTime(6)
   created_by               Int?                       // ID de l'utilisateur qui a créé ce compte
@@ -99,12 +100,24 @@ model utilisateurs {
   agents                   agents?                    @relation(fields: [agent_id], references: [id], onDelete: SetNull)
   audit_logs               audit_logs[]
   utilisateur_permissions  utilisateur_permissions[]  // Permissions individuelles
-  
+  connexion_logs           connexion_logs[]
+
   @@index([username])
   @@index([email])
   @@index([role_id])
   @@index([agent_id])
   @@index([statut])
+}
+
+// Historique des connexions (une ligne par connexion réussie)
+model connexion_logs {
+  id             Int          @id @default(autoincrement())
+  utilisateur_id Int
+  connected_at   DateTime     @default(now()) @db.DateTime(6)
+  utilisateurs   utilisateurs @relation(fields: [utilisateur_id], references: [id], onDelete: Cascade)
+
+  @@index([utilisateur_id])
+  @@index([connected_at])
 }
 
 // Table pour l'audit des actions (traçabilité)

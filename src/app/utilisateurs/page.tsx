@@ -12,6 +12,7 @@ import UtilisateursTable from "@/components/utilisateurs/UtilisateursTable";
 import UtilisateurForm from "@/components/UtilisateurForm";
 import UtilisateurDetailsModal from "@/components/utilisateurs/UtilisateurDetailsModal";
 import RolesPermissionsView from "@/components/utilisateurs/RolesPermissionsView";
+import { ToastContainer, useToast } from "@/components/Toast";
 import type { RoleData, Utilisateur } from "@/types/rbac";
 
 export default function UtilisateursPage() {
@@ -30,6 +31,8 @@ export default function UtilisateursPage() {
   const [showDetailsModal, setShowDetailsModal] = useState(false);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [selectedUser, setSelectedUser] = useState<Utilisateur | null>(null);
+  const [togglingId, setTogglingId] = useState<number | null>(null);
+  const { toasts, removeToast, success, error: showError } = useToast();
 
   // Protection
   useEffect(() => {
@@ -113,6 +116,43 @@ export default function UtilisateursPage() {
       }
     } catch (error) {
       console.error("Erreur modification:", error);
+    }
+  }
+
+  async function handleToggleActive(user: Utilisateur) {
+    const nextStatut = user.statut === "actif" ? "inactif" : "actif";
+
+    setTogglingId(user.id);
+    try {
+      const token = sessionStorage.getItem("auth-token");
+      const response = await fetch(`/api/utilisateurs/${user.id}`, {
+        method: "PUT",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({ statut: nextStatut }),
+      });
+
+      if (!response.ok) {
+        throw new Error("Erreur lors de la mise à jour du statut");
+      }
+
+      setUtilisateurs((prev) =>
+        prev.map((u) => (u.id === user.id ? { ...u, statut: nextStatut } : u))
+      );
+
+      success(
+        nextStatut === "actif" ? "Compte activé" : "Compte désactivé",
+        `${user.nom_complet} ${
+          nextStatut === "actif" ? "peut de nouveau" : "ne peut plus"
+        } se connecter.`
+      );
+    } catch (error) {
+      console.error("Erreur lors du changement de statut:", error);
+      showError("Erreur", "Impossible de mettre à jour le statut de ce compte.");
+    } finally {
+      setTogglingId(null);
     }
   }
 
@@ -212,6 +252,8 @@ export default function UtilisateursPage() {
                     setSelectedUser(user);
                     setShowDeleteModal(true);
                   }}
+                  onToggleActive={handleToggleActive}
+                  togglingId={togglingId}
                   canUpdate={hasPermission("utilisateurs", "update")}
                   canDelete={hasPermission("utilisateurs", "delete")}
                 />
@@ -287,6 +329,7 @@ export default function UtilisateursPage() {
             )}
           </div>
         </div>
+        <ToastContainer toasts={toasts} onClose={removeToast} />
       </DashboardLayout>
     </AuthGuard>
   );

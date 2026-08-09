@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { CheckCircle, XCircle, AlertCircle, Info, X } from "lucide-react";
+import { CheckCircle, XCircle, AlertCircle, Info, X, Trash2 } from "lucide-react";
 
 export type ToastType = "success" | "error" | "warning" | "info";
 
@@ -11,6 +11,9 @@ export interface Toast {
   title: string;
   message?: string;
   duration?: number;
+  onConfirm?: () => void;
+  confirmLabel?: string;
+  cancelLabel?: string;
 }
 
 interface ToastProps {
@@ -118,6 +121,47 @@ function ToastComponent({ toast, onClose }: ToastProps) {
   );
 }
 
+// Modale de confirmation centrée (même gabarit que la modale de suppression de la page Agents)
+function ConfirmToastModal({ toast, onClose }: ToastProps) {
+  const handleCancel = () => onClose(toast.id);
+  const handleConfirm = () => {
+    toast.onConfirm?.();
+    onClose(toast.id);
+  };
+
+  return (
+    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+      <div className="bg-white rounded-xl shadow-xl max-w-md w-full">
+        <div className="p-6">
+          <div className="flex items-center space-x-3 mb-4">
+            <div className="w-10 h-10 bg-red-100 rounded-full flex items-center justify-center flex-shrink-0">
+              <Trash2 className="w-5 h-5 text-red-600" />
+            </div>
+            <h3 className="text-lg font-bold text-gray-900">{toast.title}</h3>
+          </div>
+          {toast.message && (
+            <p className="text-gray-600 mb-6">{toast.message}</p>
+          )}
+          <div className="flex justify-end space-x-3">
+            <button
+              onClick={handleCancel}
+              className="px-4 py-2 border border-gray-300 rounded-lg text-primary-700 hover:bg-gray-50 transition-colors"
+            >
+              {toast.cancelLabel || "Annuler"}
+            </button>
+            <button
+              onClick={handleConfirm}
+              className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors"
+            >
+              {toast.confirmLabel || "Supprimer"}
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 // Container pour afficher les toasts
 export function ToastContainer({
   toasts,
@@ -128,12 +172,22 @@ export function ToastContainer({
 }) {
   if (toasts.length === 0) return null;
 
+  const confirmToasts = toasts.filter((toast) => toast.onConfirm);
+  const regularToasts = toasts.filter((toast) => !toast.onConfirm);
+
   return (
-    <div className="fixed top-4 right-4 z-50 max-w-sm w-full">
-      {toasts.map((toast) => (
-        <ToastComponent key={toast.id} toast={toast} onClose={onClose} />
+    <>
+      {regularToasts.length > 0 && (
+        <div className="fixed top-4 right-4 z-50 max-w-sm w-full">
+          {regularToasts.map((toast) => (
+            <ToastComponent key={toast.id} toast={toast} onClose={onClose} />
+          ))}
+        </div>
+      )}
+      {confirmToasts.map((toast) => (
+        <ConfirmToastModal key={toast.id} toast={toast} onClose={onClose} />
       ))}
-    </div>
+    </>
   );
 }
 
@@ -166,6 +220,23 @@ export function useToast() {
     addToast({ type: "info", title, message, duration });
   };
 
+  const confirm = (
+    title: string,
+    message: string,
+    onConfirm: () => void,
+    options?: { confirmLabel?: string; cancelLabel?: string }
+  ) => {
+    addToast({
+      type: "warning",
+      title,
+      message,
+      duration: 0,
+      onConfirm,
+      confirmLabel: options?.confirmLabel,
+      cancelLabel: options?.cancelLabel,
+    });
+  };
+
   return {
     toasts,
     addToast,
@@ -174,5 +245,6 @@ export function useToast() {
     error,
     warning,
     info,
+    confirm,
   };
 }

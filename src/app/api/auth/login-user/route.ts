@@ -63,10 +63,16 @@ export async function POST(req: NextRequest) {
 
     console.log("[LOGIN-USER] ✅ Mot de passe valide");
 
-    // Mettre à jour la dernière connexion
+    // Mettre à jour la dernière connexion et le compteur de connexions
     await prisma.utilisateurs.update({
       where: { id: utilisateur.id },
-      data: { derniere_connexion: new Date() },
+      data: {
+        derniere_connexion: new Date(),
+        nombre_connexions: { increment: 1 },
+      },
+    });
+    await prisma.connexion_logs.create({
+      data: { utilisateur_id: utilisateur.id },
     });
 
     // Générer un token JWT

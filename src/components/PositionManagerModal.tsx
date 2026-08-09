@@ -28,6 +28,8 @@ import {
   ChevronUp,
   ChevronDown,
   ChevronRight,
+  Settings,
+  Loader2,
 } from "lucide-react";
 import { positionsService } from "@/services/positions";
 import { fetchWithAuth } from "@/lib/api/fetchWithAuth";
@@ -40,6 +42,8 @@ interface PositionManagerModalProps {
   rubriqueId: string;
   sousDossiers: SousDossier[];
   onUpdate: () => void;
+  onError?: (title: string, message?: string) => void;
+  onSuccess?: (title: string, message?: string) => void;
 }
 
 interface SousDossierWithPieces extends SousDossier {
@@ -91,30 +95,32 @@ function SortableSousDossier({
       style={style}
       className={`border-2 rounded-xl overflow-hidden transition-all duration-200 ${
         isDragging
-          ? "border-indigo-500 shadow-2xl scale-105 bg-indigo-50 z-50"
-          : "border-gray-200 hover:border-indigo-300 hover:shadow-lg"
+          ? "border-blue-400 shadow-2xl scale-105 bg-blue-50 z-50"
+          : "border-gray-200 hover:border-blue-300 hover:shadow-lg"
       }`}
     >
-      <div className="bg-gradient-to-r from-indigo-50 via-purple-50 to-pink-50 p-4 flex items-center gap-4">
+      <div className="bg-gray-50 p-4 flex items-center gap-4">
         <div
           {...attributes}
           {...listeners}
-          className="cursor-grab active:cursor-grabbing p-2 hover:bg-white/50 rounded-lg transition-colors"
+          className="cursor-grab active:cursor-grabbing p-2 hover:bg-white rounded-lg transition-colors"
         >
-          <GripVertical className="w-6 h-6 text-indigo-600" />
+          <GripVertical className="w-6 h-6 text-gray-400" />
         </div>
         <button
           onClick={onToggleExpand}
-          className="p-1 hover:bg-white/50 rounded-lg transition-colors"
+          className="p-1 hover:bg-white rounded-lg transition-colors"
           title={isExpanded ? "Réduire" : "Développer"}
         >
           {isExpanded ? (
-            <ChevronDown className="w-5 h-5 text-indigo-600" />
+            <ChevronDown className="w-5 h-5 text-gray-600" />
           ) : (
-            <ChevronRight className="w-5 h-5 text-indigo-600" />
+            <ChevronRight className="w-5 h-5 text-gray-600" />
           )}
         </button>
-        <FolderTree className="w-6 h-6 text-indigo-600 flex-shrink-0" />
+        <div className="w-9 h-9 rounded-lg bg-blue-600 flex items-center justify-center flex-shrink-0">
+          <FolderTree className="w-5 h-5 text-white" />
+        </div>
         <div className="flex-1 min-w-0">
           <h3 className="font-bold text-gray-900 text-lg">
             {sousDossier.titre}
@@ -125,7 +131,7 @@ function SortableSousDossier({
             </p>
           )}
         </div>
-        <div className="px-3 py-1 bg-indigo-100 text-indigo-700 rounded-full text-sm font-semibold">
+        <div className="px-3 py-1 bg-primary-100 text-primary-700 rounded-full text-sm font-semibold">
           {sousDossier.pieces.length} pièce
           {sousDossier.pieces.length > 1 ? "s" : ""}
         </div>
@@ -225,8 +231,8 @@ function SortablePiece({
       style={style}
       className={`bg-white border-2 rounded-lg p-3 flex items-center gap-3 transition-all duration-200 ${
         isDragging
-          ? "border-purple-500 shadow-xl scale-105 bg-purple-50 z-50"
-          : "border-gray-200 hover:border-purple-300 hover:shadow-md"
+          ? "border-emerald-400 shadow-xl scale-105 bg-emerald-50 z-50"
+          : "border-gray-200 hover:border-emerald-300 hover:shadow-md"
       }`}
     >
       <div
@@ -236,7 +242,9 @@ function SortablePiece({
       >
         <GripVertical className="w-5 h-5 text-gray-400" />
       </div>
-      <FileText className="w-5 h-5 text-purple-600 flex-shrink-0" />
+      <div className="w-7 h-7 rounded-lg bg-emerald-600 flex items-center justify-center flex-shrink-0">
+        <FileText className="w-3.5 h-3.5 text-white" />
+      </div>
       <div className="flex-1 min-w-0">
         <p className="font-semibold text-gray-900">{piece.nom}</p>
         {piece.description && (
@@ -277,6 +285,8 @@ export default function PositionManagerModal({
   rubriqueId,
   sousDossiers,
   onUpdate,
+  onError,
+  onSuccess,
 }: PositionManagerModalProps) {
   const [items, setItems] = useState<SousDossierWithPieces[]>([]);
   const [loading, setLoading] = useState(false);
@@ -547,10 +557,17 @@ export default function PositionManagerModal({
       }
 
       onUpdate();
+      onSuccess?.(
+        "Ordre enregistré",
+        "Le nouvel ordre a été sauvegardé avec succès."
+      );
       onClose();
     } catch (error) {
       console.error("Erreur lors de la sauvegarde:", error);
-      alert("Erreur lors de la sauvegarde des positions");
+      onError?.(
+        "Erreur de sauvegarde",
+        "Impossible d'enregistrer le nouvel ordre. Veuillez réessayer."
+      );
     } finally {
       setSaving(false);
     }
@@ -562,34 +579,36 @@ export default function PositionManagerModal({
     <div className="fixed inset-0 bg-black/70 backdrop-blur-md flex items-center justify-center z-50 p-4 animate-in fade-in duration-200">
       <div className="bg-white rounded-3xl shadow-2xl max-w-5xl w-full max-h-[90vh] flex flex-col animate-in zoom-in-95 duration-300">
         {/* Header amélioré */}
-        <div className="px-8 py-6 border-b border-gray-200 bg-gradient-to-r from-indigo-50 to-purple-50">
+        <div className="px-8 py-6 border-b border-gray-200 bg-primary-700">
           <div className="flex items-center justify-between">
-            <div>
-              <h2 className="text-3xl font-bold bg-gradient-to-r from-indigo-600 to-purple-600 bg-clip-text text-transparent">
-                Gérer l&apos;ordre des éléments
-              </h2>
-              <p className="text-sm text-gray-600 mt-2 flex items-center gap-2">
-                <GripVertical className="w-4 h-4" />
-                Glissez-déposez les éléments pour les réorganiser
-              </p>
+            <div className="flex items-center gap-4">
+              <div className="w-11 h-11 bg-white/15 rounded-xl flex items-center justify-center flex-shrink-0">
+                <Settings className="w-5 h-5 text-white" />
+              </div>
+              <div>
+                <h2 className="text-2xl font-bold text-white">
+                  Gérer l&apos;ordre des éléments
+                </h2>
+                <p className="text-sm text-primary-100 mt-1.5 flex items-center gap-2">
+                  <GripVertical className="w-4 h-4" />
+                  Glissez-déposez les éléments pour les réorganiser
+                </p>
+              </div>
             </div>
             <button
               onClick={onClose}
-              className="p-2 hover:bg-white/80 rounded-xl transition-all hover:scale-110"
+              className="p-2 hover:bg-white/10 rounded-xl transition-all hover:scale-110"
             >
-              <X className="w-6 h-6 text-gray-600" />
+              <X className="w-6 h-6 text-white" />
             </button>
           </div>
         </div>
 
         {/* Content avec DnD */}
-        <div className="flex-1 overflow-y-auto p-6 bg-gradient-to-b from-gray-50 to-white">
+        <div className="flex-1 overflow-y-auto p-6 bg-gray-50">
           {loading ? (
             <div className="flex items-center justify-center py-20">
-              <div className="relative">
-                <div className="animate-spin rounded-full h-12 w-12 border-4 border-indigo-200 border-t-indigo-600"></div>
-                <div className="absolute inset-0 rounded-full border-4 border-purple-200 border-t-purple-600 animate-spin animate-reverse"></div>
-              </div>
+              <Loader2 className="w-10 h-10 text-primary-600 animate-spin" />
             </div>
           ) : (
             <DndContext
@@ -620,10 +639,12 @@ export default function PositionManagerModal({
 
               <DragOverlay>
                 {draggedItem && (
-                  <div className="bg-white border-2 border-indigo-500 rounded-xl shadow-2xl p-4 transform rotate-2">
+                  <div className="bg-white border-2 border-primary-400 rounded-xl shadow-2xl p-4 transform rotate-2">
                     {draggedItem.type === "sous-dossier" ? (
                       <div className="flex items-center gap-3">
-                        <FolderTree className="w-6 h-6 text-indigo-600" />
+                        <div className="w-8 h-8 rounded-lg bg-blue-600 flex items-center justify-center flex-shrink-0">
+                          <FolderTree className="w-4 h-4 text-white" />
+                        </div>
                         <div>
                           <h3 className="font-bold text-gray-900">
                             {(draggedItem.data as SousDossierWithPieces).titre}
@@ -632,7 +653,9 @@ export default function PositionManagerModal({
                       </div>
                     ) : (
                       <div className="flex items-center gap-3">
-                        <FileText className="w-5 h-5 text-purple-600" />
+                        <div className="w-7 h-7 rounded-lg bg-emerald-600 flex items-center justify-center flex-shrink-0">
+                          <FileText className="w-3.5 h-3.5 text-white" />
+                        </div>
                         <p className="font-semibold text-gray-900">
                           {(draggedItem.data as Piece).nom}
                         </p>
@@ -673,7 +696,7 @@ export default function PositionManagerModal({
             <button
               onClick={handleSave}
               disabled={saving || loading}
-              className="px-6 py-2.5 bg-gradient-to-r from-indigo-600 to-purple-600 text-white rounded-xl hover:from-indigo-700 hover:to-purple-700 disabled:opacity-50 disabled:cursor-not-allowed transition-all font-semibold shadow-lg hover:shadow-xl transform hover:scale-105"
+              className="px-6 py-2.5 bg-primary-700 text-white rounded-xl hover:bg-primary-800 disabled:opacity-50 disabled:cursor-not-allowed transition-all font-semibold shadow-lg hover:shadow-xl"
             >
               {saving ? (
                 <span className="flex items-center gap-2">

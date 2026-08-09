@@ -1,7 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { hashPassword } from "@/lib/auth/password";
-import { requirePermission } from "@/lib/permissions/permissionMiddleware";
+import {
+  requirePermission,
+  getUserIdFromRequest,
+} from "@/lib/permissions/permissionMiddleware";
 
 /**
  * GET /api/utilisateurs
@@ -85,6 +88,9 @@ export async function POST(req: NextRequest) {
     // Hasher le mot de passe
     const hashedPassword = await hashPassword(password);
 
+    // Identifier l'auteur de la création (pour l'audit)
+    const creatorId = await getUserIdFromRequest(req);
+
     // Créer l'utilisateur
     const utilisateur = await prisma.utilisateurs.create({
       data: {
@@ -97,6 +103,7 @@ export async function POST(req: NextRequest) {
         departement: departement || null,
         avatar: avatar || null,
         statut: "actif",
+        created_by: creatorId,
       },
       include: {
         roles: true,
