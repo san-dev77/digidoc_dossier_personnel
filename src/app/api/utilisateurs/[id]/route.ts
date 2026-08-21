@@ -1,16 +1,22 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { hashPassword } from "@/lib/auth/password";
+import {
+  validatePasswordPolicy,
+  recordPasswordHistory,
+} from "@/lib/auth/passwordPolicy";
 import { requirePermission } from "@/lib/permissions/permissionMiddleware";
+import { withLogging } from "@/lib/apiLogger";
+import { logger } from "@/lib/logger";
 
 /**
  * GET /api/utilisateurs/[id]
  * Récupère un utilisateur spécifique
  */
-export async function GET(
+export const GET = withLogging("utilisateurs.get", async (
   req: NextRequest,
   { params }: { params: Promise<{ id: string }> }
-) {
+) => {
   const authError = await requirePermission("utilisateurs.read")(req);
   if (authError) return authError;
 
@@ -46,16 +52,16 @@ export async function GET(
       { status: 500 }
     );
   }
-}
+});
 
 /**
  * PUT /api/utilisateurs/[id]
  * Modifier un utilisateur
  */
-export async function PUT(
+export const PUT = withLogging("utilisateurs.update", async (
   req: NextRequest,
   { params }: { params: Promise<{ id: string }> }
-) {
+) => {
   const authError = await requirePermission("utilisateurs.update")(req);
   if (authError) return authError;
 
@@ -72,6 +78,8 @@ export async function PUT(
       departement,
       avatar,
       statut,
+      auth_source,
+      mfa_exempt,
     } = body;
 
     const userId = parseInt(paramId);
@@ -125,12 +133,23 @@ export async function PUT(
       ...(departement !== undefined && { departement }),
       ...(avatar !== undefined && { avatar }),
       ...(statut && { statut }),
+      ...(auth_source && { auth_source }),
+      ...(mfa_exempt !== undefined && { mfa_exempt: !!mfa_exempt }),
       updated_at: new Date(),
     };
 
-    // Si un nouveau mot de passe est fourni, le hasher
+    // Si un nouveau mot de passe est fourni, vérifier la politique puis le hasher
     if (password) {
+      const policy = await validatePasswordPolicy(password, userId);
+      if (!policy.valid) {
+        return NextResponse.json(
+          { message: "Mot de passe invalide", errors: policy.errors },
+          { status: 400 }
+        );
+      }
       updateData.password = await hashPassword(password);
+      updateData.password_updated_at = new Date();
+      updateData.must_change_password = false;
     }
 
     // Mettre à jour l'utilisateur
@@ -142,8 +161,17 @@ export async function PUT(
       },
     });
 
+    if (password) {
+      await recordPasswordHistory(userId, updateData.password);
+    }
+
     // Retirer le mot de passe
     const { password: _, ...utilisateurSafe } = utilisateur;
+
+    logger.success(`Utilisateur modifié : ${utilisateur.username}`, {
+      context: "utilisateurs.update",
+      meta: { userId, changedFields: Object.keys(updateData) },
+    });
 
     return NextResponse.json(utilisateurSafe);
   } catch (error) {
@@ -153,16 +181,16 @@ export async function PUT(
       { status: 500 }
     );
   }
-}
+});
 
 /**
  * DELETE /api/utilisateurs/[id]
  * Supprimer un utilisateur
  */
-export async function DELETE(
+export const DELETE = withLogging("utilisateurs.delete", async (
   req: NextRequest,
   { params }: { params: Promise<{ id: string }> }
-) {
+) => {
   const authError = await requirePermission("utilisateurs.delete")(req);
   if (authError) return authError;
 
@@ -210,6 +238,11 @@ export async function DELETE(
       where: { id: userId },
     });
 
+    logger.success(`Utilisateur supprimé : ${utilisateur.username}`, {
+      context: "utilisateurs.delete",
+      meta: { userId },
+    });
+
     return NextResponse.json({ message: "Utilisateur supprimé" });
   } catch (error) {
     console.error("Erreur suppression utilisateur:", error);
@@ -218,5 +251,5 @@ export async function DELETE(
       { status: 500 }
     );
   }
-}
+});
 

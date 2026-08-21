@@ -8,13 +8,15 @@ import {
 import { prisma } from "@/lib/prisma";
 import { createErrorResponse } from "@/lib/errors/safeError";
 import { protectRoute } from "@/lib/auth/routeProtection";
+import { withLogging } from "@/lib/apiLogger";
+import { logger } from "@/lib/logger";
 import fs from "fs-extra";
 import path from "path";
 
-export async function POST(
+export const POST = withLogging("pieces.upload", async (
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
-) {
+) => {
   // Protection de la route
   const authResult = await protectRoute(request);
   if (!authResult.authorized) {
@@ -143,6 +145,10 @@ export async function POST(
     });
 
     console.log("✅ Fichier lié à la pièce avec succès:", pieceFile);
+    logger.success(`Fichier uploadé : ${file.name}`, {
+      context: "pieces.upload",
+      meta: { pieceId, agentDossierId, fileSize, fileName: finalFileName },
+    });
 
     // Générer le thumbnail en arrière-plan (fire-and-forget, ne bloque pas la réponse)
     const thumbnailPath = path.join(basePath, `thumb_${finalFileName}`);
@@ -180,5 +186,5 @@ export async function POST(
       500
     );
   }
-}
+});
 

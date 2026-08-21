@@ -1,0 +1,24 @@
+# Utilisateurs de test — mot de passe en clair pour les deux : "TestUser123!"
+# (slapd le hache lui-même à l'import ; suffisant pour un annuaire de test
+# jetable — ne jamais faire ça sur un annuaire réel).
+dn: ou=people,dc=digidoc,dc=test
+objectClass: organizationalUnit
+ou: people
+
+dn: uid=jdupont,ou=people,dc=digidoc,dc=test
+objectClass: inetOrgPerson
+cn: Jean Dupont
+sn: Dupont
+uid: jdupont
+mail: jean.dupont@digidoc.test
+telephoneNumber: +221771234567
+userPassword: TestUser123!
+
+dn: uid=asarr,ou=people,dc=digidoc,dc=test
+objectClass: inetOrgPerson
+cn: Aminata Sarr
+sn: Sarr
+uid: asarr
+mail: aminata.sarr@digidoc.test
+telephoneNumber: +221769876543
+userPassword: TestUser123!

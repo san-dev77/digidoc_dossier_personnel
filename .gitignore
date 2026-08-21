@@ -24,6 +24,9 @@
 .DS_Store
 *.pem
 
+#md files
+*.md
+
 # debug
 npm-debug.log*
 yarn-debug.log*
@@ -35,6 +38,9 @@ yarn-error.log*
 
 # vercel
 .vercel
+
+# logs applicatifs (générés au runtime)
+/logs/*.log
 
 # typescript
 *.tsbuildinfo

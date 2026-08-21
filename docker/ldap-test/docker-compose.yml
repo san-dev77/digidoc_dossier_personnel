@@ -1,0 +1,31 @@
+# Annuaire LDAP de test — usage local uniquement.
+# Sert à valider le code de src/lib/ldap/ldapClient.ts (recherche + bind,
+# gestion des erreurs, LDAPS) avant d'avoir accès au vrai Active Directory
+# de la banque. Ne pas utiliser en production.
+#
+# Démarrage : docker compose -f docker/ldap-test/docker-compose.yml up -d
+# Arrêt     : docker compose -f docker/ldap-test/docker-compose.yml down -v
+
+services:
+  openldap-test:
+    image: osixia/openldap:1.5.0
+    container_name: digidoc-ldap-test
+    environment:
+      LDAP_ORGANISATION: "DigiDoc Test"
+      LDAP_DOMAIN: "digidoc.test"
+      LDAP_BASE_DN: "dc=digidoc,dc=test"
+      LDAP_ADMIN_PASSWORD: "AdminTest123!"
+      LDAP_TLS: "true"
+      LDAP_TLS_VERIFY_CLIENT: "never"
+      LDAP_SEED_INTERNAL_LDIF_PATH: "/container/service/slapd/assets/config/bootstrap/ldif/custom"
+    ports:
+      - "389:389"
+      - "636:636"
+    volumes:
+      - ./bootstrap.ldif:/container/service/slapd/assets/config/bootstrap/ldif/custom/bootstrap.ldif:ro
+      - ldap-test-data:/var/lib/ldap
+      - ldap-test-config:/etc/ldap/slapd.d
+
+volumes:
+  ldap-test-data:
+  ldap-test-config:

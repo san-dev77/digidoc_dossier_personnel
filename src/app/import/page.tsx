@@ -28,28 +28,48 @@ export default function ImportPage() {
     details?: Array<{ success: boolean; message: string }>;
   } | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [isDragging, setIsDragging] = useState(false);
+
+  const validateAndSetFile = (selectedFile: File) => {
+    // Vérifier que c'est un fichier CSV ou Excel
+    const validTypes = [
+      "text/csv",
+      "application/vnd.ms-excel",
+      "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+    ];
+
+    if (
+      !validTypes.includes(selectedFile.type) &&
+      !selectedFile.name.endsWith(".csv")
+    ) {
+      setError("Format de fichier invalide. Utilisez CSV ou Excel (.xlsx)");
+      return;
+    }
+
+    setFile(selectedFile);
+    setError(null);
+  };
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const selectedFile = e.target.files?.[0];
-    if (selectedFile) {
-      // Vérifier que c'est un fichier CSV ou Excel
-      const validTypes = [
-        "text/csv",
-        "application/vnd.ms-excel",
-        "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-      ];
+    if (selectedFile) validateAndSetFile(selectedFile);
+  };
 
-      if (
-        !validTypes.includes(selectedFile.type) &&
-        !selectedFile.name.endsWith(".csv")
-      ) {
-        setError("Format de fichier invalide. Utilisez CSV ou Excel (.xlsx)");
-        return;
-      }
+  const handleDragOver = (e: React.DragEvent<HTMLDivElement>) => {
+    e.preventDefault();
+    setIsDragging(true);
+  };
 
-      setFile(selectedFile);
-      setError(null);
-    }
+  const handleDragLeave = (e: React.DragEvent<HTMLDivElement>) => {
+    e.preventDefault();
+    setIsDragging(false);
+  };
+
+  const handleDrop = (e: React.DragEvent<HTMLDivElement>) => {
+    e.preventDefault();
+    setIsDragging(false);
+    const droppedFile = e.dataTransfer.files?.[0];
+    if (droppedFile) validateAndSetFile(droppedFile);
   };
 
   const handleImport = async () => {
@@ -132,19 +152,19 @@ export default function ImportPage() {
   return (
     <AuthGuard>
       <DashboardLayout>
-        <div className="min-h-screen bg-gradient-to-br from-slate-50 via-white to-slate-100 p-8">
+        <div className="min-h-screen bg-gray-50 p-8">
           {/* Header */}
           <div className="mb-8">
-            <div className="bg-gradient-to-br from-slate-800 via-slate-700 to-slate-900 rounded-3xl shadow-2xl p-8">
-              <div className="flex items-center gap-6">
-                <div className="w-16 h-16 bg-white/20 backdrop-blur-sm rounded-2xl flex items-center justify-center">
-                  <Upload className="w-8 h-8 text-white" />
+            <div className="bg-primary-700 rounded-2xl shadow-xl p-8">
+              <div className="flex items-center gap-5">
+                <div className="w-14 h-14 bg-white/10 rounded-2xl flex items-center justify-center flex-shrink-0">
+                  <Upload className="w-7 h-7 text-white" />
                 </div>
                 <div>
-                  <h1 className="text-4xl font-bold text-white mb-2">
+                  <h1 className="text-2xl font-bold text-white">
                     Import de données
                   </h1>
-                  <p className="text-slate-200 text-lg">
+                  <p className="text-primary-200 mt-1">
                     Importez des agents, documents ou dossiers de crédit en
                     masse
                   </p>
@@ -155,7 +175,7 @@ export default function ImportPage() {
 
           {/* Sélection du type d'import */}
           <div className="mb-8">
-            <h2 className="text-2xl font-bold text-slate-800 mb-4">
+            <h2 className="text-lg font-bold text-gray-900 mb-4">
               Type d&apos;import
             </h2>
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
@@ -164,28 +184,28 @@ export default function ImportPage() {
                 onClick={() => setImportType("agents")}
                 className={`p-6 rounded-xl border-2 transition-all duration-300 ${
                   importType === "agents"
-                    ? "border-blue-500 bg-blue-50 shadow-lg"
-                    : "border-slate-200 hover:border-slate-400 bg-white hover:shadow-md"
+                    ? "border-blue-500 bg-accent-blue-light shadow-lg"
+                    : "border-gray-200 hover:border-gray-400 bg-white hover:shadow-md"
                 }`}
               >
                 <div className="flex flex-col items-center text-center">
                   <div
                     className={`w-16 h-16 rounded-xl flex items-center justify-center mb-4 ${
-                      importType === "agents" ? "bg-blue-500" : "bg-slate-200"
+                      importType === "agents" ? "bg-accent-blue" : "bg-gray-200"
                     }`}
                   >
                     <Users
                       className={`w-8 h-8 ${
                         importType === "agents"
                           ? "text-white"
-                          : "text-slate-600"
+                          : "text-gray-600"
                       }`}
                     />
                   </div>
-                  <h3 className="font-bold text-lg text-slate-900 mb-2">
+                  <h3 className="font-bold text-lg text-gray-900 mb-2">
                     Agents
                   </h3>
-                  <p className="text-sm text-slate-600">
+                  <p className="text-sm text-gray-600">
                     Importer une liste d&apos;agents avec leurs informations
                   </p>
                 </div>
@@ -196,30 +216,30 @@ export default function ImportPage() {
                 onClick={() => setImportType("documents")}
                 className={`p-6 rounded-xl border-2 transition-all duration-300 ${
                   importType === "documents"
-                    ? "border-emerald-500 bg-emerald-50 shadow-lg"
-                    : "border-slate-200 hover:border-slate-400 bg-white hover:shadow-md"
+                    ? "border-emerald-500 bg-accent-green-light shadow-lg"
+                    : "border-gray-200 hover:border-gray-400 bg-white hover:shadow-md"
                 }`}
               >
                 <div className="flex flex-col items-center text-center">
                   <div
                     className={`w-16 h-16 rounded-xl flex items-center justify-center mb-4 ${
                       importType === "documents"
-                        ? "bg-emerald-500"
-                        : "bg-slate-200"
+                        ? "bg-accent-green"
+                        : "bg-gray-200"
                     }`}
                   >
                     <Folder
                       className={`w-8 h-8 ${
                         importType === "documents"
                           ? "text-white"
-                          : "text-slate-600"
+                          : "text-gray-600"
                       }`}
                     />
                   </div>
-                  <h3 className="font-bold text-lg text-slate-900 mb-2">
+                  <h3 className="font-bold text-lg text-gray-900 mb-2">
                     Documents du personnel
                   </h3>
-                  <p className="text-sm text-slate-600">
+                  <p className="text-sm text-gray-600">
                     Importer des documents administratifs
                   </p>
                 </div>
@@ -230,30 +250,30 @@ export default function ImportPage() {
                 onClick={() => setImportType("credits")}
                 className={`p-6 rounded-xl border-2 transition-all duration-300 ${
                   importType === "credits"
-                    ? "border-purple-500 bg-purple-50 shadow-lg"
-                    : "border-slate-200 hover:border-slate-400 bg-white hover:shadow-md"
+                    ? "border-violet-500 bg-accent-purple-light shadow-lg"
+                    : "border-gray-200 hover:border-gray-400 bg-white hover:shadow-md"
                 }`}
               >
                 <div className="flex flex-col items-center text-center">
                   <div
                     className={`w-16 h-16 rounded-xl flex items-center justify-center mb-4 ${
                       importType === "credits"
-                        ? "bg-purple-500"
-                        : "bg-slate-200"
+                        ? "bg-accent-purple"
+                        : "bg-gray-200"
                     }`}
                   >
                     <FileSpreadsheet
                       className={`w-8 h-8 ${
                         importType === "credits"
                           ? "text-white"
-                          : "text-slate-600"
+                          : "text-gray-600"
                       }`}
                     />
                   </div>
-                  <h3 className="font-bold text-lg text-slate-900 mb-2">
+                  <h3 className="font-bold text-lg text-gray-900 mb-2">
                     Dossiers de crédit
                   </h3>
-                  <p className="text-sm text-slate-600">
+                  <p className="text-sm text-gray-600">
                     Importer des demandes de crédit
                   </p>
                 </div>
@@ -263,9 +283,9 @@ export default function ImportPage() {
 
           {/* Zone d'import */}
           {importType && (
-            <div className="bg-white rounded-2xl shadow-lg p-8 mb-8">
+            <div className="bg-white rounded-2xl shadow-lg border border-gray-100 p-8 mb-8">
               <div className="flex items-center justify-between mb-6">
-                <h2 className="text-2xl font-bold text-slate-800">
+                <h2 className="text-lg font-bold text-gray-900">
                   Import :{" "}
                   {importType === "agents"
                     ? "Agents"
@@ -275,7 +295,7 @@ export default function ImportPage() {
                 </h2>
                 <button
                   onClick={() => downloadTemplate(importType)}
-                  className="flex items-center gap-2 px-4 py-2 bg-slate-600 text-white rounded-lg hover:bg-slate-700 transition-colors"
+                  className="flex items-center gap-2 px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors font-semibold text-sm"
                 >
                   <Download className="w-4 h-4" />
                   Télécharger le template
@@ -283,12 +303,21 @@ export default function ImportPage() {
               </div>
 
               {/* Upload zone */}
-              <div className="border-2 border-dashed border-slate-300 rounded-xl p-12 text-center mb-6">
-                <Upload className="w-16 h-16 text-slate-400 mx-auto mb-4" />
-                <h3 className="text-lg font-semibold text-slate-700 mb-2">
+              <div
+                onDragOver={handleDragOver}
+                onDragLeave={handleDragLeave}
+                onDrop={handleDrop}
+                className={`border-2 border-dashed rounded-xl p-12 text-center mb-6 transition-colors ${
+                  isDragging
+                    ? "border-blue-500 bg-accent-blue-light"
+                    : "border-gray-300"
+                }`}
+              >
+                <Upload className="w-12 h-12 text-gray-400 mx-auto mb-4" />
+                <h3 className="text-base font-semibold text-gray-800 mb-1">
                   Glissez-déposez votre fichier ici
                 </h3>
-                <p className="text-slate-500 mb-4">
+                <p className="text-gray-500 text-sm mb-4">
                   ou cliquez pour sélectionner (CSV ou Excel)
                 </p>
                 <input
@@ -300,18 +329,23 @@ export default function ImportPage() {
                 />
                 <label
                   htmlFor="file-upload"
-                  className="inline-flex items-center gap-2 px-6 py-3 bg-slate-600 text-white rounded-lg hover:bg-slate-700 transition-colors cursor-pointer"
+                  className="inline-flex items-center gap-2 px-6 py-3 bg-primary-700 text-white rounded-lg hover:bg-primary-800 transition-colors cursor-pointer font-semibold text-sm"
                 >
-                  <FileSpreadsheet className="w-5 h-5" />
+                  <FileSpreadsheet className="w-4 h-4" />
                   Sélectionner un fichier
                 </label>
 
                 {file && (
-                  <div className="mt-4 p-4 bg-slate-50 rounded-lg border border-slate-200 inline-block">
-                    <p className="text-slate-700 font-medium">📄 {file.name}</p>
-                    <p className="text-sm text-slate-500">
-                      {(file.size / 1024).toFixed(2)} KB
-                    </p>
+                  <div className="mt-4 inline-flex items-center gap-3 p-3 bg-gray-50 rounded-lg border border-gray-200">
+                    <CheckCircle className="w-5 h-5 text-accent-green flex-shrink-0" />
+                    <div className="text-left">
+                      <p className="text-gray-800 font-semibold text-sm">
+                        {file.name}
+                      </p>
+                      <p className="text-xs text-gray-500">
+                        {(file.size / 1024).toFixed(2)} Ko
+                      </p>
+                    </div>
                   </div>
                 )}
               </div>
@@ -321,9 +355,9 @@ export default function ImportPage() {
                 <button
                   onClick={handleImport}
                   disabled={!file || isUploading}
-                  className="flex items-center gap-3 px-8 py-4 bg-gradient-to-r from-emerald-500 to-emerald-600 text-white rounded-xl hover:from-emerald-600 hover:to-emerald-700 transition-all duration-300 shadow-lg hover:shadow-xl transform hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100 font-semibold text-lg"
+                  className="flex items-center gap-3 px-8 py-3.5 bg-primary-700 text-white rounded-xl hover:bg-primary-800 transition-colors shadow-lg disabled:opacity-50 disabled:cursor-not-allowed font-semibold text-base"
                 >
-                  <Upload className="w-6 h-6" />
+                  <Upload className="w-5 h-5" />
                   Importer les données
                 </button>
               </div>
@@ -332,37 +366,37 @@ export default function ImportPage() {
 
           {/* Résultats */}
           {results && (
-            <div className="bg-white rounded-2xl shadow-lg p-8">
+            <div className="bg-white rounded-2xl shadow-lg border border-gray-100 p-8">
               <div className="flex items-center gap-4 mb-6">
-                <div className="w-12 h-12 bg-emerald-500 rounded-xl flex items-center justify-center">
+                <div className="w-12 h-12 bg-accent-green rounded-xl flex items-center justify-center flex-shrink-0">
                   <CheckCircle className="w-6 h-6 text-white" />
                 </div>
                 <div>
-                  <h3 className="text-2xl font-bold text-slate-900">
+                  <h3 className="text-xl font-bold text-gray-900">
                     Import réussi !
                   </h3>
-                  <p className="text-slate-600">
+                  <p className="text-gray-600">
                     Les données ont été importées avec succès
                   </p>
                 </div>
               </div>
 
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                <div className="bg-emerald-50 rounded-lg p-4 border border-emerald-200">
-                  <p className="text-sm text-emerald-700 mb-1">Créés</p>
-                  <p className="text-3xl font-bold text-emerald-600">
+                <div className="bg-accent-green-light rounded-lg p-4 border border-green-200">
+                  <p className="text-sm text-accent-green mb-1 font-semibold">Créés</p>
+                  <p className="text-3xl font-bold text-accent-green">
                     {results.created || 0}
                   </p>
                 </div>
-                <div className="bg-blue-50 rounded-lg p-4 border border-blue-200">
-                  <p className="text-sm text-blue-700 mb-1">Mis à jour</p>
-                  <p className="text-3xl font-bold text-blue-600">
+                <div className="bg-accent-blue-light rounded-lg p-4 border border-blue-200">
+                  <p className="text-sm text-accent-blue mb-1 font-semibold">Mis à jour</p>
+                  <p className="text-3xl font-bold text-accent-blue">
                     {results.updated || 0}
                   </p>
                 </div>
-                <div className="bg-orange-50 rounded-lg p-4 border border-orange-200">
-                  <p className="text-sm text-orange-700 mb-1">Erreurs</p>
-                  <p className="text-3xl font-bold text-orange-600">
+                <div className="bg-red-50 rounded-lg p-4 border border-red-200">
+                  <p className="text-sm text-red-700 mb-1 font-semibold">Erreurs</p>
+                  <p className="text-3xl font-bold text-red-600">
                     {results.errors || 0}
                   </p>
                 </div>
@@ -370,7 +404,7 @@ export default function ImportPage() {
 
               {results.details && results.details.length > 0 && (
                 <div className="mt-6">
-                  <h4 className="font-semibold text-slate-800 mb-3">
+                  <h4 className="font-semibold text-gray-800 mb-3">
                     Détails de l&apos;import :
                   </h4>
                   <div className="space-y-2 max-h-64 overflow-y-auto">
@@ -379,13 +413,13 @@ export default function ImportPage() {
                         key={index}
                         className={`p-3 rounded-lg border ${
                           detail.success
-                            ? "bg-emerald-50 border-emerald-200"
+                            ? "bg-accent-green-light border-green-200"
                             : "bg-red-50 border-red-200"
                         }`}
                       >
                         <p
                           className={`text-sm ${
-                            detail.success ? "text-emerald-700" : "text-red-700"
+                            detail.success ? "text-accent-green" : "text-red-700"
                           }`}
                         >
                           {detail.message}
@@ -402,7 +436,7 @@ export default function ImportPage() {
           {error && (
             <div className="bg-red-50 rounded-2xl border-2 border-red-200 p-6">
               <div className="flex items-center gap-4">
-                <div className="w-12 h-12 bg-red-500 rounded-xl flex items-center justify-center">
+                <div className="w-12 h-12 bg-red-600 rounded-xl flex items-center justify-center flex-shrink-0">
                   <AlertCircle className="w-6 h-6 text-white" />
                 </div>
                 <div>
@@ -416,41 +450,64 @@ export default function ImportPage() {
           )}
 
           {/* Instructions */}
-          <div className="bg-white rounded-2xl shadow-lg p-8 mt-8">
-            <h2 className="text-2xl font-bold text-slate-800 mb-4">
-              📋 Instructions
+          <div className="bg-white rounded-2xl shadow-lg border border-gray-100 p-8 mt-8">
+            <h2 className="text-lg font-bold text-gray-900 mb-5">
+              Comment ça marche
             </h2>
-            <div className="space-y-4 text-slate-700">
-              <div>
-                <h3 className="font-semibold mb-2">
-                  1. Choisissez le type d&apos;import
-                </h3>
-                <p className="text-sm text-slate-600">
-                  Sélectionnez le type de données que vous souhaitez importer
-                </p>
+            <div className="space-y-5">
+              <div className="flex gap-4">
+                <span className="w-7 h-7 rounded-lg bg-primary-100 text-primary-700 font-bold text-xs flex items-center justify-center flex-shrink-0">
+                  1
+                </span>
+                <div>
+                  <h3 className="font-semibold text-gray-900 text-sm mb-0.5">
+                    Choisissez le type d&apos;import
+                  </h3>
+                  <p className="text-sm text-gray-500">
+                    Sélectionnez le type de données que vous souhaitez importer
+                  </p>
+                </div>
               </div>
-              <div>
-                <h3 className="font-semibold mb-2">
-                  2. Téléchargez le template
-                </h3>
-                <p className="text-sm text-slate-600">
-                  Utilisez le bouton &apos;Télécharger le template&apos; pour
-                  obtenir un fichier exemple
-                </p>
+              <div className="flex gap-4">
+                <span className="w-7 h-7 rounded-lg bg-primary-100 text-primary-700 font-bold text-xs flex items-center justify-center flex-shrink-0">
+                  2
+                </span>
+                <div>
+                  <h3 className="font-semibold text-gray-900 text-sm mb-0.5">
+                    Téléchargez le template
+                  </h3>
+                  <p className="text-sm text-gray-500">
+                    Utilisez le bouton &apos;Télécharger le template&apos; pour
+                    obtenir un fichier exemple
+                  </p>
+                </div>
               </div>
-              <div>
-                <h3 className="font-semibold mb-2">
-                  3. Remplissez vos données
-                </h3>
-                <p className="text-sm text-slate-600">
-                  Complétez le fichier CSV ou Excel avec vos données
-                </p>
+              <div className="flex gap-4">
+                <span className="w-7 h-7 rounded-lg bg-primary-100 text-primary-700 font-bold text-xs flex items-center justify-center flex-shrink-0">
+                  3
+                </span>
+                <div>
+                  <h3 className="font-semibold text-gray-900 text-sm mb-0.5">
+                    Remplissez vos données
+                  </h3>
+                  <p className="text-sm text-gray-500">
+                    Complétez le fichier CSV ou Excel avec vos données
+                  </p>
+                </div>
               </div>
-              <div>
-                <h3 className="font-semibold mb-2">4. Importez le fichier</h3>
-                <p className="text-sm text-slate-600">
-                  Glissez-déposez votre fichier ou cliquez pour le sélectionner
-                </p>
+              <div className="flex gap-4">
+                <span className="w-7 h-7 rounded-lg bg-primary-100 text-primary-700 font-bold text-xs flex items-center justify-center flex-shrink-0">
+                  4
+                </span>
+                <div>
+                  <h3 className="font-semibold text-gray-900 text-sm mb-0.5">
+                    Importez le fichier
+                  </h3>
+                  <p className="text-sm text-gray-500">
+                    Glissez-déposez votre fichier ou cliquez pour le
+                    sélectionner
+                  </p>
+                </div>
               </div>
             </div>
           </div>

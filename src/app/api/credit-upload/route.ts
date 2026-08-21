@@ -9,10 +9,12 @@ import {
   getReadableStoragePath,
   generateAgentFileName,
 } from "@/config/storage";
+import { withLogging } from "@/lib/apiLogger";
+import { logger } from "@/lib/logger";
 import fs from "fs-extra";
 import path from "path";
 
-export async function POST(request: NextRequest) {
+export const POST = withLogging("credit.upload", async (request: NextRequest) => {
   const authResult = await protectRoute(request);
   if (!authResult.authorized) {
     return authResult.response!;
@@ -214,6 +216,11 @@ export async function POST(request: NextRequest) {
       });
     }
 
+    logger.success(`Dossier de crédit créé : ${entryLabel}`, {
+      context: "credit.upload",
+      meta: { agentDossierId, entryId, filesCount: savedFiles.length },
+    });
+
     return NextResponse.json({
       success: true,
       message: `Dossier de crédit créé avec succès`,
@@ -235,10 +242,10 @@ export async function POST(request: NextRequest) {
       500
     );
   }
-}
+});
 
 // GET: Récupérer les entrées de crédit groupées (metadata + fichiers)
-export async function GET(request: NextRequest) {
+export const GET = withLogging("credit.list", async (request: NextRequest) => {
   const authResult = await protectRoute(request);
   if (!authResult.authorized) {
     return authResult.response!;
@@ -306,4 +313,4 @@ export async function GET(request: NextRequest) {
       500
     );
   }
-}
+});

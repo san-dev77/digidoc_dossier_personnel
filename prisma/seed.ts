@@ -288,12 +288,17 @@ async function main() {
         agent_id: agentDigidoc.id, // ✅ LIEN VERS L'AGENT
         statut: "actif",
         departement: "Administration",
+        // Compte d'accès de secours : MFA non requis, mais mot de passe à
+        // changer immédiatement (celui du seed est en clair dans le code).
+        auth_source: "local",
+        mfa_exempt: true,
+        must_change_password: true,
       },
     });
 
     console.log(`✅ Super Admin créé :`);
     console.log(`   👤 Username: digidoc`);
-    console.log(`   🔑 Password: **********`);
+    console.log(`   🔑 Password: ********** (changement obligatoire à la 1ère connexion)`);
     console.log(`   📧 Email: admin@digidoc.local`);
     console.log(`   🛡️  Rôle: Super Administrateur`);
     console.log(`   🔗 Agent lié: ADMIN001 (${agentDigidoc.nom_complet})`);
@@ -301,6 +306,21 @@ async function main() {
     console.log(
       `⏭️  Utilisateur "digidoc" existe déjà (ID: ${existingUser.id})`
     );
+    // S'assurer que le compte de secours reste exempté de MFA même sur une
+    // base déjà seedée avant l'ajout de ces champs.
+    if (!existingUser.mfa_exempt) {
+      await prisma.utilisateurs.update({
+        where: { id: existingUser.id },
+        data: {
+          mfa_exempt: true,
+          auth_source: "local",
+          must_change_password: true,
+        },
+      });
+      console.log(
+        `   🔧 "digidoc" marqué comme exempté de MFA + changement de mot de passe obligatoire (compte de secours)`
+      );
+    }
   }
 
   // ============================================

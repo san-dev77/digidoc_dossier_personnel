@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { protectRoute } from "@/lib/auth/routeProtection";
+import { withLogging } from "@/lib/apiLogger";
+import { logger } from "@/lib/logger";
 import * as XLSX from "xlsx";
 
 // Fonction pour parser un fichier Excel ou CSV
@@ -385,7 +387,7 @@ async function importCredits(data: Record<string, string>[]) {
   }
 }
 
-export async function POST(request: NextRequest) {
+export const POST = withLogging("import.run", async (request: NextRequest) => {
   // Protection de la route
   const authResult = await protectRoute(request);
   if (!authResult.authorized) {
@@ -435,6 +437,11 @@ export async function POST(request: NextRequest) {
         );
     }
 
+    logger.success(
+      `Import "${type}" terminé : ${results.created} créés, ${results.updated} mis à jour, ${results.errors} erreurs`,
+      { context: "import.run", meta: { type, ...results, details: undefined } }
+    );
+
     return NextResponse.json(results);
   } catch (error) {
     console.error("❌ Erreur lors de l'import:", error);
@@ -446,4 +453,4 @@ export async function POST(request: NextRequest) {
       { status: 500 }
     );
   }
-}
+});

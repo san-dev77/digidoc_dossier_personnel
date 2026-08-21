@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { X, Save, Shield, User, Mail, Lock, Building2, Phone } from "lucide-react";
+import { X, Save, Shield, User, Mail, Lock, Building2, Phone, KeyRound, AlertTriangle } from "lucide-react";
 import { Input, Select } from "@/components/forms";
 import { useFormValidation } from "@/hooks/useFormValidation";
 import { z } from "zod";
@@ -23,6 +23,8 @@ interface UtilisateurData {
   telephone?: string | null;
   departement?: string | null;
   statut?: string;
+  auth_source?: string;
+  mfa_exempt?: boolean;
   roles?: Role;
 }
 
@@ -33,6 +35,9 @@ interface UtilisateurFormProps {
   utilisateur?: UtilisateurData | null;
   roles: Role[];
   mode: "create" | "edit";
+  // Réservé aux super-administrateurs : source d'authentification (local/LDAP)
+  // et exemption MFA sont des réglages de sécurité sensibles.
+  canManageSecurity?: boolean;
 }
 
 const utilisateurSchema = z.object({
@@ -58,6 +63,7 @@ export default function UtilisateurForm({
   utilisateur,
   roles,
   mode,
+  canManageSecurity = false,
 }: UtilisateurFormProps) {
   const initialValues = {
     username: "",
@@ -78,6 +84,9 @@ export default function UtilisateurForm({
     reset,
   } = useFormValidation(utilisateurSchema, initialValues);
 
+  const [authSource, setAuthSource] = useState("local");
+  const [mfaExempt, setMfaExempt] = useState(false);
+
   useEffect(() => {
     if (mode === "edit" && utilisateur) {
       reset({
@@ -89,8 +98,12 @@ export default function UtilisateurForm({
         telephone: utilisateur.telephone || "",
         departement: utilisateur.departement || "",
       });
+      setAuthSource(utilisateur.auth_source || "local");
+      setMfaExempt(!!utilisateur.mfa_exempt);
     } else {
       reset(initialValues);
+      setAuthSource("local");
+      setMfaExempt(false);
     }
   }, [mode, utilisateur, isOpen]);
 
@@ -100,6 +113,10 @@ export default function UtilisateurForm({
       onSubmit({
         ...formData,
         role_id: parseInt(formData.role_id),
+        ...(canManageSecurity && {
+          auth_source: authSource,
+          mfa_exempt: mfaExempt,
+        }),
       });
     }
   };
@@ -134,7 +151,7 @@ export default function UtilisateurForm({
             <div>
               <label className="block text-sm font-semibold text-gray-700 mb-2">
                 <User className="w-4 h-4 inline mr-2" />
-                Nom d'utilisateur
+                Nom d&apos;utilisateur
               </label>
               <Input
                 value={formData.username}
@@ -181,22 +198,32 @@ export default function UtilisateurForm({
             />
           </div>
 
-          <div>
-            <label className="block text-sm font-semibold text-gray-700 mb-2">
-              <Lock className="w-4 h-4 inline mr-2" />
-              Mot de passe {mode === "edit" && "(laisser vide pour ne pas changer)"}
-            </label>
-            <Input
-              type="password"
-              value={formData.password}
-              onChange={(e) => setValue("password", e.target.value)}
-              onBlur={() => setFieldTouched("password")}
-              error={errors.password}
-              placeholder={mode === "create" ? "Au moins 6 caractères" : "Laisser vide pour conserver"}
-              fullWidth
-              label=""
-            />
-          </div>
+          {authSource === "ldap" ? (
+            <div className="p-4 bg-blue-50 border border-blue-200 rounded-xl flex items-start gap-3">
+              <KeyRound className="w-5 h-5 text-blue-600 flex-shrink-0 mt-0.5" />
+              <p className="text-sm text-blue-800">
+                Le mot de passe de ce compte est géré par l&apos;annuaire LDAP —
+                il ne peut pas être défini ici.
+              </p>
+            </div>
+          ) : (
+            <div>
+              <label className="block text-sm font-semibold text-gray-700 mb-2">
+                <Lock className="w-4 h-4 inline mr-2" />
+                Mot de passe {mode === "edit" && "(laisser vide pour ne pas changer)"}
+              </label>
+              <Input
+                type="password"
+                value={formData.password}
+                onChange={(e) => setValue("password", e.target.value)}
+                onBlur={() => setFieldTouched("password")}
+                error={errors.password}
+                placeholder={mode === "create" ? "Au moins 6 caractères" : "Laisser vide pour conserver"}
+                fullWidth
+                label=""
+              />
+            </div>
+          )}
 
           <div>
             <label className="block text-sm font-semibold text-gray-700 mb-2">
@@ -248,6 +275,60 @@ export default function UtilisateurForm({
               />
             </div>
           </div>
+
+          {canManageSecurity && (
+            <div className="p-5 bg-gray-50 border-2 border-gray-200 rounded-xl space-y-4">
+              <h3 className="text-sm font-bold text-gray-800 flex items-center gap-2">
+                <Shield className="w-4 h-4" />
+                Sécurité (réservé aux super-administrateurs)
+              </h3>
+
+              <div>
+                <label className="block text-sm font-semibold text-gray-700 mb-2">
+                  Mode d&apos;authentification
+                </label>
+                <Select
+                  value={authSource}
+                  onChange={(e) => setAuthSource(e.target.value)}
+                  options={[
+                    { value: "local", label: "Local (mot de passe DigiDoc)" },
+                    { value: "ldap", label: "Annuaire LDAP / Active Directory" },
+                  ]}
+                  fullWidth
+                  label=""
+                />
+              </div>
+
+              <label className="flex items-start gap-3 cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={mfaExempt}
+                  onChange={(e) => setMfaExempt(e.target.checked)}
+                  className="mt-0.5 w-4 h-4 rounded border-gray-300 text-primary-600 focus:ring-primary-500"
+                />
+                <span className="text-sm text-gray-700">
+                  <span className="font-semibold">
+                    Exempter de l&apos;authentification à deux facteurs (MFA)
+                  </span>
+                  <br />
+                  <span className="text-xs text-gray-500">
+                    À réserver à un compte de secours (ex: administrateur local). Un
+                    compte exempté peut se connecter avec le seul mot de passe.
+                  </span>
+                </span>
+              </label>
+
+              {mfaExempt && (
+                <div className="p-3 bg-amber-50 border border-amber-200 rounded-lg flex items-start gap-2.5">
+                  <AlertTriangle className="w-4 h-4 text-amber-600 flex-shrink-0 mt-0.5" />
+                  <p className="text-xs text-amber-800">
+                    Ce compte n&apos;aura pas de code de vérification à saisir à la
+                    connexion. Limitez cette exemption au strict nécessaire.
+                  </p>
+                </div>
+              )}
+            </div>
+          )}
         </form>
 
         {/* Footer */}

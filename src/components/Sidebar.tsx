@@ -17,6 +17,7 @@ import {
   HardDrive,
   Upload,
   Activity,
+  Lock,
 } from "lucide-react";
 import { useState } from "react";
 import logo from "@/app/assets/logo.png";
@@ -104,6 +105,17 @@ export default function Sidebar({
       bgColor: "bg-teal-50",
       textColor: "text-teal-700",
       borderColor: "border-teal-200",
+    },
+    {
+      name: "Sécurité",
+      href: "/parametres-securite",
+      icon: Lock,
+      current: pathname.startsWith("/parametres-securite"),
+      description: "MFA, LDAP, sessions",
+      color: "from-blue-500 to-blue-600",
+      bgColor: "bg-amber-50",
+      textColor: "text-amber-700",
+      borderColor: "border-amber-200",
     },
     {
       name: "Dossiers",

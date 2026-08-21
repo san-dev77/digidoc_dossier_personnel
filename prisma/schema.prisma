@@ -96,17 +96,81 @@ model utilisateurs {
   created_at               DateTime                   @default(now()) @db.DateTime(6)
   updated_at               DateTime                   @default(now()) @db.DateTime(6)
   created_by               Int?                       // ID de l'utilisateur qui a créé ce compte
+
+  // --- Sécurité : MFA, LDAP, verrouillage, mot de passe ---
+  auth_source              String                     @default("local") @db.VarChar(10) // "local" | "ldap"
+  ldap_dn                  String?                    @db.VarChar(500)
+  mfa_exempt               Boolean                    @default(false) // vrai uniquement pour le compte admin local de secours
+  failed_login_attempts    Int                        @default(0)
+  locked_until             DateTime?                  @db.DateTime(6)
+  password_updated_at      DateTime?                  @db.DateTime(6)
+  must_change_password     Boolean                    @default(false)
+
   roles                    roles                      @relation(fields: [role_id], references: [id], onDelete: Restrict)
   agents                   agents?                    @relation(fields: [agent_id], references: [id], onDelete: SetNull)
   audit_logs               audit_logs[]
   utilisateur_permissions  utilisateur_permissions[]  // Permissions individuelles
   connexion_logs           connexion_logs[]
+  mfa_challenges           mfa_challenges[]
+  auth_sessions            auth_sessions[]
+  password_history         password_history[]
 
   @@index([username])
   @@index([email])
   @@index([role_id])
   @@index([agent_id])
   @@index([statut])
+}
+
+// Codes OTP en attente de vérification (MFA)
+model mfa_challenges {
+  id             Int          @id @default(autoincrement())
+  utilisateur_id Int
+  code_hash      String       @db.VarChar(255)
+  channel        String       @db.VarChar(10) // "sms" | "email"
+  destination    String       @db.VarChar(255) // valeur masquée envoyée (ex: 06••••23)
+  expires_at     DateTime     @db.DateTime(6)
+  attempts       Int          @default(0)
+  consumed_at    DateTime?
+  created_at     DateTime     @default(now()) @db.DateTime(6)
+  utilisateurs   utilisateurs @relation(fields: [utilisateur_id], references: [id], onDelete: Cascade)
+
+  @@index([utilisateur_id])
+}
+
+// Sessions actives : applique la durée maximale et le délai d'inactivité
+model auth_sessions {
+  id               Int          @id @default(autoincrement())
+  utilisateur_id   Int
+  token_id         String       @unique @db.VarChar(64) // jti du JWT
+  ip_address       String?      @db.VarChar(50)
+  user_agent       String?      @db.VarChar(500)
+  created_at       DateTime     @default(now()) @db.DateTime(6)
+  last_activity_at DateTime     @default(now()) @db.DateTime(6)
+  expires_at       DateTime     @db.DateTime(6) // durée max de session
+  revoked_at       DateTime?
+  utilisateurs     utilisateurs @relation(fields: [utilisateur_id], references: [id], onDelete: Cascade)
+
+  @@index([utilisateur_id])
+}
+
+// Configuration applicative modifiable à l'exécution (LDAP, seuils de sécurité, etc.)
+model app_settings {
+  key        String   @id @db.VarChar(100)
+  value      String   @db.Text
+  updated_at DateTime @default(now()) @updatedAt @db.DateTime(6)
+  updated_by Int?
+}
+
+// Historique des mots de passe (empêche la réutilisation)
+model password_history {
+  id             Int          @id @default(autoincrement())
+  utilisateur_id Int
+  password_hash  String       @db.VarChar(255)
+  created_at     DateTime     @default(now()) @db.DateTime(6)
+  utilisateurs   utilisateurs @relation(fields: [utilisateur_id], references: [id], onDelete: Cascade)
+
+  @@index([utilisateur_id])
 }
 
 // Historique des connexions (une ligne par connexion réussie)

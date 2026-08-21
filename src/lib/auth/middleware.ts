@@ -2,7 +2,23 @@ import { NextRequest, NextResponse } from "next/server";
 import { verifyTokenEdge, extractTokenFromRequest } from "./jwt-edge";
 
 // Routes publiques qui ne nécessitent pas d'authentification
-const publicRoutes = ["/api/auth/login", "/api/auth/register", "/api/agent-rubriques"];
+const publicRoutes = [
+  "/api/auth/login",
+  "/api/auth/register",
+  "/api/agent-rubriques",
+  // Le visualiseur de logs a sa propre authentification dédiée
+  // (mot de passe séparé, voir src/lib/logsAuth.ts) pour rester
+  // accessible même si l'auth applicative est en panne.
+  "/api/logs-auth",
+  "/api/logs",
+  // Le rafraîchissement de session reçoit volontairement un access token
+  // déjà expiré (c'est son rôle) — sa validité réelle est vérifiée contre
+  // `auth_sessions` en base à l'intérieur de la route, pas ici.
+  "/api/auth/refresh",
+  // Étapes MFA : l'utilisateur n'a pas encore de JWT à ce stade, seulement
+  // un challengeId issu de /api/auth/login-unified.
+  "/api/auth/mfa",
+];
 
 // Routes administratives qui nécessitent le rôle admin
 // Note: Les routes migration et database-schema ont été supprimées pour des raisons de sécurité

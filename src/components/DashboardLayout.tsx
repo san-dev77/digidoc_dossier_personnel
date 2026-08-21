@@ -3,6 +3,7 @@
 import { useState } from "react";
 import Sidebar from "./Sidebar";
 import TopBar from "./TopBar";
+import { useSessionRefresh } from "@/hooks/useSessionRefresh";
 
 interface DashboardLayoutProps {
   children: React.ReactNode;
@@ -10,6 +11,7 @@ interface DashboardLayoutProps {
 
 export default function DashboardLayout({ children }: DashboardLayoutProps) {
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
+  useSessionRefresh();
 
   const toggleSidebar = () => {
     setSidebarCollapsed(!sidebarCollapsed);

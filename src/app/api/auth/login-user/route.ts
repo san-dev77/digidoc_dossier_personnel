@@ -2,12 +2,14 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { comparePassword } from "@/lib/auth/password";
 import { generateToken } from "@/lib/auth/jwt";
+import { withLogging } from "@/lib/apiLogger";
+import { logger } from "@/lib/logger";
 
 /**
  * POST /api/auth/login-user
  * Connexion pour les UTILISATEURS (pas les agents)
  */
-export async function POST(req: NextRequest) {
+export const POST = withLogging("auth.login-user", async (req: NextRequest) => {
   console.log("[LOGIN-USER] 📥 Requête de connexion utilisateur reçue");
 
   try {
@@ -33,6 +35,10 @@ export async function POST(req: NextRequest) {
 
     if (!utilisateur) {
       console.log("[LOGIN-USER] ❌ Utilisateur non trouvé:", username);
+      logger.warning(`Tentative de connexion — utilisateur inconnu`, {
+        context: "auth.login-user",
+        meta: { username },
+      });
       return NextResponse.json(
         { message: "Identifiants incorrects" },
         { status: 401 }
@@ -42,6 +48,10 @@ export async function POST(req: NextRequest) {
     // Vérifier le statut
     if (utilisateur.statut !== "actif") {
       console.log("[LOGIN-USER] ❌ Utilisateur inactif:", username);
+      logger.warning(`Tentative de connexion sur un compte ${utilisateur.statut}`, {
+        context: "auth.login-user",
+        meta: { username, statut: utilisateur.statut },
+      });
       return NextResponse.json(
         { message: "Compte inactif ou suspendu" },
         { status: 403 }
@@ -55,6 +65,10 @@ export async function POST(req: NextRequest) {
 
     if (!passwordValid) {
       console.log("[LOGIN-USER] ❌ Mot de passe invalide");
+      logger.warning("Mot de passe invalide", {
+        context: "auth.login-user",
+        meta: { username },
+      });
       return NextResponse.json(
         { message: "Identifiants incorrects" },
         { status: 401 }
@@ -90,6 +104,10 @@ export async function POST(req: NextRequest) {
     const { password: _, ...utilisateurSafe } = utilisateur;
 
     console.log("[LOGIN-USER] ✅ Connexion réussie");
+    logger.success(`Connexion réussie : ${utilisateur.username}`, {
+      context: "auth.login-user",
+      meta: { userId: utilisateur.id, username: utilisateur.username },
+    });
     return NextResponse.json(
       {
         ...utilisateurSafe,
@@ -99,7 +117,11 @@ export async function POST(req: NextRequest) {
     );
   } catch (e) {
     console.error("[LOGIN-USER] ❌ Erreur:", e);
+    logger.error(e instanceof Error ? e.message : "Erreur de connexion", {
+      context: "auth.login-user",
+      meta: { stack: e instanceof Error ? e.stack : undefined },
+    });
     return NextResponse.json({ message: "Erreur serveur" }, { status: 500 });
   }
-}
+});
 

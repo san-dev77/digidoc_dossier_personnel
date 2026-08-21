@@ -3,26 +3,39 @@ import type { NextRequest } from "next/server";
 
 const JWT_SECRET: Secret =
   (process.env.JWT_SECRET as Secret) || "changez-moi-en-production-urgence";
+// Conservé comme filet de sécurité pour les tokens legacy (agents) qui ne
+// passent pas par le suivi de session — les comptes utilisateurs reçoivent
+// une durée courte calculée dynamiquement (voir src/lib/auth/sessions.ts).
 const JWT_EXPIRES_IN = process.env.JWT_EXPIRES_IN || "7d";
 
 export interface JWTPayload {
   // Compte utilisateur (nouveau système)
   userId?: number;
 
-  // Agent lié (optionnel) ou legacy (ancien système)  
+  // Agent lié (optionnel) ou legacy (ancien système)
   agentId?: number;
   matricule: string;
   email?: string;
   role?: string;
+
+  // Identifiant de session (auth_sessions.token_id) — permet d'appliquer la
+  // durée max de session et le délai d'inactivité sans appel DB à chaque
+  // requête vérifiée en Edge Runtime.
+  jti?: string;
 }
 
 /**
- * Génère un token JWT (utilisateur ou agent legacy)
+ * Génère un token JWT (utilisateur ou agent legacy).
+ * `expiresIn` permet de surcharger la durée par défaut (ex: durée
+ * d'inactivité configurée pour les comptes utilisateurs avec suivi de session).
  */
-export function generateToken(payload: JWTPayload): string {
+export function generateToken(
+  payload: JWTPayload,
+  expiresIn?: string | number
+): string {
   const options: SignOptions = {
     // jsonwebtoken v9 typage strict: expiresIn est un StringValue (ms) ou number
-    expiresIn: JWT_EXPIRES_IN as SignOptions["expiresIn"],
+    expiresIn: (expiresIn ?? JWT_EXPIRES_IN) as SignOptions["expiresIn"],
   };
   return jwt.sign(payload, JWT_SECRET, options);
 }
@@ -39,6 +52,22 @@ export function verifyToken(token: string): JWTPayload | null {
     return decoded;
   } catch (error) {
     console.error("[JWT] ❌ Erreur de vérification:", error);
+    return null;
+  }
+}
+
+/**
+ * Vérifie la signature d'un token SANS tenir compte de son expiration.
+ * Utilisé uniquement par /api/auth/refresh : la validité réelle de la
+ * session (durée max, inactivité, révocation) est ensuite vérifiée contre
+ * `auth_sessions` en base, pas contre le champ `exp` du JWT.
+ */
+export function verifyTokenIgnoringExpiration(token: string): JWTPayload | null {
+  try {
+    return jwt.verify(token, JWT_SECRET, {
+      ignoreExpiration: true,
+    }) as JWTPayload;
+  } catch {
     return null;
   }
 }

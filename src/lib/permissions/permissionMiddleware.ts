@@ -7,6 +7,7 @@ import {
   hasPermission,
   hasAllPermissions,
   hasAnyPermission,
+  isSuperAdmin,
 } from "./permissionService";
 import { verifyToken } from "@/lib/auth/jwt";
 
@@ -105,6 +106,30 @@ export function requireAnyPermission(permissionCodes: string[]) {
           message: "Permission refusée - aucune permission requise trouvée",
           requiredOneOf: permissionCodes,
         },
+        { status: 403 }
+      );
+    }
+
+    return null;
+  };
+}
+
+/**
+ * Middleware : réservé aux super-administrateurs (rôle système, ex:
+ * paramètres de sécurité — LDAP, seuils MFA/verrouillage/session).
+ */
+export function requireSuperAdmin() {
+  return async (req: NextRequest): Promise<NextResponse | null> => {
+    const userId = await getUserIdFromRequest(req);
+
+    if (!userId) {
+      return NextResponse.json({ message: "Non authentifié" }, { status: 401 });
+    }
+
+    const ok = await isSuperAdmin(userId);
+    if (!ok) {
+      return NextResponse.json(
+        { message: "Accès réservé aux super-administrateurs" },
         { status: 403 }
       );
     }

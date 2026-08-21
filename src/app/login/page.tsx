@@ -13,6 +13,8 @@ import {
   AlertCircle,
   Loader2,
   AlertTriangle,
+  MessageSquare,
+  Mail,
 } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 import { useAuthStore } from "@/store/authStore";
@@ -28,6 +30,12 @@ const loginSchema = z.object({
   password: z.string().min(1, "Le mot de passe est requis"),
 });
 
+interface MfaChallengeState {
+  challengeId: number;
+  maskedDestination: string;
+  channel: "sms" | "email";
+}
+
 export default function LoginPage() {
   const [showPassword, setShowPassword] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -39,8 +47,31 @@ export default function LoginPage() {
   const [showErrorModal, setShowErrorModal] = useState(false);
   const [loginError, setLoginError] = useState<string>("");
 
+  const [mfaChallenge, setMfaChallenge] = useState<MfaChallengeState | null>(
+    null
+  );
+  const [otpCode, setOtpCode] = useState("");
+  const [otpError, setOtpError] = useState("");
+  const [isVerifyingOtp, setIsVerifyingOtp] = useState(false);
+  const [isResending, setIsResending] = useState(false);
+
   const { login, error: authError, loading } = useAuth();
   const router = useRouter();
+
+  const completeClientLogin = (data: Record<string, unknown>) => {
+    sessionStorage.setItem("auth-token", data.token as string);
+    sessionStorage.setItem("user", JSON.stringify(data));
+
+    const authStore = useAuthStore.getState();
+    authStore.setAppUser(data as never);
+    authStore.setLastSessionCheck(Date.now());
+
+    if (data.mustChangePassword) {
+      router.push("/changer-mot-de-passe");
+    } else {
+      router.push("/dashboard");
+    }
+  };
 
   const {
     values: formData,
@@ -81,29 +112,23 @@ export default function LoginPage() {
         return; // Juste afficher le modal, pas de throw
       }
 
-      // DEBUG: Vérifier le token reçu
-      console.log("[LOGIN DEBUG] data reçue:", data);
-      console.log("[LOGIN DEBUG] data.token:", data.token);
-
-      // Sauvegarder dans sessionStorage (compatible avec le store)
-      sessionStorage.setItem("auth-token", data.token); // ✅ Nom correct !
-      sessionStorage.setItem("user", JSON.stringify(data));
-
-      console.log("[LOGIN DEBUG] Token stocké:", sessionStorage.getItem("auth-token"));
-
-      // Mettre à jour le store Zustand
-      const authStore = useAuthStore.getState();
-      authStore.setAppUser(data);
-      authStore.setLastSessionCheck(Date.now());
-
-      const result = data;
-
-      // Mettre à jour les infos de rate limit si disponibles (même en cas de succès)
-      if (result && "rateLimitInfo" in result && result.rateLimitInfo) {
-        setRateLimitInfo(result.rateLimitInfo);
+      // Étape MFA requise : on affiche l'écran de saisie du code au lieu
+      // de terminer la connexion tout de suite.
+      if (data.mfaRequired) {
+        setMfaChallenge({
+          challengeId: data.challengeId,
+          maskedDestination: data.maskedDestination,
+          channel: data.channel,
+        });
+        return;
       }
 
-      router.push("/dashboard"); // Redirection vers le tableau de bord
+      // Mettre à jour les infos de rate limit si disponibles (même en cas de succès)
+      if (data && "rateLimitInfo" in data && data.rateLimitInfo) {
+        setRateLimitInfo(data.rateLimitInfo);
+      }
+
+      completeClientLogin(data);
     } catch (error) {
       console.error("Erreur de connexion:", error);
 
@@ -130,6 +155,71 @@ export default function LoginPage() {
     }
   };
 
+  const handleVerifyOtp = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!mfaChallenge || isVerifyingOtp) return;
+
+    setOtpError("");
+    setIsVerifyingOtp(true);
+    try {
+      const response = await fetch("/api/auth/mfa/verify", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          challengeId: mfaChallenge.challengeId,
+          code: otpCode,
+        }),
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        setOtpError(data.message || "Code incorrect");
+        return;
+      }
+
+      completeClientLogin(data);
+    } catch (error) {
+      console.error("Erreur de vérification MFA:", error);
+      setOtpError("Erreur réseau, veuillez réessayer");
+    } finally {
+      setIsVerifyingOtp(false);
+    }
+  };
+
+  const handleResendOtp = async (channel: "sms" | "email") => {
+    if (!mfaChallenge || isResending) return;
+
+    setIsResending(true);
+    setOtpError("");
+    try {
+      const response = await fetch("/api/auth/mfa/resend", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ challengeId: mfaChallenge.challengeId, channel }),
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        setOtpError(data.message || "Impossible de renvoyer le code");
+        return;
+      }
+
+      setMfaChallenge({
+        challengeId: data.challengeId,
+        maskedDestination: data.maskedDestination,
+        channel: data.channel,
+      });
+      setOtpCode("");
+    } catch (error) {
+      console.error("Erreur lors du renvoi du code:", error);
+      setOtpError("Erreur réseau, veuillez réessayer");
+    } finally {
+      setIsResending(false);
+    }
+  };
+
   return (
     <div className="min-h-screen bg-slate-50 flex items-center justify-center relative overflow-hidden px-6 py-16">
       {/* Fond ambiant discret : halos qui dérivent lentement + grain léger */}
@@ -153,10 +243,12 @@ export default function LoginPage() {
         {/* Titre */}
         <div className="text-center mb-9">
           <h1 className="text-4xl font-bold text-slate-900 mb-2 tracking-tight">
-            Connexion
+            {mfaChallenge ? "Vérification" : "Connexion"}
           </h1>
           <p className="text-slate-600 text-base">
-            Accédez à votre espace personnel
+            {mfaChallenge
+              ? `Code envoyé par ${mfaChallenge.channel === "sms" ? "SMS" : "e-mail"} à ${mfaChallenge.maskedDestination}`
+              : "Accédez à votre espace personnel"}
           </p>
         </div>
 
@@ -165,6 +257,96 @@ export default function LoginPage() {
           {/* Fil d'accent discret en haut de la carte */}
           <div className="absolute top-0 left-0 right-0 h-[3px] bg-gradient-to-r from-blue-500 via-blue-500/40 to-transparent"></div>
 
+          {mfaChallenge ? (
+            <form onSubmit={handleVerifyOtp} className="space-y-6 relative z-10">
+              {otpError && (
+                <div className="p-3.5 bg-red-50 border border-red-200 rounded-xl flex items-start gap-3">
+                  <AlertCircle className="w-5 h-5 text-red-600 flex-none mt-0.5" />
+                  <span className="text-red-700 font-medium text-sm">{otpError}</span>
+                </div>
+              )}
+
+              <div>
+                <label
+                  htmlFor="otp"
+                  className="flex text-sm font-semibold text-slate-800 mb-2 items-center"
+                >
+                  {mfaChallenge.channel === "sms" ? (
+                    <MessageSquare className="w-4 h-4 mr-2.5 text-blue-600" />
+                  ) : (
+                    <Mail className="w-4 h-4 mr-2.5 text-blue-600" />
+                  )}
+                  Code de vérification
+                </label>
+                <input
+                  id="otp"
+                  type="text"
+                  inputMode="numeric"
+                  autoComplete="one-time-code"
+                  maxLength={6}
+                  value={otpCode}
+                  onChange={(e) => setOtpCode(e.target.value.replace(/\D/g, ""))}
+                  disabled={isVerifyingOtp}
+                  autoFocus
+                  className="w-full px-4 py-3.5 border border-slate-200 rounded-xl focus:ring-4 focus:ring-blue-500/15 focus:border-blue-500 transition-all duration-200 bg-slate-50 focus:bg-white text-slate-900 text-center text-2xl tracking-[0.5em] font-semibold disabled:opacity-50"
+                  placeholder="······"
+                />
+                <p className="text-xs text-slate-500 mt-2">
+                  Le code expire dans 5 minutes.
+                </p>
+              </div>
+
+              <button
+                type="submit"
+                disabled={isVerifyingOtp || otpCode.length !== 6}
+                className="w-full bg-slate-900 cursor-pointer text-white py-3.5 px-6 rounded-xl hover:bg-slate-800 transition-all duration-200 font-semibold text-base shadow-[0_14px_28px_-14px_rgba(30,41,59,0.35)] disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                <span className="flex items-center justify-center gap-2.5">
+                  {isVerifyingOtp ? (
+                    <Loader2 className="w-5 h-5 animate-spin" />
+                  ) : (
+                    <Shield className="w-5 h-5" />
+                  )}
+                  {isVerifyingOtp ? "Vérification..." : "Valider"}
+                </span>
+              </button>
+
+              <div className="flex items-center justify-between text-xs">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setMfaChallenge(null);
+                    setOtpCode("");
+                    setOtpError("");
+                  }}
+                  className="text-slate-500 hover:text-slate-700 font-medium"
+                >
+                  ← Retour
+                </button>
+                <div className="flex items-center gap-3">
+                  {mfaChallenge.channel === "sms" && (
+                    <button
+                      type="button"
+                      onClick={() => handleResendOtp("email")}
+                      disabled={isResending}
+                      className="text-blue-600 hover:text-blue-800 font-semibold disabled:opacity-50"
+                    >
+                      Recevoir par e-mail
+                    </button>
+                  )}
+                  <button
+                    type="button"
+                    onClick={() => handleResendOtp(mfaChallenge.channel)}
+                    disabled={isResending}
+                    className="text-blue-600 hover:text-blue-800 font-semibold disabled:opacity-50"
+                  >
+                    {isResending ? "Envoi..." : "Renvoyer le code"}
+                  </button>
+                </div>
+              </div>
+            </form>
+          ) : (
+            <>
           {/* Affichage des erreurs */}
           {authError && !rateLimitError && (
             <div className="mb-5 p-3.5 bg-red-50 border border-red-200 rounded-xl flex items-start gap-3">
@@ -290,6 +472,8 @@ export default function LoginPage() {
               </span>
             </button>
           </form>
+            </>
+          )}
         </div>
       </div>
 

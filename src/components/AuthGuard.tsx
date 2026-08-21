@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, usePathname } from "next/navigation";
 import { useAuth } from "@/hooks/useAuth";
 import ClientOnly from "./ClientOnly";
 
@@ -39,8 +39,11 @@ function AuthGuardContent({
   requireAuth = true,
   redirectTo = "/login",
 }: AuthGuardProps) {
-  const { isAuthenticated, loading } = useAuth();
+  const { isAuthenticated, loading, appUser } = useAuth();
   const router = useRouter();
+  const pathname = usePathname();
+
+  const mustChangePassword = !!appUser?.mustChangePassword;
 
   useEffect(() => {
     if (!loading) {
@@ -48,9 +51,23 @@ function AuthGuardContent({
         router.push(redirectTo);
       } else if (!requireAuth && isAuthenticated) {
         router.push("/dashboard");
+      } else if (
+        isAuthenticated &&
+        mustChangePassword &&
+        pathname !== "/changer-mot-de-passe"
+      ) {
+        router.push("/changer-mot-de-passe");
       }
     }
-  }, [isAuthenticated, loading, requireAuth, redirectTo, router]);
+  }, [
+    isAuthenticated,
+    loading,
+    requireAuth,
+    redirectTo,
+    router,
+    mustChangePassword,
+    pathname,
+  ]);
 
   if (loading) {
     return (
@@ -68,6 +85,10 @@ function AuthGuardContent({
   }
 
   if (!requireAuth && isAuthenticated) {
+    return null;
+  }
+
+  if (isAuthenticated && mustChangePassword && pathname !== "/changer-mot-de-passe") {
     return null;
   }
 

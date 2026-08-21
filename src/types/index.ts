@@ -25,6 +25,7 @@ export interface Agent {
   userId?: number; // ID utilisateur si c'est un utilisateur connecté
   agentId?: number; // ID agent
   accountType?: string; // 'utilisateur' ou 'agent'
+  mustChangePassword?: boolean; // changement de mot de passe obligatoire avant de continuer
 }
 
 export interface Rubrique {

@@ -17,7 +17,7 @@ import type { RoleData, Utilisateur } from "@/types/rbac";
 
 export default function UtilisateursPage() {
   const router = useRouter();
-  const { hasPermission, canManageUsers } = usePermissions();
+  const { hasPermission, canManageUsers, isAdmin } = usePermissions();
 
   const [utilisateurs, setUtilisateurs] = useState<Utilisateur[]>([]);
   const [roles, setRoles] = useState<RoleData[]>([]);
@@ -272,6 +272,7 @@ export default function UtilisateursPage() {
               onSubmit={handleCreate}
               roles={roles}
               mode="create"
+              canManageSecurity={isAdmin}
             />
 
             <UtilisateurForm
@@ -284,6 +285,7 @@ export default function UtilisateursPage() {
               utilisateur={selectedUser}
               roles={roles}
               mode="edit"
+              canManageSecurity={isAdmin}
             />
 
             <UtilisateurDetailsModal
