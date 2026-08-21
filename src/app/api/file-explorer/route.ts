@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { protectRoute } from "@/lib/auth/routeProtection";
 import fs from "fs";
 import path from "path";
+import { UPLOADS_ROOT } from "@/config/storage";
 
 interface FileNode {
   name: string;
@@ -21,7 +22,7 @@ export async function GET(request: NextRequest) {
   }
 
   try {
-    const uploadsPath = path.join(process.cwd(), "uploads");
+    const uploadsPath = UPLOADS_ROOT;
 
     if (!fs.existsSync(uploadsPath)) {
       return NextResponse.json(

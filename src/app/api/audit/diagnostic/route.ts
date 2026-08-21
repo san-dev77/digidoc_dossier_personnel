@@ -1,8 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import fs from "fs/promises";
-import path from "path";
 import { prisma } from "@/lib/prisma";
 import { requirePermission } from "@/lib/permissions/permissionMiddleware";
+import { UPLOADS_ROOT } from "@/config/storage";
 
 export type CheckStatus = "ok" | "warning" | "error";
 
@@ -67,7 +67,7 @@ async function checkOrphanFiles(): Promise<CheckResult> {
 
 async function checkDiskSpace(): Promise<CheckResult> {
   try {
-    const uploadsDir = path.join(process.cwd(), "uploads");
+    const uploadsDir = UPLOADS_ROOT;
     const stats = await fs.statfs(uploadsDir);
     const total = stats.blocks * stats.bsize;
     const free = stats.bavail * stats.bsize;

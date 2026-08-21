@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { protectRoute } from "@/lib/auth/routeProtection";
 import fs from "fs";
 import path from "path";
+import { UPLOADS_ROOT } from "@/config/storage";
 
 export async function GET(
   request: NextRequest,
@@ -19,7 +20,7 @@ export async function GET(
     
     // Reconstituer le chemin du fichier
     const filePath = pathArray.join("/");
-    const fullPath = path.join(process.cwd(), "uploads", filePath);
+    const fullPath = path.join(UPLOADS_ROOT, filePath);
 
     // Vérifier que le fichier existe
     if (!fs.existsSync(fullPath)) {

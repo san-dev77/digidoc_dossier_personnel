@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { query } from "@/lib/db";
+import { prisma } from "@/lib/prisma";
 import { hashPassword } from "@/lib/auth/password";
 import { generateToken } from "@/lib/auth/jwt";
 import { createErrorResponse } from "@/lib/errors/safeError";
@@ -27,12 +27,12 @@ export async function POST(req: NextRequest) {
     }
 
     // Vérifier existence
-    const existing = await query(
-      `SELECT id FROM agents WHERE matricule = ? LIMIT 1`,
-      [matricule]
-    );
-    console.log("[REGISTER] existing count:", existing.rows.length);
-    if (existing.rows.length) {
+    const existing = await prisma.agents.findUnique({
+      where: { matricule },
+      select: { id: true },
+    });
+    console.log("[REGISTER] existing:", existing ? 1 : 0);
+    if (existing) {
       return NextResponse.json(
         { message: "Matricule déjà utilisé" },
         { status: 409 }
@@ -40,64 +40,29 @@ export async function POST(req: NextRequest) {
     }
 
     try {
-      const fields: string[] = [
-        "matricule",
-        "password",
-        "email",
-        "nom_complet",
-        "fonction",
-        "date_naissance",
-        "lieu_naissance",
-        "sexe",
-        "situation_matrimoniale",
-        "adresse",
-        "telephone",
-      ];
-
       // Hasher le mot de passe avant de l'enregistrer
       const hashedPassword = await hashPassword(password);
 
-      const values = [
-        matricule,
-        hashedPassword, // Mot de passe hashé
-        body.email ?? null,
-        body.nom_complet ?? null,
-        body.fonction ?? null,
-        body.date_naissance
-          ? new Date(body.date_naissance).toISOString()
-          : null,
-        body.lieu_naissance ?? null,
-        body.sexe ?? null,
-        body.situation_matrimoniale ?? null,
-        body.adresse ?? null,
-        body.telephone ?? null,
-      ];
-
-      const placeholders = values.map(() => `?`).join(",");
-      console.log("[REGISTER] insert fields:", fields);
-      console.log("[REGISTER] insert values:", values);
-
-      const { rows } = await query(
-        `INSERT INTO agents (${fields.join(
-          ","
-        )}) VALUES (${placeholders})`,
-        values
-      );
-      
-      // MySQL ne supporte pas RETURNING, récupérer le dernier ID inséré
-      const { rows: insertedRows } = await query(
-        `SELECT * FROM agents WHERE id = LAST_INSERT_ID()`
-      );
-
-      const createdAgent = insertedRows[0] as {
-        id: number;
-        matricule: string;
-        password: string | null;
-        email?: string | null;
-        role?: string | null;
-        [key: string]: unknown;
-      };
-      console.log("[REGISTER] created agent id:", createdAgent?.id);
+      // `nom_complet` est obligatoire en base : on retombe sur le matricule
+      // quand le formulaire ne le fournit pas.
+      const createdAgent = await prisma.agents.create({
+        data: {
+          matricule,
+          password: hashedPassword, // Mot de passe hashé
+          email: body.email ?? null,
+          nom_complet: body.nom_complet ?? matricule,
+          fonction: body.fonction ?? null,
+          date_naissance: body.date_naissance
+            ? new Date(body.date_naissance)
+            : null,
+          lieu_naissance: body.lieu_naissance ?? null,
+          sexe: body.sexe ?? null,
+          situation_matrimoniale: body.situation_matrimoniale ?? null,
+          adresse: body.adresse ?? null,
+          telephone: body.telephone ?? null,
+        },
+      });
+      console.log("[REGISTER] created agent id:", createdAgent.id);
 
       // Générer un token JWT
       const token = generateToken({

@@ -6,6 +6,7 @@ import { protectRoute } from "@/lib/auth/routeProtection";
 import { createErrorResponse } from "@/lib/errors/safeError";
 import path from "path";
 import fs from "fs";
+import { storageConfig, resolveStoredPath } from "@/config/storage";
 
 export async function GET(
   request: NextRequest,
@@ -77,9 +78,7 @@ export async function GET(
         finalSousDossierId = pieceFile.pieces.sous_dossiers.id.toString();
         finalRubriqueId = pieceFile.pieces.sous_dossiers.rubrique_id.toString();
         const basePath = path.join(
-          process.cwd(),
-          "uploads",
-          "documents",
+          storageConfig.documentsDir,
           "rubriques",
           finalRubriqueId,
           "sous-dossiers",
@@ -96,9 +95,7 @@ export async function GET(
         finalSousDossierId = pieceFile.pieces.sous_dossiers.id.toString();
         finalRubriqueId = pieceFile.pieces.sous_dossiers.rubrique_id.toString();
         const metaBasePath = path.join(
-          process.cwd(),
-          "uploads",
-          "documents",
+          storageConfig.documentsDir,
           "rubriques",
           finalRubriqueId,
           "sous-dossiers",
@@ -197,7 +194,7 @@ export async function DELETE(
 
     // Optionnel: Supprimer le fichier physique du système de fichiers
     try {
-      const filePath = path.join(process.cwd(), pieceFile.file_path);
+      const filePath = resolveStoredPath(pieceFile.file_path);
       await fs.promises.unlink(filePath);
     } catch (error) {
       console.warn("Impossible de supprimer le fichier physique:", error);

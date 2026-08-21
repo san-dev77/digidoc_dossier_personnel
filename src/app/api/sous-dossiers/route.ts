@@ -1,5 +1,4 @@
 import { NextRequest, NextResponse } from "next/server";
-import { query } from "@/lib/db";
 import { prisma } from "@/lib/prisma";
 import { protectRoute } from "@/lib/auth/routeProtection";
 
@@ -21,23 +20,34 @@ export async function GET(req: NextRequest) {
       );
     }
 
+    const rubriqueIdNum = Number(rubriqueId);
+
     // Récupérer les sous-dossiers avec leurs positions
-    const { rows } = await query(
-      `SELECT 
-        sd.id,
-        sd.rubrique_id,
-        sd.titre,
-        sd.description,
-        sd.statut,
-        sd.created_at,
-        sd.updated_at,
-        COALESCE(sdp.position, 999) as position
-      FROM sous_dossiers sd
-      LEFT JOIN sous_dossier_positions sdp ON sd.id = sdp.sous_dossier_id AND sdp.rubrique_id = ?
-      WHERE sd.rubrique_id = ?
-      ORDER BY COALESCE(sdp.position, 999) ASC, sd.id ASC`,
-      [rubriqueId, rubriqueId]
-    );
+    const sousDossiers = await prisma.sous_dossiers.findMany({
+      where: { rubrique_id: rubriqueIdNum },
+      select: {
+        id: true,
+        rubrique_id: true,
+        titre: true,
+        description: true,
+        statut: true,
+        created_at: true,
+        updated_at: true,
+        position: { select: { position: true, rubrique_id: true } },
+      },
+    });
+
+    // Équivalent du COALESCE(sdp.position, 999) : une position rattachée à une
+    // autre rubrique ne compte pas, le sous-dossier est renvoyé en fin de liste.
+    const rows = sousDossiers
+      .map(({ position, ...sousDossier }) => ({
+        ...sousDossier,
+        position:
+          position && position.rubrique_id === rubriqueIdNum
+            ? position.position
+            : 999,
+      }))
+      .sort((a, b) => a.position - b.position || a.id - b.id);
 
     return NextResponse.json(rows);
   } catch (error) {

@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { query } from "@/lib/db";
 import { protectRoute } from "@/lib/auth/routeProtection";
 
 // GET /api/pieces?sousDossierId=X

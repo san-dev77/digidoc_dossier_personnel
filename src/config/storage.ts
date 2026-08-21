@@ -1,10 +1,35 @@
 import path from "path";
 
+/**
+ * Racine de stockage des fichiers uploadés.
+ *
+ * En local elle vaut `<projet>/uploads`. En production (Render) le disque du
+ * conteneur est éphémère : tout ce qui n'est pas sur le disque persistant est
+ * perdu à chaque redéploiement. On pointe donc `UPLOAD_DIR` sur le point de
+ * montage du disque (ex: /var/data/uploads).
+ */
+export const UPLOADS_ROOT =
+  process.env.UPLOAD_DIR || path.join(process.cwd(), "uploads");
+
+/**
+ * Resout un `file_path` lu en base vers un chemin utilisable sur ce serveur.
+ *
+ * Les uploads enregistrent un chemin absolu, qui n'est plus valable si la
+ * racine de stockage change (passage du poste local au disque Render). On
+ * accepte donc les trois formes rencontrees : absolu, relatif prefixe par
+ * `uploads/`, ou relatif nu.
+ */
+export function resolveStoredPath(storedPath: string): string {
+  if (path.isAbsolute(storedPath)) return storedPath;
+  const normalise = storedPath.replace(/\\/g, "/").replace(/^uploads\//, "");
+  return path.join(UPLOADS_ROOT, normalise);
+}
+
 export const storageConfig = {
   // Répertoires de base
-  baseDir: path.join(process.cwd(), "uploads"),
-  tempDir: path.join(process.cwd(), "uploads", "temp"),
-  documentsDir: path.join(process.cwd(), "uploads", "documents"),
+  baseDir: UPLOADS_ROOT,
+  tempDir: path.join(UPLOADS_ROOT, "temp"),
+  documentsDir: path.join(UPLOADS_ROOT, "documents"),
 
   // Limites de fichiers
   maxFileSize: 50 * 1024 * 1024, // 50MB

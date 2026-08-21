@@ -45,3 +45,7 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# fichiers uploades (documents du personnel) : jamais dans le depot,
+# ils vivent sur le disque persistant du serveur (UPLOAD_DIR)
+/uploads/

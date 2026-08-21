@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { query } from "@/lib/db";
+import { prisma } from "@/lib/prisma";
 import { comparePassword } from "@/lib/auth/password";
 import { generateToken } from "@/lib/auth/jwt";
 
@@ -17,12 +17,11 @@ export async function POST(req: NextRequest) {
     }
 
     // Récupérer l'agent par matricule
-    const { rows } = await query(
-      `SELECT * FROM agents WHERE matricule = ? LIMIT 1`,
-      [matricule]
-    );
+    const agent = await prisma.agents.findUnique({
+      where: { matricule },
+    });
 
-    if (!rows.length) {
+    if (!agent) {
       console.log("[LOGIN] ❌ Agent non trouvé pour matricule:", matricule);
       return NextResponse.json(
         { message: "Matricule ou mot de passe incorrect" },
@@ -30,16 +29,7 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    console.log("[LOGIN] ✅ Agent trouvé:", rows[0].matricule);
-
-    const agent = rows[0] as {
-      id: number;
-      matricule: string;
-      password: string | null;
-      email?: string | null;
-      role?: string | null;
-      [key: string]: unknown;
-    };
+    console.log("[LOGIN] ✅ Agent trouvé:", agent.matricule);
 
     // Vérifier le mot de passe (support ancien format en clair + nouveau format hashé)
     let passwordValid = false;

@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { FileManager } from "@/services/storage/FileManager";
 import { protectRoute } from "@/lib/auth/routeProtection";
 import { createErrorResponse } from "@/lib/errors/safeError";
+import { storageConfig } from "@/config/storage";
 
 export async function POST(request: NextRequest) {
   // Protection de la route
@@ -35,8 +36,8 @@ export async function GET(request: NextRequest) {
 
   try {
     // Retourner des informations sur l'état du stockage
-    const tempDir = process.cwd() + "/uploads/temp";
-    const documentsDir = process.cwd() + "/uploads/documents";
+    const tempDir = storageConfig.tempDir;
+    const documentsDir = storageConfig.documentsDir;
 
     // TODO: Implémenter la récupération des statistiques de stockage
     // Pour l'instant, on retourne une réponse de base

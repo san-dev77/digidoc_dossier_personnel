@@ -276,7 +276,12 @@ async function main() {
 
   if (!existingUser) {
     // Hasher le mot de passe : "san_gamer77"
-    const hashedPassword = await bcrypt.hash("san_gamer77", 10);
+    // Mot de passe initial du super admin. En production (Render), definissez
+    // SEED_ADMIN_PASSWORD plutot que de laisser la valeur par defaut, qui est
+    // publique puisqu'elle vit dans le depot. Le compte impose de toute facon
+    // un changement de mot de passe a la premiere connexion.
+    const motDePasseInitial = process.env.SEED_ADMIN_PASSWORD || "san_gamer77";
+    const hashedPassword = await bcrypt.hash(motDePasseInitial, 10);
 
     const superAdminUser = await prisma.utilisateurs?.create({
       data: {

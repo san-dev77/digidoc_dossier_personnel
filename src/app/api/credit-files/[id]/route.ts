@@ -1,8 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { protectRoute } from "@/lib/auth/routeProtection";
-import path from "path";
 import fs from "fs";
+import { resolveStoredPath } from "@/config/storage";
 
 export async function GET(
   request: NextRequest,
@@ -36,10 +36,7 @@ export async function GET(
     }
 
     // Résoudre le chemin du fichier
-    let filePath = creditFile.file_path;
-    if (!path.isAbsolute(filePath)) {
-      filePath = path.join(process.cwd(), filePath);
-    }
+    const filePath = resolveStoredPath(creditFile.file_path);
 
     if (!fs.existsSync(filePath)) {
       return NextResponse.json(
@@ -95,14 +92,12 @@ export async function DELETE(
 
     // Supprimer le fichier du disque
     try {
-      let filePath = creditFile.file_path;
-      if (!path.isAbsolute(filePath)) filePath = path.join(process.cwd(), filePath);
+      const filePath = resolveStoredPath(creditFile.file_path);
       if (fs.existsSync(filePath)) fs.unlinkSync(filePath);
 
       // Supprimer le thumbnail
       if (creditFile.thumbnail_path) {
-        let thumbPath = creditFile.thumbnail_path;
-        if (!path.isAbsolute(thumbPath)) thumbPath = path.join(process.cwd(), thumbPath);
+        const thumbPath = resolveStoredPath(creditFile.thumbnail_path);
         if (fs.existsSync(thumbPath)) fs.unlinkSync(thumbPath);
       }
     } catch (fsErr) {

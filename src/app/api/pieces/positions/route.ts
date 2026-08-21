@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { query } from "@/lib/db";
+import { prisma } from "@/lib/prisma";
 import { protectRoute } from "@/lib/auth/routeProtection";
 
 /**
@@ -23,28 +23,30 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    const { rows } = await query(
-      `SELECT 
-        pp.id,
-        pp.piece_id,
-        pp.position,
-        pp.sous_dossier_id,
-        p.nom,
-        p.description
-      FROM piece_positions pp
-      INNER JOIN pieces p ON p.id = pp.piece_id
-      WHERE pp.sous_dossier_id = ?
-      ORDER BY pp.position ASC, pp.piece_id ASC`,
-      [sousDossierId]
-    );
+    const rows = await prisma.piece_positions.findMany({
+      where: { sous_dossier_id: Number(sousDossierId) },
+      select: {
+        id: true,
+        piece_id: true,
+        position: true,
+        sous_dossier_id: true,
+        pieces: { select: { nom: true, description: true } },
+      },
+      orderBy: [{ position: "asc" }, { piece_id: "asc" }],
+    });
 
-    return NextResponse.json({ positions: rows }, { status: 200 });
+    // On aplatit la relation pour conserver le format de réponse historique
+    // (nom/description au même niveau que la position).
+    const positions = rows.map(({ pieces, ...position }) => ({
+      ...position,
+      nom: pieces.nom,
+      description: pieces.description,
+    }));
+
+    return NextResponse.json({ positions }, { status: 200 });
   } catch (error) {
     console.error("Erreur lors de la récupération des positions:", error);
-    return NextResponse.json(
-      { message: "Erreur serveur" },
-      { status: 500 }
-    );
+    return NextResponse.json({ message: "Erreur serveur" }, { status: 500 });
   }
 }
 
@@ -70,44 +72,48 @@ export async function PUT(request: NextRequest) {
       );
     }
 
-    // Utiliser une transaction pour garantir la cohérence
-    await query("BEGIN");
+    const sousDossierIdNum = Number(sousDossierId);
 
-    try {
+    const valides = positions.filter(
+      (pos) => pos?.pieceId && typeof pos.position === "number"
+    );
+
+    // `$transaction` garantit réellement l'atomicité : la version précédente
+    // envoyait BEGIN/COMMIT via un pool, donc chaque requête partait sur une
+    // connexion différente et la transaction ne couvrait rien.
+    await prisma.$transaction(async (tx) => {
       // Supprimer les anciennes positions pour ce sous-dossier
-      await query(
-        `DELETE FROM piece_positions WHERE sous_dossier_id = ?`,
-        [sousDossierId]
-      );
+      await tx.piece_positions.deleteMany({
+        where: { sous_dossier_id: sousDossierIdNum },
+      });
 
-      // Insérer les nouvelles positions
-      for (const pos of positions) {
-        if (pos.pieceId && typeof pos.position === "number") {
-          await query(
-            `INSERT INTO piece_positions (sous_dossier_id, piece_id, position, updated_at)
-             VALUES (?, ?, ?, NOW())
-             ON DUPLICATE KEY UPDATE position = VALUES(position), updated_at = NOW()`,
-            [sousDossierId, pos.pieceId, pos.position]
-          );
-        }
+      // Insérer les nouvelles positions. `piece_id` est unique globalement :
+      // si la pièce était positionnée dans un autre sous-dossier, on rattache
+      // la ligne existante plutôt que de violer la contrainte.
+      for (const pos of valides) {
+        await tx.piece_positions.upsert({
+          where: { piece_id: Number(pos.pieceId) },
+          create: {
+            sous_dossier_id: sousDossierIdNum,
+            piece_id: Number(pos.pieceId),
+            position: pos.position,
+            updated_at: new Date(),
+          },
+          update: {
+            sous_dossier_id: sousDossierIdNum,
+            position: pos.position,
+            updated_at: new Date(),
+          },
+        });
       }
+    });
 
-      await query("COMMIT");
-
-      return NextResponse.json(
-        { message: "Positions mises à jour avec succès" },
-        { status: 200 }
-      );
-    } catch (error) {
-      await query("ROLLBACK");
-      throw error;
-    }
+    return NextResponse.json(
+      { message: "Positions mises à jour avec succès" },
+      { status: 200 }
+    );
   } catch (error) {
     console.error("Erreur lors de la mise à jour des positions:", error);
-    return NextResponse.json(
-      { message: "Erreur serveur" },
-      { status: 500 }
-    );
+    return NextResponse.json({ message: "Erreur serveur" }, { status: 500 });
   }
 }
-
