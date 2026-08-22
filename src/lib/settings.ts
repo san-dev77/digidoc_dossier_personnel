@@ -18,7 +18,7 @@ export const DEFAULT_SETTINGS = {
   "security.lockoutDurationMinutes": "30",
   "security.sessionMaxHours": "8",
   "security.idleTimeoutMinutes": "20",
-  "security.passwordMinLength": "12",
+  "security.passwordMinLength": "6",
 } as const;
 
 export type SettingKey = keyof typeof DEFAULT_SETTINGS;

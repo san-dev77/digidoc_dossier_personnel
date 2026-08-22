@@ -138,7 +138,7 @@ function ChangerMotDePasseContent() {
                 className="w-full px-4 py-3 border border-slate-200 rounded-xl focus:ring-4 focus:ring-primary-500/15 focus:border-primary-500 bg-slate-50 focus:bg-white text-slate-900 disabled:opacity-50"
               />
               <p className="text-xs text-slate-500 mt-1.5">
-                Au moins 12 caractères, avec majuscule, minuscule, chiffre et caractère spécial.
+                Au moins 6 caractères, avec majuscule, minuscule, chiffre et caractère spécial.
               </p>
             </div>
 

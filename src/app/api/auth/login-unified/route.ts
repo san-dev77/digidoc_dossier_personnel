@@ -23,7 +23,13 @@ export const POST = withLogging("auth.login-unified", async (req: NextRequest) =
   try {
     console.log("[LOGIN-UNIFIED] 📥 Lecture du corps de la requête...");
     const body = await req.json();
-    const { identifier, password } = body;
+    const { password } = body;
+    // MySQL comparait les chaines sans tenir compte de la casse ni des espaces
+    // de fin (collation utf8mb4_general_ci). PostgreSQL est strict : sans cette
+    // normalisation, "Digidoc" ou "digidoc " ne trouvent plus le compte et la
+    // connexion echoue en 401.
+    const identifier =
+      typeof body.identifier === "string" ? body.identifier.trim() : body.identifier;
     console.log("[LOGIN-UNIFIED] 🔍 Identifiant reçu:", identifier);
     console.log("[LOGIN-UNIFIED] 🔍 Password reçu (longueur):", password?.length || 0);
 
@@ -41,8 +47,8 @@ export const POST = withLogging("auth.login-unified", async (req: NextRequest) =
     const utilisateur = await prisma.utilisateurs.findFirst({
       where: {
         OR: [
-          { username: identifier },
-          { email: identifier },
+          { username: { equals: identifier, mode: "insensitive" } },
+          { email: { equals: identifier, mode: "insensitive" } },
         ],
       },
       include: {
@@ -224,7 +230,7 @@ export const POST = withLogging("auth.login-unified", async (req: NextRequest) =
     // ============================================
     console.log("[LOGIN-UNIFIED] 🔎 Recherche AGENT (legacy) dans la DB...");
     const agent = await prisma.agents.findFirst({
-      where: { matricule: identifier },
+      where: { matricule: { equals: identifier, mode: "insensitive" } },
     });
     console.log("[LOGIN-UNIFIED] 🔎 Recherche AGENT terminée. Trouvé:", !!agent);
 
