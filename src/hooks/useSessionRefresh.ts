@@ -48,12 +48,32 @@ export function useSessionRefresh() {
   }, [router, clearAuth]);
 
   useEffect(() => {
+    // Rafraichissement immediat au montage. `DashboardLayout` n'est pas un
+    // layout Next.js mais un composant importe par chaque page : il est donc
+    // demonte puis remonte a chaque navigation, ce qui remettait le
+    // setInterval a zero. Un utilisateur qui changeait de page plus souvent
+    // que l'intervalle ne declenchait jamais le moindre rafraichissement, et
+    // son token expirait au bout de 20 minutes en pleine session active.
+    refresh();
+
     const interval = setInterval(() => {
       if (document.visibilityState === "visible") {
         refresh();
       }
     }, REFRESH_INTERVAL_MS);
 
-    return () => clearInterval(interval);
+    // Retour sur l'onglet apres une mise en veille : on resynchronise tout de
+    // suite plutot que d'attendre le prochain tick.
+    const onVisibilityChange = () => {
+      if (document.visibilityState === "visible") {
+        refresh();
+      }
+    };
+    document.addEventListener("visibilitychange", onVisibilityChange);
+
+    return () => {
+      clearInterval(interval);
+      document.removeEventListener("visibilitychange", onVisibilityChange);
+    };
   }, [refresh]);
 }
