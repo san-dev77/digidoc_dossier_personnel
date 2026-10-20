@@ -14,8 +14,8 @@ export const POST = withLogging("auth.login-user", async (req: NextRequest) => {
 
   try {
     const { username: usernameBrut, password } = await req.json();
-    // Meme normalisation que /api/auth/login-unified : PostgreSQL ne tolere pas
-    // les espaces de fin la ou MySQL les ignorait.
+    // Meme normalisation que /api/auth/login-unified : la casse est geree par
+    // la collation MySQL, le trim neutralise les espaces d'un copier-coller.
     const username =
       typeof usernameBrut === "string" ? usernameBrut.trim() : usernameBrut;
     console.log("[LOGIN-USER] 🔍 Recherche de l'utilisateur:", username);
@@ -30,10 +30,7 @@ export const POST = withLogging("auth.login-user", async (req: NextRequest) => {
     // Récupérer l'utilisateur (par username ou email)
     const utilisateur = await prisma.utilisateurs.findFirst({
       where: {
-        OR: [
-          { username: { equals: username, mode: "insensitive" } },
-          { email: { equals: username, mode: "insensitive" } },
-        ],
+        OR: [{ username }, { email: username }],
       },
       include: {
         roles: true,

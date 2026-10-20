@@ -24,10 +24,10 @@ export const POST = withLogging("auth.login-unified", async (req: NextRequest) =
     console.log("[LOGIN-UNIFIED] 📥 Lecture du corps de la requête...");
     const body = await req.json();
     const { password } = body;
-    // MySQL comparait les chaines sans tenir compte de la casse ni des espaces
-    // de fin (collation utf8mb4_general_ci). PostgreSQL est strict : sans cette
-    // normalisation, "Digidoc" ou "digidoc " ne trouvent plus le compte et la
-    // connexion echoue en 401.
+    // La collation MySQL utf8mb4_unicode_ci compare sans tenir compte de la
+    // casse, donc "Digidoc" trouve bien "digidoc" sans filtre particulier.
+    // Le trim reste utile : il neutralise un espace colle par un copier-coller
+    // avant meme d'atteindre la base.
     const identifier =
       typeof body.identifier === "string" ? body.identifier.trim() : body.identifier;
     console.log("[LOGIN-UNIFIED] 🔍 Identifiant reçu:", identifier);
@@ -47,8 +47,8 @@ export const POST = withLogging("auth.login-unified", async (req: NextRequest) =
     const utilisateur = await prisma.utilisateurs.findFirst({
       where: {
         OR: [
-          { username: { equals: identifier, mode: "insensitive" } },
-          { email: { equals: identifier, mode: "insensitive" } },
+          { username: identifier },
+          { email: identifier },
         ],
       },
       include: {
@@ -230,7 +230,7 @@ export const POST = withLogging("auth.login-unified", async (req: NextRequest) =
     // ============================================
     console.log("[LOGIN-UNIFIED] 🔎 Recherche AGENT (legacy) dans la DB...");
     const agent = await prisma.agents.findFirst({
-      where: { matricule: { equals: identifier, mode: "insensitive" } },
+      where: { matricule: identifier },
     });
     console.log("[LOGIN-UNIFIED] 🔎 Recherche AGENT terminée. Trouvé:", !!agent);
 
