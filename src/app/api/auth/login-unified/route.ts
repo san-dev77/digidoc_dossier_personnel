@@ -7,8 +7,8 @@ import {
   registerFailedAttempt,
   resetFailedAttempts,
 } from "@/lib/auth/lockout";
-import { createMfaChallenge, maskPhone } from "@/lib/mfa/otp";
-import { sendSmsOtp } from "@/lib/mfa/smsProvider";
+import { createMfaChallenge, maskEmail } from "@/lib/mfa/otp";
+import { sendEmailOtp } from "@/lib/mfa/emailProvider";
 import { authenticateAgainstLdap } from "@/lib/ldap/ldapClient";
 import { withLogging } from "@/lib/apiLogger";
 import { logger } from "@/lib/logger";
@@ -190,29 +190,20 @@ export const POST = withLogging("auth.login-unified", async (req: NextRequest) =
 
       // Sinon : mot de passe validé, mais la session n'est émise qu'après
       // vérification du code MFA (voir /api/auth/mfa/verify).
-      if (!utilisateur.telephone) {
-        logger.error(
-          "Connexion bloquée : aucun téléphone enregistré pour l'envoi du code MFA",
-          { context: "auth.mfa", meta: { userId: utilisateur.id } }
-        );
-        return NextResponse.json(
-          {
-            message:
-              "Aucun numéro de téléphone n'est enregistré sur ce compte pour l'authentification à deux facteurs. Contactez un administrateur.",
-          },
-          { status: 400 }
-        );
-      }
-
-      const maskedDestination = maskPhone(utilisateur.telephone);
+      // Canal principal : l'e-mail. `utilisateurs.email` est NOT NULL, donc ce
+      // canal est toujours disponible — contrairement au telephone, facultatif,
+      // dont l'absence refusait la connexion en 400 alors que le mot de passe
+      // etait bon. Le SMS reste proposé en secours depuis l'ecran de saisie,
+      // uniquement si un numero existe sur le compte.
+      const maskedDestination = maskEmail(utilisateur.email);
       const { challengeId, code } = await createMfaChallenge(
         utilisateur.id,
-        "sms",
+        "email",
         maskedDestination
       );
-      await sendSmsOtp(utilisateur.telephone, code);
+      await sendEmailOtp(utilisateur.email, code);
 
-      logger.success(`Code MFA envoyé par SMS : ${utilisateur.username}`, {
+      logger.success(`Code MFA envoyé par e-mail : ${utilisateur.username}`, {
         context: "auth.mfa",
         meta: { userId: utilisateur.id, challengeId },
       });
@@ -221,7 +212,8 @@ export const POST = withLogging("auth.login-unified", async (req: NextRequest) =
         mfaRequired: true,
         challengeId,
         maskedDestination,
-        channel: "sms",
+        channel: "email",
+        smsDisponible: Boolean(utilisateur.telephone),
       });
     }
 

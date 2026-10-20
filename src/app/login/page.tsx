@@ -34,6 +34,9 @@ interface MfaChallengeState {
   challengeId: number;
   maskedDestination: string;
   channel: "sms" | "email";
+  // Le SMS n'est propose en secours que si le compte porte un numero : la
+  // colonne telephone est facultative, contrairement a l'e-mail.
+  smsDisponible: boolean;
 }
 
 export default function LoginPage() {
@@ -119,6 +122,7 @@ export default function LoginPage() {
           challengeId: data.challengeId,
           maskedDestination: data.maskedDestination,
           channel: data.channel,
+          smsDisponible: Boolean(data.smsDisponible),
         });
         return;
       }
@@ -210,6 +214,7 @@ export default function LoginPage() {
         challengeId: data.challengeId,
         maskedDestination: data.maskedDestination,
         channel: data.channel,
+        smsDisponible: Boolean(data.smsDisponible),
       });
       setOtpCode("");
     } catch (error) {
@@ -324,16 +329,27 @@ export default function LoginPage() {
                   ← Retour
                 </button>
                 <div className="flex items-center gap-3">
-                  {mfaChallenge.channel === "sms" && (
-                    <button
-                      type="button"
-                      onClick={() => handleResendOtp("email")}
-                      disabled={isResending}
-                      className="text-blue-600 hover:text-blue-800 font-semibold disabled:opacity-50"
-                    >
-                      Recevoir par e-mail
-                    </button>
-                  )}
+                  {mfaChallenge.channel === "email"
+                    ? mfaChallenge.smsDisponible && (
+                        <button
+                          type="button"
+                          onClick={() => handleResendOtp("sms")}
+                          disabled={isResending}
+                          className="text-blue-600 hover:text-blue-800 font-semibold disabled:opacity-50"
+                        >
+                          Recevoir par SMS
+                        </button>
+                      )
+                    : (
+                        <button
+                          type="button"
+                          onClick={() => handleResendOtp("email")}
+                          disabled={isResending}
+                          className="text-blue-600 hover:text-blue-800 font-semibold disabled:opacity-50"
+                        >
+                          Recevoir par e-mail
+                        </button>
+                      )}
                   <button
                     type="button"
                     onClick={() => handleResendOtp(mfaChallenge.channel)}

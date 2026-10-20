@@ -76,6 +76,7 @@ export const POST = withLogging("auth.mfa-resend", async (req: NextRequest) => {
         challengeId: newChallengeId,
         maskedDestination: masked,
         channel: "email",
+        smsDisponible: Boolean(utilisateur.telephone),
       });
     }
 
@@ -101,6 +102,7 @@ export const POST = withLogging("auth.mfa-resend", async (req: NextRequest) => {
       challengeId: newChallengeId,
       maskedDestination: masked,
       channel: "sms",
+      smsDisponible: true,
     });
   } catch (error) {
     console.error("Erreur lors du renvoi du code MFA:", error);
